@@ -1,0 +1,15 @@
+{
+  "name": "cosmic-web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fastnoise-lite": "0.0.1",
+    "three": "^0.144.0"
+  }
+}
