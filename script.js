@@ -137,7 +137,6 @@ for ( let x = -worldLength / 2; x < worldLength / 2; x++ ) {
     }
 }
 
-console.log(voxelPositions);
 
 // rotate the cube randomly
 // instancedCube.rotation.set(Math.floor(Math.random() * 360), Math.floor(Math.random() * 360), Math.floor(Math.random() * 360));
@@ -145,7 +144,6 @@ console.log(voxelPositions);
 instancedCube.instanceMatrix.needsUpdate = true;
 scene.add( instancedCube );
 
-console.log("... DONE GENERATING UNIVERSE");
 
 
 // on left click, shoot a ray from the camera, add an arrowhelper
@@ -154,25 +152,91 @@ console.log("... DONE GENERATING UNIVERSE");
 const voxelLifetime = 5;
 const voxelLifetimeVariability = voxelLifetime/2;
 
+/**
+ * An individual voxel to be tracked by the physics engine.
+ */
 class trackedVoxel {
     constructor(sceneObject, color) {
-        // positional
         this.sceneObject = sceneObject;
+        this.color = color;
+    }
+}
 
-        // simulated
+/**
+ * A chunk of trackedVoxels being tracked by the physics engine.
+ * Voxels in the chunk will move together.
+ */
+class trackedVoxelChunk {
+    constructor(voxels) {
+        // positional
+        this.sceneObjects = voxels;
+
+        // get the max and min Y, max and min X for sceneObjects, along with the center point
+        let maxY = Math.max(...voxels.map(v => v.sceneObject.position.y));
+        let minY = Math.min(...voxels.map(v => v.sceneObject.position.y));
+        let maxX = Math.max(...voxels.map(v => v.sceneObject.position.x));
+        let minX = Math.min(...voxels.map(v => v.sceneObject.position.x));
+        let minZ = Math.min(...voxels.map(v => v.sceneObject.position.z));
+        let maxZ = Math.max(...voxels.map(v => v.sceneObject.position.z));
+
+        let center = new THREE.Vector3(
+            (maxX + minX) / 2,
+            (maxY + minY) / 2,
+            (maxZ + minZ) / 2
+        );
+
+        // create a parentObject to merge all voxels into one geometry
+        this.parentObject = new THREE.Object3D();
+        this.parentObject.position.set(center.x, center.y, center.z);
+        scene.add(this.parentObject);
+
+        const originHelper = new THREE.Object3D();
+        originHelper.position.set(0, 0, 0);
+        this.parentObject.add(originHelper);
+
+        const geometries = [];
+        this.sceneObjects.forEach(v => {
+            // calculate the distance from the center of the chunk to the voxel, as a vector3
+            let distance = v.sceneObject.position.clone().sub(center);
+            v.sceneObject.geometry.translate(distance.x, distance.y, distance.z);
+            originHelper.updateWorldMatrix(true, false);
+            v.sceneObject.geometry.applyMatrix4(originHelper.matrixWorld);
+            geometries.push(v.sceneObject.geometry);
+        });
+
+        const mergedGeometry = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries);
+        const mergedMesh = new THREE.Mesh(mergedGeometry, voxelMaterial);
+        mergedMesh.position.set(center.x, center.y, center.z);
+        this.parentObject.add(mergedMesh);
+        // draw a boundingbox for the merged mesh
+        const bbox = new THREE.Box3().setFromObject(mergedMesh);
+        const bboxHelper = new THREE.Box3Helper(bbox, 0xffff00);
+        this.parentObject.add(bboxHelper);
+        
         this.physicsBody = new CANNON.Body({
             mass: 1,
-            shape: new CANNON.Particle()
+            position: new CANNON.Vec3(center.x, center.y, center.z),
+            shape: new CANNON.Box(new CANNON.Vec3(
+                maxX - minX,
+                maxY - minY,
+                maxZ - minZ
+            )),
         });
-        this.physicsBody.position.copy(this.sceneObject.position);
-        // random velocity
-        const velocityLimit = -50;
-        this.physicsBody.velocity.set(
-            Math.random() * velocityLimit,
-            Math.random() * velocityLimit,
+
+
+        world.addBody(this.physicsBody);
+
+        // add some random velocity
+        const velocityLimit = -100;
+        const velocity = new CANNON.Vec3(
+            0,
+            0,
             Math.random() * velocityLimit
         );
-        world.addBody(this.physicsBody);
+        this.physicsBody.velocity.copy(velocity);
+
+
+        // time of life
         this.secondsAlive = 0;
         this.lifetime = voxelLifetime + Math.floor(Math.random() * voxelLifetimeVariability);
 
@@ -181,7 +245,7 @@ class trackedVoxel {
     }
 }
 
-const trackedVoxels = [];
+const trackedVoxelChunks = [];
 const destroyedVoxels = [];
 const destroyedChunkSize = 10;
 
@@ -192,6 +256,7 @@ const shootRay = function(event) {
     const intersection = raycaster.intersectObject( instancedCube );
     if ( intersection.length > 0 ) {
 
+        let destroyedVoxelsInChunk = [];
         // get the matrixes of all the cubes around the clicked cube
         for ( let i = 0; i < voxelPositions.length; i++ ) {
 
@@ -199,7 +264,7 @@ const shootRay = function(event) {
             const distance = voxelPosition.distanceTo( intersection[ 0 ].point );
 
             if ( distance < destroyedChunkSize ) {
-                let collectionChance = distance / (destroyedChunkSize/1.5);
+                let collectionChance = distance / (destroyedChunkSize/0.35);
                 if (Math.random() < collectionChance) continue;
                 destroyedVoxels.push( voxelPosition );
 
@@ -211,13 +276,12 @@ const shootRay = function(event) {
                 const newCubeMesh = new THREE.Mesh(newCube, newCubeMaterial);
 
                 newCubeMesh.position.set(voxelPosition.x, voxelPosition.y, voxelPosition.z);
-                scene.add(newCubeMesh);
 
                 const voxel = new trackedVoxel(newCubeMesh, color);
-                trackedVoxels.push(voxel);
-
+                destroyedVoxelsInChunk.push(voxel);
             }
         }
+        trackedVoxelChunks.push(new trackedVoxelChunk(destroyedVoxelsInChunk));
 
         // remake the instancedmesh without the cubes that were destroyed
         const newInstancedCube = new THREE.InstancedMesh(
@@ -275,28 +339,26 @@ const render = function() {
     renderer.render( scene, camera );
 }
 
-const timestep = 1/20;
+const timestep = 1/60;
 const physicsUpdate = function() {
     world.fixedStep();
     
-    for (let i = 0; i < trackedVoxels.length; i++) {
-        const voxel = trackedVoxels[i];
-        // update the secondsAlive
-        voxel.secondsAlive += (timestep / 10);
-        // if secondsAlive is greater than voxelLifetime, remove the voxel from the scene
-        if (voxel.secondsAlive > (voxel.lifetime)) {
-            scene.remove(voxel.sceneObject);
-            // destroy the body
-            world.removeBody(voxel.physicsBody);
-            // remove the voxel from the trackedVoxels array
-            trackedVoxels.splice(i, 1);
+    for (let i = 0; i < trackedVoxelChunks.length; i++) {
+        const voxelChunk = trackedVoxelChunks[i];
+
+        voxelChunk.secondsAlive += timestep / 1000;
+        if (voxelChunk.secondsAlive > voxelChunk.lifetime) {
+            scene.remove(voxelChunk.parentObject);
+            trackedVoxelChunks.splice(i, 1);
+            // remove the physicsBody
+            world.removeBody(voxelChunk.physicsBody);
         }
 
-        voxel.sceneObject.position.copy(voxel.physicsBody.position);
-        voxel.sceneObject.quaternion.copy(voxel.physicsBody.quaternion);
+        voxelChunk.parentObject.position.copy(voxelChunk.physicsBody.position);
+        voxelChunk.parentObject.quaternion.copy(voxelChunk.physicsBody.quaternion);
     }
 }
-setInterval(physicsUpdate, timestep);
+setInterval(physicsUpdate, timestep * 1000);
 
 render();
 
@@ -314,7 +376,9 @@ document.addEventListener('keydown', function(e) {
     if (e.keyCode === 80) {
         console.log("world");
         console.log(world);
-        console.log("trackedVoxels");
-        console.log(trackedVoxels);
+        console.log("trackedVoxelChunks");
+        console.log(trackedVoxelChunks);
+        console.log("draw calls");
+        console.log(renderer.info.render.calls);
     }
 });
