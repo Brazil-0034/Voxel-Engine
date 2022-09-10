@@ -15,13 +15,26 @@
                 left: 0;
                 overflow: hidden;
             }
+
+            #crosshair-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                color: lightgreen;
+                text-shadow: 0 0 10px white;
+                font-size: 150%;
+                z-index: 1000;
+                transform: translate(-50%, -50%);
+            }
         </style>
     </head>
     <body>
+        <div id="crosshair-overlay">&#43;</div>
         <!-- THREE JS -->
         <script src="node_modules/three/build/three.js"></script>
+        <script src=""></script>
         <!-- orbit controls -->
-        <script src="node_modules/three/examples/js/controls/OrbitControls.js"></script>
+        <script src="node_modules/three/examples/js/controls/PointerLockControls.js"></script>
         <script src="script.js" type="module"></script>
     </body>
 </html>

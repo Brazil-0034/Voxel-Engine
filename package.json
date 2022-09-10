@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cannon-es": "^0.20.0",
     "fastnoise-lite": "0.0.1",
     "three": "^0.144.0"
   }
