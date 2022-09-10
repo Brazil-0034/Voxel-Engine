@@ -162,6 +162,13 @@ class trackedVoxel {
     }
 }
 
+// put a big green cube at 0, 0, 0
+const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({color: 0x00ff00})
+);
+scene.add(cube);
+
 /**
  * A chunk of trackedVoxels being tracked by the physics engine.
  * Voxels in the chunk will move together.
@@ -190,17 +197,24 @@ class trackedVoxelChunk {
         this.parentObject.position.set(center.x, center.y, center.z);
         scene.add(this.parentObject);
 
-        const originHelper = new THREE.Object3D();
-        originHelper.position.set(0, 0, 0);
-        this.parentObject.add(originHelper);
-
         const geometries = [];
+
+        // for each voxel
         this.sceneObjects.forEach(v => {
-            // calculate the distance from the center of the chunk to the voxel, as a vector3
-            let distance = v.sceneObject.position.clone().sub(center);
-            v.sceneObject.geometry.translate(distance.x, distance.y, distance.z);
-            originHelper.updateWorldMatrix(true, false);
-            v.sceneObject.geometry.applyMatrix4(originHelper.matrixWorld);
+            // adjust positions
+            let realVoxelPosition = new THREE.Vector3(
+                v.sceneObject.position.x - center.x,
+                v.sceneObject.position.y - center.y,
+                v.sceneObject.position.z - center.z
+            )
+
+            v.sceneObject.geometry.translate(realVoxelPosition.x, realVoxelPosition.y, realVoxelPosition.z);
+
+            // aligning world positions
+            this.parentObject.updateWorldMatrix(true, false);
+            v.sceneObject.geometry.applyMatrix4(this.parentObject.matrixWorld);
+            
+            // push to array
             geometries.push(v.sceneObject.geometry);
         });
 
@@ -208,10 +222,14 @@ class trackedVoxelChunk {
         const mergedMesh = new THREE.Mesh(mergedGeometry, voxelMaterial);
         mergedMesh.position.set(center.x, center.y, center.z);
         this.parentObject.add(mergedMesh);
+        mergedMesh.position.set(-mergedMesh.position.x, -mergedMesh.position.y, -mergedMesh.position.z);
+        console.log(this.parentObject.position);
+        console.log(mergedMesh.position);
+        
         // draw a boundingbox for the merged mesh
         const bbox = new THREE.Box3().setFromObject(mergedMesh);
         const bboxHelper = new THREE.Box3Helper(bbox, 0xffff00);
-        this.parentObject.add(bboxHelper);
+        scene.add(bboxHelper);
         
         this.physicsBody = new CANNON.Body({
             mass: 1,
