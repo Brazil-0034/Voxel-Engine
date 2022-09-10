@@ -27,7 +27,7 @@ scene.add(dirLight.target);
 
 // first person camera
 const playerMoveSpeed = 100;
-camera.position.set(2.8, 10, 153);
+camera.position.set(2.8, 50, 153);
 const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 controls.movementSpeed = 150;
 controls.lookSpeed = 100;
@@ -88,7 +88,7 @@ document.addEventListener('keyup', function (e) {
 });
 
 let worldLength = 100;
-let worldWidth = 1;
+let worldWidth = 100;
 let worldHeight = 100;
 
 const groundFloor = new THREE.Mesh(
@@ -107,47 +107,101 @@ const groundBody = new CANNON.Body({
 
 world.addBody(groundBody);
 
-// create an instancedmesh cube to represent each point
-let voxelMesh = new THREE.BoxGeometry(1, 1, 1);
-let voxelMaterial = new THREE.MeshStandardMaterial({color: 0xffffff});
-let instancedCube = new THREE.InstancedMesh(
-    voxelMesh,
-    voxelMaterial,
-    worldLength * worldHeight * worldWidth
-);
-
 let voxelPositions = [];
-let i = 0;
-for ( let x = -worldLength / 2; x < worldLength / 2; x++ ) {
-    for ( let y = -worldHeight / 2; y < worldHeight / 2; y++ ) {
-        for ( let z = 0; z < worldWidth; z++ ) {
-            instancedCube.setMatrixAt( i, new THREE.Matrix4().makeTranslation( x, y, z ) );
-            voxelPositions.push( new THREE.Vector3(x, y, z) );
-            // setColorAt random
-            let t = new THREE.Color();
-            // if it's mod of 10, set t to black. else it's white
-            if (i % 10 === 0 || x % 10 === 0) {
-                t.setRGB(0, 0, 0);
-            } else {
-                t.setRGB(1, 1, 1);
+let destroyedVoxels = [];
+let JSONData;
+
+const generateModelWorld = function(modelURL) {
+    // load the local file wall.json into a json object
+    if (!JSONData)
+    {
+        let loader = new THREE.FileLoader();
+        loader.load(
+            modelURL,
+            function(jsondata) {
+                JSONData = jsondata;
+                buildJSONModel();
+            },
+            function(err) {
+                console.log(err);
             }
-            instancedCube.setColorAt( i, t );
-            i++;
-        }
+        );
+    }
+    else
+    {
+        buildJSONModel();
     }
 }
 
+const modelURL = 'house.json';
+let voxelMesh = new THREE.BoxGeometry(1, 1, 1);
+let voxelMaterial = new THREE.MeshStandardMaterial({color: 0xffffff});
+let currentModel;
 
-// rotate the cube randomly
-// instancedCube.rotation.set(Math.floor(Math.random() * 360), Math.floor(Math.random() * 360), Math.floor(Math.random() * 360));
+const buildJSONModel = function(jsondata) {
 
-instancedCube.instanceMatrix.needsUpdate = true;
-scene.add( instancedCube );
+    const startTime = Date.now();
+    
+    let previousModelExists = false;
+    if (currentModel) previousModelExists = true;
 
+    let jsonModel = JSON.parse(JSONData);
+    let voxelPositionsFromFile = jsonModel.voxels;
+    let foundCount = 0;
 
+    // create an instancedmesh cube to represent each point
 
-// on left click, shoot a ray from the camera, add an arrowhelper
-// to the scene
+    if (!previousModelExists)
+    {
+        let instancedWorldModel = new THREE.InstancedMesh(
+            voxelMesh,
+            voxelMaterial,
+            voxelPositionsFromFile.length
+        );
+    
+        currentModel = instancedWorldModel;
+
+        for (let i = 0; i < voxelPositionsFromFile.length; i++) {
+            const thisVoxelData = voxelPositionsFromFile[i];
+            const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
+
+            instancedWorldModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
+
+            const color = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
+            instancedWorldModel.setColorAt(i, color);
+    
+            voxelPositions.push(new THREE.Vector3(thisVoxelPosition));
+        }
+    }
+    else
+    {
+        for (let i = 0; i < currentModel.count; i++) {
+            const thisVoxelData = voxelPositionsFromFile[i];
+            const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
+    
+            for (let k = 0; k < destroyedVoxels.length; k++) {
+                if (destroyedVoxels[k].x === thisVoxelPosition.x && destroyedVoxels[k].y === thisVoxelPosition.y && destroyedVoxels[k].z === thisVoxelPosition.z) {
+                    // move the voxel to 0,0,0
+                    currentModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
+                    foundCount++;
+                }
+            }
+        }
+
+        destroyedVoxels = [];
+    }
+
+    currentModel.instanceMatrix.needsUpdate = true;
+    currentModel.instanceColor.needsUpdate = true;
+    if (!previousModelExists) scene.add( currentModel );
+
+    const endTime = Date.now();
+    const totalTime = endTime - startTime;
+
+    console.log("DONE GENERATING with " + foundCount + " destroyed voxels and " + voxelPositions.length + " total voxels in " + totalTime + "ms");
+}
+
+generateModelWorld(modelURL);
 
 const voxelLifetime = 5;
 const voxelLifetimeVariability = voxelLifetime/2;
@@ -199,6 +253,8 @@ class trackedVoxelChunk {
 
         const geometries = [];
 
+        let newcolor = new THREE.Color();
+
         // for each voxel
         this.sceneObjects.forEach(v => {
             // adjust positions
@@ -209,6 +265,7 @@ class trackedVoxelChunk {
             )
 
             v.sceneObject.geometry.translate(realVoxelPosition.x, realVoxelPosition.y, realVoxelPosition.z);
+            newcolor = v.color;
 
             // aligning world positions
             this.parentObject.updateWorldMatrix(true, false);
@@ -219,17 +276,15 @@ class trackedVoxelChunk {
         });
 
         const mergedGeometry = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries);
-        const mergedMesh = new THREE.Mesh(mergedGeometry, voxelMaterial);
+        const mergedMesh = new THREE.Mesh(mergedGeometry, new THREE.MeshStandardMaterial({color: newcolor}));
         mergedMesh.position.set(center.x, center.y, center.z);
         this.parentObject.add(mergedMesh);
         mergedMesh.position.set(-mergedMesh.position.x, -mergedMesh.position.y, -mergedMesh.position.z);
-        console.log(this.parentObject.position);
-        console.log(mergedMesh.position);
         
         // draw a boundingbox for the merged mesh
-        const bbox = new THREE.Box3().setFromObject(mergedMesh);
-        const bboxHelper = new THREE.Box3Helper(bbox, 0xffff00);
-        scene.add(bboxHelper);
+        // const bbox = new THREE.Box3().setFromObject(mergedMesh);
+        // const bboxHelper = new THREE.Box3Helper(bbox, 0xffff00);
+        // scene.add(bboxHelper);
         
         this.physicsBody = new CANNON.Body({
             mass: 1,
@@ -244,15 +299,19 @@ class trackedVoxelChunk {
 
         world.addBody(this.physicsBody);
 
-        // add some random velocity
-        const velocityLimit = -100;
-        const velocity = new CANNON.Vec3(
-            0,
-            0,
-            Math.random() * velocityLimit
+        // velocity based on camera direction
+        const force = -50;
+        const cameraDirection = new THREE.Vector3(
+            camera.position.x - center.x,
+            camera.position.y - center.y,
+            camera.position.z - center.z
         );
-        this.physicsBody.velocity.copy(velocity);
-
+        cameraDirection.normalize();
+        this.physicsBody.velocity.set(
+            cameraDirection.x * force,
+            cameraDirection.y * force,
+            cameraDirection.z * force
+        );
 
         // time of life
         this.secondsAlive = 0;
@@ -264,32 +323,35 @@ class trackedVoxelChunk {
 }
 
 const trackedVoxelChunks = [];
-const destroyedVoxels = [];
-const destroyedChunkSize = 10;
+
+let destroyedChunkSize = 10;
 
 const color = new THREE.Color( 0, 0, 0 );
 const shootRay = function(event) {
+    
+    if (currentModel == null) return;
+
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera( new THREE.Vector2( 0, 0 ), camera );
-    const intersection = raycaster.intersectObject( instancedCube );
+    const intersection = raycaster.intersectObject( currentModel );
     if ( intersection.length > 0 ) {
 
         let destroyedVoxelsInChunk = [];
         // get the matrixes of all the cubes around the clicked cube
         for ( let i = 0; i < voxelPositions.length; i++ ) {
 
-            const voxelPosition = voxelPositions[ i ];
+            const voxelPosition = voxelPositions[ i ].x;
             const distance = voxelPosition.distanceTo( intersection[ 0 ].point );
 
             if ( distance < destroyedChunkSize ) {
-                let collectionChance = distance / (destroyedChunkSize/0.35);
-                if (Math.random() < collectionChance) continue;
+                if (destroyedVoxelsInChunk.length % 10 == 0) destroyedChunkSize = Math.floor(Math.random() * destroyedChunkSize) + 10;
+                
                 destroyedVoxels.push( voxelPosition );
 
                 // create a new cube at the position of the clicked cube, with the color of the clicked cube
                 const newCube = new THREE.BoxGeometry(1, 1, 1);
 
-                instancedCube.getColorAt(i, color);
+                currentModel.getColorAt(i, color);
                 const newCubeMaterial = new THREE.MeshStandardMaterial({color: color});
                 const newCubeMesh = new THREE.Mesh(newCube, newCubeMaterial);
 
@@ -302,44 +364,10 @@ const shootRay = function(event) {
         trackedVoxelChunks.push(new trackedVoxelChunk(destroyedVoxelsInChunk));
 
         // remake the instancedmesh without the cubes that were destroyed
-        const newInstancedCube = new THREE.InstancedMesh(
-            voxelMesh,
-            voxelMaterial,
-            worldLength * worldHeight * worldWidth
-        );
-        const newVoxelPositions = [];
-        let j = 0;
-        let foundCount = 0;
-        for ( let x = -worldLength / 2; x < worldLength / 2; x++ ) {
-            for ( let y = -worldHeight / 2; y < worldHeight / 2; y++ ) {
-                for ( let z = 0; z < worldWidth; z++ ) {
-                    // if the position of the cube is not in the destroyedVoxels array, add it to the newInstancedCube
-                    // without using array.includes
-                    let found = false;
-                    for (let k = 0; k < destroyedVoxels.length; k++) {
-                        if (destroyedVoxels[k].x === x && destroyedVoxels[k].y === y && destroyedVoxels[k].z === z) {
-                            found = true;
-                            foundCount++;
-                        }
-                    }
-                    if (!found) {
-                        newInstancedCube.setMatrixAt( j+foundCount, new THREE.Matrix4().makeTranslation( x, y, z ) );
-                        newVoxelPositions.push( new THREE.Vector3(x, y, z) );
-                        instancedCube.getColorAt(j+foundCount, color);
-                        newInstancedCube.setColorAt( j+foundCount, color );
-                        j++;
-                    }
-                }
-            }
-        }
-
-        scene.remove(instancedCube);
-        instancedCube = newInstancedCube;
-        scene.add(instancedCube);
-        instancedCube.instanceMatrix.needsUpdate = true;
-        instancedCube.instanceColor.needsUpdate = true;
+        generateModelWorld(modelURL);
 
         console.log("Rebuilt World");
+
     }
 }
 
@@ -398,5 +426,13 @@ document.addEventListener('keydown', function(e) {
         console.log(trackedVoxelChunks);
         console.log("draw calls");
         console.log(renderer.info.render.calls);
+    }
+    // on press of q or e change the camera height by 10
+    if (e.keyCode === 69) {
+        camera.position.y += 10;
+    }
+
+    if (e.keyCode === 81) {
+        camera.position.y -= 10;
     }
 });
