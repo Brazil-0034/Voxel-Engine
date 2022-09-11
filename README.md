@@ -8,7 +8,7 @@ It can render a few million voxels at a solid framerate (on my ancient PC), and 
 Currently, custom models can be imported using the [Voxelizer](https://drububu.com/miscellaneous/voxelizer/?out=avo_cubes), exporting as JSON.
 The loader does not support transparency (yet) but it shouldn't be very difficult to implement.
 
-The engine will divide the model into chunks (of gpu-instanced cubes) and will save the same chunks in memory for physics calculations.
+The engine will divide the model into chunks (of gpu-instanced cubes) and will save the same chunks in memory for physics calculations. The rendering uses Three.js (WebGL), with a separate raycasting system.
 
 **TODO:**
 
