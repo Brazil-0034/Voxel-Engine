@@ -3,6 +3,16 @@ This is my JavaScript voxel game/physics engine.
 
 It can render a few million voxels at a solid framerate (on my ancient PC), and compute physics and realtime destruction.<br>My goal is to have it be as large-scale as [Teardown](https://store.steampowered.com/app/1167630/Teardown/), but much more efficient in both rendering and physics calculations.
 
+## Features
+### Automatic Chunk Calculator
+The chunk calculator can take a voxel map (in this case, of around 700,000 voxels) and split it into even chunks to optimize raycasting and physics sim.
+
+![image](https://user-images.githubusercontent.com/66288732/189592329-0c6d080f-314a-48fa-928c-08e790abf4e3.png)
+
+### Realtime Physics
+
+The physics sim creates a box mesh for each destroyed piece of the voxel map. (Very WIP)
+
 ![Debug Mode Screenshot](https://user-images.githubusercontent.com/66288732/189521938-1b4f1a0a-ed2e-4046-86fa-b19eb5f5939a.png)
 
 Currently, custom models can be imported using the [Voxelizer](https://drububu.com/miscellaneous/voxelizer/?out=avo_cubes), exporting as JSON.
