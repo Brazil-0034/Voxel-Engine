@@ -102,7 +102,7 @@ const groundBody = new CANNON.Body({
 
 world.addBody(groundBody);
 
-const modelURL = 'boat.json';
+const modelURL = 'wall.json';
 
 let destroyedVoxels = [];
 let JSONData;
@@ -131,7 +131,7 @@ const generateModelWorld = function(modelURL) {
 let voxelMesh = new THREE.BoxGeometry(1, 1, 1);
 let voxelMaterial = new THREE.MeshStandardMaterial({color: 0xffffff});
 
-let maxChunkSize = 50;
+let maxChunkSize = 100;
 maxChunkSize = Math.pow(maxChunkSize, 2);
 let instancedModelIndex = [];
 
@@ -262,6 +262,7 @@ class trackedVoxelChunk {
 
         let newcolor = new THREE.Color();
 
+        let placed = false;
         // for each voxel
         this.sceneObjects.forEach(v => {
             // adjust positions
@@ -270,6 +271,24 @@ class trackedVoxelChunk {
                 v.sceneObject.position.y - center.y,
                 v.sceneObject.position.z - center.z
             )
+
+            if (placed == false)
+            {
+                // put a red sphere size 2 at the realVoxelPosition
+                // const sphere = new THREE.Mesh(
+                //     new THREE.SphereGeometry(2),
+                //     new THREE.MeshStandardMaterial({color: 0xff0000})
+                // );
+                // sphere.position.set(v.sceneObject.position.x, v.sceneObject.position.y, v.sceneObject.position.z);
+                // scene.add(sphere);
+                placed = true;
+            }
+
+            // if it exists in destroyedVoxels, skip it
+            if (destroyedVoxels.includes(realVoxelPosition)) {
+                console.log("skipping destroyed voxel");
+                return;
+            }
 
             v.sceneObject.geometry.translate(realVoxelPosition.x, realVoxelPosition.y, realVoxelPosition.z);
             newcolor = v.color;
@@ -332,7 +351,8 @@ class trackedVoxelChunk {
 
 const trackedVoxelChunks = [];
 
-let destroyedChunkSize = 10;
+let destroyedChunkRange = 10;
+let minDestroyedChunkVoxelsCount = 100;
 
 const color = new THREE.Color( 0, 0, 0 );
 const shootRay = function(event) {
@@ -374,8 +394,8 @@ const shootRay = function(event) {
             );
             const distance = voxelPosition.distanceTo( intersection[ 0 ].point );
 
-            if ( distance < destroyedChunkSize ) {
-                if (destroyedVoxelsInChunk.length % 10 == 0) destroyedChunkSize = Math.floor(Math.random() * destroyedChunkSize) + 10;
+            if ( distance < destroyedChunkRange ) {
+                if (destroyedVoxelsInChunk.length % 10 == 0) destroyedChunkRange = Math.floor(Math.random() * destroyedChunkRange) + 10;
                 
                 destroyedVoxels.push( voxelPosition );
 
@@ -422,21 +442,28 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
         );
         // if it exists in destroyedVoxelsInChunk, then remove it from the chunk by setMatrixAt to 0,0,0
         // also remove it from destroyedVoxelsInChunk
+        let found = false;
         for (let x = 0; x < destroyedVoxelsInChunk.length; x++)
         {
-            let found = false;
             const thisDestroyedVoxelPosition = destroyedVoxelsInChunk[x].sceneObject.position;
             if (voxelPosition.x == thisDestroyedVoxelPosition.x && voxelPosition.y == thisDestroyedVoxelPosition.y && voxelPosition.z == thisDestroyedVoxelPosition.z) {
                 newModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
                 destroyedVoxelsInChunk.splice(destroyedVoxelsInChunk.indexOf(voxelPosition), 1);
                 found = true;
             }
-            if (found) break;
+            if (found == true) {
+                break;
+            }
         }
 
         newModel.getColorAt(i, color)
         const voxel = new trackedVoxel(newModel.children[i], color);
-        newVoxels.push(voxel);
+        if (!found) {
+            newVoxels.push(voxel);
+        }
+        else {
+            console.log(i);
+        }
     }
     // add to the scene
     scene.add(newModel);
@@ -444,6 +471,15 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
     instancedModelIndex.push(newModel);
     // update the instancedmesh
     newModel.instanceMatrix.needsUpdate = true;
+    // update voxelPositions
+    console.log("BEFORE");
+    console.log(voxelPositions[modelName]);
+    voxelPositions.push({
+        chunkID: newModel.name,
+        voxels: newVoxels
+    });
+    console.log("AFTER");
+    console.log(voxelPositions[modelName]);
 }
 
 document.addEventListener( 'click', function(e) {
