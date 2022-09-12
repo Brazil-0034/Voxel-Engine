@@ -102,7 +102,7 @@ const groundBody = new CANNON.Body({
 
 world.addBody(groundBody);
 
-const modelURL = 'wall.json';
+const modelURL = 'house.json';
 
 let destroyedVoxels = [];
 let JSONData;
