@@ -20,13 +20,13 @@ document.body.appendChild( renderer.domElement );
 const ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
 scene.add( ambientLight );
 
-const pointLight = new THREE.PointLight(0xffffff, 50, 1500);
+const pointLight = new THREE.PointLight(0xffffff, 0, 1500);
 pointLight.position.set(0, 0, 0);
 scene.add(pointLight);
 
 // first person camera
 const playerMoveSpeed = 25;
-camera.position.set(2.8, 50, 153);
+camera.position.set(2.8, 40, 153);
 const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 controls.movementSpeed = 150;
 controls.lookSpeed = 100;
@@ -265,6 +265,7 @@ class trackedVoxelChunk {
         let placed = false;
         // for each voxel
         this.sceneObjects.forEach(v => {
+            return;
             // adjust positions
             let realVoxelPosition = new THREE.Vector3(
                 v.sceneObject.position.x - center.x,
@@ -301,46 +302,46 @@ class trackedVoxelChunk {
             geometries.push(v.sceneObject.geometry);
         });
 
-        console.log("Meshing geometry with length " + geometries.length);
-        const mergedGeometry = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries);
-        const mergedMesh = new THREE.Mesh(mergedGeometry, new THREE.MeshStandardMaterial({color: newcolor}));
-        mergedMesh.position.set(center.x, center.y, center.z);
-        this.parentObject.add(mergedMesh);
-        mergedMesh.position.set(-mergedMesh.position.x, -mergedMesh.position.y, -mergedMesh.position.z);
+        // console.log("Meshing geometry with length " + geometries.length);
+        // const mergedGeometry = THREE.BufferGeometryUtils.mergeBufferGeometries(geometries);
+        // const mergedMesh = new THREE.Mesh(mergedGeometry, new THREE.MeshStandardMaterial({color: newcolor}));
+        // mergedMesh.position.set(center.x, center.y, center.z);
+        // this.parentObject.add(mergedMesh);
+        // mergedMesh.position.set(-mergedMesh.position.x, -mergedMesh.position.y, -mergedMesh.position.z);
         
-        // draw a boundingbox for the merged mesh
-        // const bbox = new THREE.Box3().setFromObject(mergedMesh);
-        // const bboxHelper = new THREE.Box3Helper(bbox, 0xffffff * Math.random());
-        // scene.add(bboxHelper);
+        // // draw a boundingbox for the merged mesh
+        // // const bbox = new THREE.Box3().setFromObject(mergedMesh);
+        // // const bboxHelper = new THREE.Box3Helper(bbox, 0xffffff * Math.random());
+        // // scene.add(bboxHelper);
         
-        this.physicsBody = new CANNON.Body({
-            mass: 1,
-            position: new CANNON.Vec3(center.x, center.y, center.z),
-            shape: new CANNON.Box(new CANNON.Vec3(
-                maxX - minX,
-                maxY - minY,
-                maxZ - minZ
-            )),
-        });
+        // this.physicsBody = new CANNON.Body({
+        //     mass: 1,
+        //     position: new CANNON.Vec3(center.x, center.y, center.z),
+        //     shape: new CANNON.Box(new CANNON.Vec3(
+        //         maxX - minX,
+        //         maxY - minY,
+        //         maxZ - minZ
+        //     )),
+        // });
 
 
-        world.addBody(this.physicsBody);
+        // world.addBody(this.physicsBody);
 
-        // velocity based on camera direction
-        const force = -50;
-        const cameraDirection = new THREE.Vector3(
-            camera.position.x - center.x,
-            camera.position.y - center.y,
-            camera.position.z - center.z
-        );
-        cameraDirection.normalize();
-        this.physicsBody.velocity.set(
-            cameraDirection.x * force,
-            0,
-            cameraDirection.z * force
-        );
+        // // velocity based on camera direction
+        // const force = -50;
+        // const cameraDirection = new THREE.Vector3(
+        //     camera.position.x - center.x,
+        //     camera.position.y - center.y,
+        //     camera.position.z - center.z
+        // );
+        // cameraDirection.normalize();
+        // this.physicsBody.velocity.set(
+        //     cameraDirection.x * force,
+        //     0,
+        //     cameraDirection.z * force
+        // );
 
-        // time of life
+        // // time of life
         this.secondsAlive = 0;
         this.lifetime = voxelLifetime + Math.floor(Math.random() * voxelLifetimeVariability);
 
@@ -422,6 +423,8 @@ const shootRay = function(event) {
     }
 }
 
+const triVoxelDroppedPieces = {};
+
 const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyedVoxelsInChunk) {
     // first, get the scene object with the modelName, and copy it
     const model = scene.getObjectByName(modelName);
@@ -461,9 +464,6 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
         if (!found) {
             newVoxels.push(voxel);
         }
-        else {
-            console.log(i);
-        }
     }
     // add to the scene
     scene.add(newModel);
@@ -472,14 +472,33 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
     // update the instancedmesh
     newModel.instanceMatrix.needsUpdate = true;
     // update voxelPositions
-    console.log("BEFORE");
-    console.log(voxelPositions[modelName]);
     voxelPositions.push({
         chunkID: newModel.name,
         voxels: newVoxels
     });
-    console.log("AFTER");
     console.log(voxelPositions[modelName]);
+
+    if (true) // TODO random chance (after testing)
+    {
+        const triVoxel = new THREE.Mesh(
+            // cone with minimal segments
+            new THREE.ConeGeometry(5, 3, 3),
+            new THREE.MeshStandardMaterial({color: 0xff0000})
+        );
+        triVoxel.name = "TRIVOXEL-" + Math.random();
+        scene.add(triVoxel);
+        console.log(voxelPositions[modelName].voxels[0]);
+        // create a cannon-es point body
+        const triVoxelBody = new CANNON.Body({
+            mass: 1,
+            position: new CANNON.Vec3(voxelPositions[modelName].voxels[0].x, voxelPositions[modelName].voxels[0].y, voxelPositions[modelName].voxels[0].z),
+            shape: new CANNON.Particle()
+        });
+        triVoxel.position.copy(triVoxelBody.position);
+        
+        // push triVoxel as a key, and triVoxelBody as a value
+        triVoxelDroppedPieces[triVoxel.name] = triVoxelBody;
+    }
 }
 
 document.addEventListener( 'click', function(e) {
@@ -505,20 +524,13 @@ const physicsUpdate = function() {
     world.fixedStep();
 
     pointLight.position.copy(camera.position);
-    
-    for (let i = 0; i < trackedVoxelChunks.length; i++) {
-        const voxelChunk = trackedVoxelChunks[i];
 
-        voxelChunk.secondsAlive += timestep / 1000;
-        if (voxelChunk.secondsAlive > voxelChunk.lifetime) {
-            scene.remove(voxelChunk.parentObject);
-            trackedVoxelChunks.splice(i, 1);
-            // remove the physicsBody
-            world.removeBody(voxelChunk.physicsBody);
-        }
-
-        voxelChunk.parentObject.position.copy(voxelChunk.physicsBody.position);
-        voxelChunk.parentObject.quaternion.copy(voxelChunk.physicsBody.quaternion);
+    // for each triVoxelDroppedPiece, update its position with its body
+    // first iterate all keys
+    for (const key in triVoxelDroppedPieces) {
+        const sceneObject = scene.getObjectByName(key);
+        const body = triVoxelDroppedPieces[key];
+        sceneObject.position.copy(body.position);
     }
 }
 setInterval(physicsUpdate, timestep * 1000);
@@ -547,6 +559,8 @@ document.addEventListener('keydown', function(e) {
         console.log(scene);
         console.log("instanced model index");
         console.log(instancedModelIndex);
+        console.log("TRIVOXELS INDEX");
+        console.log(triVoxelDroppedPieces);
     }
     // on press of q or e change the camera height by 10
     if (e.keyCode === 69) {
