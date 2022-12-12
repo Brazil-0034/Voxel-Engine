@@ -20,7 +20,7 @@ document.body.appendChild( renderer.domElement );
 const ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
 scene.add( ambientLight );
 
-const pointLight = new THREE.PointLight(0xffffff, 0, 1500);
+const pointLight = new THREE.PointLight(0xffffff, 0, 1000, 2);
 pointLight.position.set(0, 0, 0);
 scene.add(pointLight);
 
@@ -93,16 +93,29 @@ const groundFloor = new THREE.Mesh(
 groundFloor.position.y = -1;
 scene.add(groundFloor);
 
+// material for bouncy objects
+const bouncyMaterial = new CANNON.Material('bouncyMaterial');
+// material for the ground
+const groundMaterial = new CANNON.Material('groundMaterial');
+// contact material to make the ground bouncy
+const groundBouncyContactMaterial = new CANNON.ContactMaterial(groundMaterial, bouncyMaterial, {
+    friction: 0.1,
+    restitution: 0.25,
+});
+// add the contact material to the world
+world.addContactMaterial(groundBouncyContactMaterial);
+
 const groundBody = new CANNON.Body({
     mass: 0,
     position: new CANNON.Vec3(groundFloor.position.x, groundFloor.position.y, groundFloor.position.z),
     shape: new CANNON.Box(new CANNON.Vec3(1000, 1, 1000)),
-    type: CANNON.Body.STATIC
+    type: CANNON.Body.STATIC,
+    material: groundMaterial
 });
 
 world.addBody(groundBody);
 
-const modelURL = 'house.json';
+const modelURL = 'boat.json';
 
 let destroyedVoxels = [];
 let JSONData;
@@ -129,9 +142,11 @@ const generateModelWorld = function(modelURL) {
 }
 
 let voxelMesh = new THREE.BoxGeometry(1, 1, 1);
-let voxelMaterial = new THREE.MeshStandardMaterial({color: 0xffffff});
+let voxelMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff
+});
 
-let maxChunkSize = 100;
+let maxChunkSize = 150;
 maxChunkSize = Math.pow(maxChunkSize, 2);
 let instancedModelIndex = [];
 
@@ -365,11 +380,16 @@ const shootRay = function(event) {
     let nearbyObjectsToIntersect = [];
     for (let i = 0; i < instancedModelIndex.length; i++) {
         // if it is NOT frustum culled, add it to the nearbyObjectsToIntersect array
+        // #####
+        // IMPORTANT OPTIMIZATION NOTE: Three.js doesnt frustrum cull instanced meshes automatically. It can be implemented fairly easily, know this for the future in case u need bigger maps!!
+        // #####
         if (instancedModelIndex[i].frustumCulled === false) {
             nearbyObjectsToIntersect.push(instancedModelIndex[i]);
         }
-        // console.log the difference in lengths
     }
+
+    // measaure the time for raycast
+    const t0 = performance.now();
 
     const intersection = raycaster.intersectObjects( nearbyObjectsToIntersect, false );
 
@@ -421,6 +441,9 @@ const shootRay = function(event) {
         console.log("Rebuilt World");
 
     }
+
+    const t1 = performance.now();
+    console.log("Call to raycast took " + (t1 - t0) + " milliseconds.")
 }
 
 const triVoxelDroppedPieces = {};
@@ -464,6 +487,41 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
         if (!found) {
             newVoxels.push(voxel);
         }
+
+        if (Math.random() < 0.25 && found)
+        {
+            const triVoxel = new THREE.Mesh(
+                // cone with minimal segments
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshStandardMaterial({color: color})
+            );
+            triVoxel.name = "TRIVOXEL-" + Math.random();
+            scene.add(triVoxel);
+
+            const x = parseInt(voxelPosition.x);
+            const y = parseInt(voxelPosition.y);
+            const z = parseInt(voxelPosition.z);
+    
+            const range = 10;
+
+            // create a cannon-es point body
+            const triVoxelBody = new CANNON.Body({
+                mass: 1,
+                position: new CANNON.Vec3(x, y, z),
+                shape: new CANNON.Box(new CANNON.Vec3(0.9, 0.9, 0.9)),
+                material: bouncyMaterial
+            });
+
+            // random rotation velocity
+            triVoxelBody.angularVelocity.set(Math.floor(Math.random() * range) - range/2, Math.floor(Math.random() * range) - range/2, Math.floor(Math.random() * range) - range/2);
+            
+            world.addBody(triVoxelBody);
+            
+            triVoxel.position.set(triVoxelBody.position.x, triVoxelBody.position.y, triVoxelBody.position.z);
+            
+            // push triVoxel as a key, and triVoxelBody as a value
+            triVoxelDroppedPieces[triVoxel.name] = triVoxelBody;
+        }
     }
     // add to the scene
     scene.add(newModel);
@@ -476,29 +534,6 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
         chunkID: newModel.name,
         voxels: newVoxels
     });
-    console.log(voxelPositions[modelName]);
-
-    if (true) // TODO random chance (after testing)
-    {
-        const triVoxel = new THREE.Mesh(
-            // cone with minimal segments
-            new THREE.ConeGeometry(5, 3, 3),
-            new THREE.MeshStandardMaterial({color: 0xff0000})
-        );
-        triVoxel.name = "TRIVOXEL-" + Math.random();
-        scene.add(triVoxel);
-        console.log(voxelPositions[modelName].voxels[0]);
-        // create a cannon-es point body
-        const triVoxelBody = new CANNON.Body({
-            mass: 1,
-            position: new CANNON.Vec3(voxelPositions[modelName].voxels[0].x, voxelPositions[modelName].voxels[0].y, voxelPositions[modelName].voxels[0].z),
-            shape: new CANNON.Particle()
-        });
-        triVoxel.position.copy(triVoxelBody.position);
-        
-        // push triVoxel as a key, and triVoxelBody as a value
-        triVoxelDroppedPieces[triVoxel.name] = triVoxelBody;
-    }
 }
 
 document.addEventListener( 'click', function(e) {
@@ -514,12 +549,14 @@ const render = function() {
     controls.moveRight(playerMoveSpeed * delta * xAxis * sprinting);
     controls.moveForward(-playerMoveSpeed * delta * zAxis * sprinting);
 
+    document.querySelector("#position-overlay").innerHTML = "X: " + Math.round(controls.getObject().position.x) + " Y: " + Math.round(controls.getObject().position.y) + " Z: " + Math.round(controls.getObject().position.z);
+
     requestAnimationFrame( render );
 
     renderer.render( scene, camera );
 }
 
-const timestep = 1/60;
+var camCube, cubeBody;
 const physicsUpdate = function() {
     world.fixedStep();
 
@@ -528,12 +565,23 @@ const physicsUpdate = function() {
     // for each triVoxelDroppedPiece, update its position with its body
     // first iterate all keys
     for (const key in triVoxelDroppedPieces) {
+        // if random chance, remove the triVoxelDroppedPiece
+        if (Math.random() < 0.01) {
+            world.removeBody(triVoxelDroppedPieces[key]);
+            scene.remove(scene.getObjectByName(key));
+            delete triVoxelDroppedPieces[key];
+            continue;
+        }
         const sceneObject = scene.getObjectByName(key);
         const body = triVoxelDroppedPieces[key];
         sceneObject.position.copy(body.position);
+        sceneObject.quaternion.copy(body.quaternion);
     }
+
+    // update cameCube to cubeBody
+    if (cubeBody) camCube.position.copy(cubeBody.position);
 }
-setInterval(physicsUpdate, timestep * 1000);
+setInterval(physicsUpdate, 1000 / 60);
 
 render();
 
@@ -551,6 +599,8 @@ document.addEventListener('keydown', function(e) {
     if (e.keyCode === 80) {
         console.log("world");
         console.log(world);
+        console.log("CAMERA POSITION");
+        console.log(camera.position);
         console.log("trackedVoxelChunks");
         console.log(trackedVoxelChunks);
         console.log("draw calls");
@@ -561,6 +611,20 @@ document.addEventListener('keydown', function(e) {
         console.log(instancedModelIndex);
         console.log("TRIVOXELS INDEX");
         console.log(triVoxelDroppedPieces);
+
+        // create a cube at the camer's position, give it a body
+        camCube = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 1, 1),
+            new THREE.MeshStandardMaterial({color: 0xffffff})
+        );
+        camCube.position.copy(camera.position);
+        scene.add(camCube);
+        cubeBody = new CANNON.Body({
+            mass: 1,
+            position: new CANNON.Vec3(camera.position.x, camera.position.y, camera.position.z),
+            shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5))
+        });
+        world.addBody(cubeBody);
     }
     // on press of q or e change the camera height by 10
     if (e.keyCode === 69) {

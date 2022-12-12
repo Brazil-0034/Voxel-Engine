@@ -26,10 +26,22 @@
                 z-index: 1000;
                 transform: translate(-50%, -50%);
             }
+
+            #position-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                color: black;
+                text-shadow: 0 0 10px white;
+                font-size: 150%;
+                z-index: 1000;
+                padding: 10px;
+            }
         </style>
     </head>
     <body>
         <div id="crosshair-overlay">&#43;</div>
+        <div id="position-overlay">X, Y, Z</div>
         <!-- THREE JS -->
         <script src="node_modules/three/build/three.js"></script>
         <!-- orbit controls -->
