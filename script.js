@@ -16,16 +16,49 @@ renderer.physicallyCorrectLights = true;
 renderer.setClearColor( 0x00ffff );
 document.body.appendChild( renderer.domElement );
 
+// POST PROCESSING
+const composer = new THREE.EffectComposer(renderer);
+const renderPass = new THREE.RenderPass(scene, camera);
+
+// MOTION BLUR PASS
+
+var renderTargetParameters = {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    stencilBuffer: false
+};
+
+const savePass = new THREE.SavePass(
+    new THREE.WebGLRenderTarget(
+        window.innerWidth * window.devicePixelRatio,
+        window.innerHeight * window.devicePixelRatio,
+        renderTargetParameters
+    )
+);
+
+const blendPass = new THREE.ShaderPass(THREE.BlendShader, 'tDiffuse1');
+console.log(blendPass);
+blendPass.uniforms['tDiffuse2'].value = savePass.renderTarget.texture;
+blendPass.uniforms['mixRatio'].value = 0.3;
+
+const outputPass = new THREE.ShaderPass(THREE.CopyShader);
+outputPass.renderToScreen = true;
+
+composer.addPass(renderPass);
+composer.addPass(blendPass);
+composer.addPass(savePass);
+composer.addPass(outputPass);
+
 // LIGHTS
-const ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
+const ambientLight = new THREE.AmbientLight( 0xfff6a6, 1 );
 scene.add( ambientLight );
 
-const pointLight = new THREE.PointLight(0xffffff, 0, 1000, 2);
-pointLight.position.set(0, 0, 0);
-scene.add(pointLight);
+const directionalLight = new THREE.DirectionalLight( 0xfff6a6, 1 );
+directionalLight.position.set( 0, 10, 0 );
+scene.add( directionalLight );
 
 // first person camera
-const playerMoveSpeed = 25;
+const playerMoveSpeed = 50;
 camera.position.set(2.8, 40, 153);
 const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 controls.movementSpeed = 150;
@@ -115,7 +148,9 @@ const groundBody = new CANNON.Body({
 
 world.addBody(groundBody);
 
-const modelURL = 'boat.json';
+const modelURL = 'maps/' + 'car.json';
+const weaponURL = 'weapons/' + 'weapon_shotgun.json';
+const weaponRange = 150;
 
 let destroyedVoxels = [];
 let JSONData;
@@ -211,7 +246,6 @@ const buildJSONModel = function(jsondata) {
             voxels: voxelsInChunk
         });
 
-
         instancedModelIndex.push(instancedWorldModel);
         instancedWorldModel.instanceMatrix.needsUpdate = true;
         scene.add(instancedWorldModel);
@@ -224,6 +258,64 @@ const buildJSONModel = function(jsondata) {
 }
 
 generateModelWorld(modelURL);
+
+const generateModelWeapon = function(modelURL) {
+    let loader = new THREE.FileLoader();
+    loader.load(
+        modelURL,
+        function(jsondata) {
+            buildJSONWeapon(jsondata);
+        },
+        function(err) {
+            console.log(err);
+        }
+    );
+}
+
+var instancedWeaponModel;
+const weaponModelMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+var instancedWeaponTarget;
+
+const buildJSONWeapon = function(jsondata) {
+    let jsonModel = JSON.parse(jsondata);
+    let voxelPositionsFromFile = jsonModel.voxels;
+
+    instancedWeaponModel = new THREE.InstancedMesh(
+        voxelMesh,
+        weaponModelMaterial,
+        voxelPositionsFromFile.length
+    );
+    // make it render above everything else
+    instancedWeaponModel.renderOrder = 1000;
+    instancedWeaponModel.onBeforeRender = function (renderer) { renderer.clearDepth(); };
+
+    instancedWeaponTarget = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({color: 0xff0000})
+    );
+    camera.add(instancedWeaponTarget);
+
+    for (let i = 0; i < voxelPositionsFromFile.length; i++) {
+        const thisVoxelData = voxelPositionsFromFile[i];
+        const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
+        const thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
+        instancedWeaponModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
+        instancedWeaponModel.setColorAt(i, thisVoxelColor);
+    }
+
+    instancedWeaponModel.instanceMatrix.needsUpdate = true;
+
+    // add the weapon to the scene
+    scene.add(instancedWeaponModel);
+    // set the position to just in front of, to the right of the camera
+    instancedWeaponTarget.position.set(7.5, -25, 5);    
+    // rotate it 90
+    instancedWeaponTarget.rotation.set(0, Math.PI / 2.1, 0);
+    
+    // make the instancedWeaponTarget follow the camera while keeping the same offset
+}
+
+generateModelWeapon(weaponURL);
 
 const voxelLifetime = 5;
 const voxelLifetimeVariability = voxelLifetime/2;
@@ -374,7 +466,7 @@ const color = new THREE.Color( 0, 0, 0 );
 const shootRay = function(event) {
 
     const raycaster = new THREE.Raycaster();
-    raycaster.far = 50;
+    raycaster.far = weaponRange;
     raycaster.setFromCamera( new THREE.Vector2( 0, 0 ), camera );
 
     let nearbyObjectsToIntersect = [];
@@ -551,16 +643,27 @@ const render = function() {
 
     document.querySelector("#position-overlay").innerHTML = "X: " + Math.round(controls.getObject().position.x) + " Y: " + Math.round(controls.getObject().position.y) + " Z: " + Math.round(controls.getObject().position.z);
 
+    // lerp the instancedweaponmodel to the instancedWeaponTarget
+    if (instancedWeaponModel && instancedWeaponTarget)
+    {
+        // first get the world position of instancedWeaponTarget
+        const instancedWeaponTargetWorldPosition = new THREE.Vector3();
+        instancedWeaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
+        // then lerp it
+        instancedWeaponModel.position.lerp(instancedWeaponTargetWorldPosition, 25 * delta);
+        // set the rotation
+        instancedWeaponModel.rotation.setFromRotationMatrix(instancedWeaponTarget.matrixWorld);
+    }
+    // composer
     requestAnimationFrame( render );
 
-    renderer.render( scene, camera );
+
+    composer.render();
 }
 
 var camCube, cubeBody;
 const physicsUpdate = function() {
     world.fixedStep();
-
-    pointLight.position.copy(camera.position);
 
     // for each triVoxelDroppedPiece, update its position with its body
     // first iterate all keys
