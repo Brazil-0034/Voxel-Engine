@@ -536,8 +536,7 @@ class trackedVoxelChunk {
 
 const trackedVoxelChunks = [];
 
-let destroyedChunkRange = 10;
-let minDestroyedChunkVoxelsCount = 100;
+let destroyedChunkRange = 3;
 
 const color = new THREE.Color( 0, 0, 0 );
 const shootRay = function(event) {
@@ -590,6 +589,8 @@ const shootRay = function(event) {
         // get the matrixes of all the cubes around the clicked cube
         for ( let i = 0; i < allVoxelsInChunk.length; i++ ) {
 
+            let currentRange = destroyedChunkRange * Math.random();
+
             const voxelPosition = new THREE.Vector3(
                 allVoxelsInChunk[i].x,
                 allVoxelsInChunk[i].y,
@@ -597,8 +598,8 @@ const shootRay = function(event) {
             );
             const distance = voxelPosition.distanceTo( intersection[ 0 ].point );
 
-            if ( distance < destroyedChunkRange ) {
-                if (destroyedVoxelsInChunk.length % 10 == 0) destroyedChunkRange = Math.floor(Math.random() * destroyedChunkRange) + 10;
+            if ( distance < currentRange ) {
+                if (destroyedVoxelsInChunk.length % 10 == 0) currentRange = Math.floor(Math.random() * currentRange) + 10;
                 
                 destroyedVoxels.push( voxelPosition );
 
