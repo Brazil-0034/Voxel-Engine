@@ -1,60 +1,62 @@
 <html>
-    <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&600&display=swap" rel="stylesheet">
-        <style>
-            * {
-                margin: 0;
-                font-family: 'Montserrat', sans-serif;
-            }
 
-            canvas {
-                position: absolute;
-                top: 0;
-                left: 0;
-                overflow: hidden;
-            }
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Montserrat', sans-serif;
+        }
 
-            #crosshair-overlay {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                color: lightgreen;
-                text-shadow: 0 0 10px white;
-                font-size: 150%;
-                z-index: 1000;
-                transform: translate(-50%, -50%);
-            }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: block;
+        }
 
-            #position-overlay {
-                position: absolute;
-                top: 0;
-                left: 0;
-                color: black;
-                text-shadow: 0 0 10px white;
-                font-size: 150%;
-                z-index: 1000;
-                padding: 10px;
+        #crosshair-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            color: lightgreen;
+            text-shadow: 0 0 10px white;
+            font-size: 150%;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+        }
+
+        #position-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: black;
+            text-shadow: 0 0 10px white;
+            font-size: 150%;
+            z-index: 1000;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="crosshair-overlay">&#43;</div>
+    <div id="position-overlay">X, Y, Z</div>
+    <!-- THREE JS via Import Map -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/",
+                "three-mesh-bvh": "/node_modules/three-mesh-bvh/build/index.module.js"               
             }
-        </style>
-    </head>
-    <body>
-        <div id="crosshair-overlay">&#43;</div>
-        <div id="position-overlay">X, Y, Z</div>
-        <!-- THREE JS -->
-        <script src="node_modules/three/build/three.js"></script>
-        <!-- orbit controls -->
-        <script src="node_modules/three/examples/js/controls/PointerLockControls.js"></script>
-        <!-- buffergeometryutils -->
-        <script src="node_modules/three/examples/js/utils/BufferGeometryUtils.js"></script>
-        <!-- effect composer -->
-        <script src="node_modules/three/examples/js/postprocessing/EffectComposer.js"></script>\
-        <script src="node_modules/three/examples/js/postprocessing/RenderPass.js"></script>
-        <script src="node_modules/three/examples/js/postprocessing/ShaderPass.js"></script>
-        <script src="node_modules/three/examples/js/shaders/CopyShader.js"></script>
-        <script src="node_modules/three/examples/js/postprocessing/SavePass.js"></script>
-        <script src="node_modules/three/examples/js/shaders/BlendShader.js"></script>
-        <script src="script.js" type="module"></script>
-    </body>
+        }
+    </script>
+    <script src="script.js" type="module"></script>
+</body>
+
 </html>

@@ -1,10 +1,20 @@
 // IMPORTS
 import * as CANNON from '/node_modules/cannon-es/dist/cannon-es.js';
-var debugMode = false;
+import * as THREE from 'three';
+import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+var debugMode = true;
+
+// Raycast Acceleration using THREE-MESH-BVH
+// THREE.InstancedMesh.prototype.raycast = acceleratedRaycast;
 
 // SCENE
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000 );
 const world = new CANNON.World({
     gravity: new CANNON.Vec3(0, -9.82 * 10, 0)
 });
@@ -12,55 +22,50 @@ const world = new CANNON.World({
 // RENDERER
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
+// set dpi
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.physicallyCorrectLights = true;
 renderer.setClearColor( 0x00ffff );
 document.body.appendChild( renderer.domElement );
 
 // POST PROCESSING
-const composer = new THREE.EffectComposer(renderer);
-const renderPass = new THREE.RenderPass(scene, camera);
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
 
 // MOTION BLUR PASS
 
-var renderTargetParameters = {
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    stencilBuffer: false
-};
-
-const savePass = new THREE.SavePass(
-    new THREE.WebGLRenderTarget(
-        window.innerWidth * window.devicePixelRatio,
-        window.innerHeight * window.devicePixelRatio,
-        renderTargetParameters
-    )
-);
-
-const blendPass = new THREE.ShaderPass(THREE.BlendShader, 'tDiffuse1');
-console.log(blendPass);
-blendPass.uniforms['tDiffuse2'].value = savePass.renderTarget.texture;
-blendPass.uniforms['mixRatio'].value = 0.3;
-
-const outputPass = new THREE.ShaderPass(THREE.CopyShader);
-outputPass.renderToScreen = true;
-
 composer.addPass(renderPass);
-composer.addPass(blendPass);
-composer.addPass(savePass);
-composer.addPass(outputPass);
 
-// LIGHTS
-const ambientLight = new THREE.AmbientLight( 0xfff6a6, 1 );
-scene.add( ambientLight );
+// PHOTOREALISTIC LIGHTING
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight( 0xfff6a6, 1 );
-directionalLight.position.set( 0, 10, 0 );
-scene.add( directionalLight );
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+directionalLight.position.set(0, 1, 0);
+scene.add(directionalLight);
+
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.5);
+scene.add(hemisphereLight);
+
+// cubemap
+const path = 'SwedishRoyalCastle/';
+const format = '.jpg';
+const urls = [
+    path + 'px' + format, path + 'nx' + format,
+    path + 'py' + format, path + 'ny' + format,
+    path + 'pz' + format, path + 'nz' + format
+];
+
+const reflectionCube = new THREE.CubeTextureLoader().load(urls);
+reflectionCube.encoding = THREE.sRGBEncoding;
+reflectionCube.mapping = THREE.CubeReflectionMapping;
+
+scene.background = reflectionCube;
 
 // first person camera
 const playerMoveSpeed = 50;
 camera.position.set(2.8, 40, 153);
-const controls = new THREE.PointerLockControls(camera, renderer.domElement);
+const controls = new PointerLockControls(camera, renderer.domElement);
 controls.movementSpeed = 150;
 controls.lookSpeed = 100;
 scene.add(controls.getObject());
@@ -148,9 +153,9 @@ const groundBody = new CANNON.Body({
 
 world.addBody(groundBody);
 
-const modelURL = 'maps/' + 'car.json';
-const weaponURL = 'weapons/' + 'weapon_shotgun.json';
-const weaponRange = 150;
+const modelURL = 'maps/' + 'jafro.json';
+const weaponURL = 'weapons/' + 'weapon_ar.json';
+const weaponRange = 500;
 
 let destroyedVoxels = [];
 let JSONData;
@@ -176,14 +181,19 @@ const generateModelWorld = function(modelURL) {
     }
 }
 
-let voxelMesh = new THREE.BoxGeometry(1, 1, 1);
-let voxelMaterial = new THREE.MeshStandardMaterial({
+const voxelSize = 1;
+let voxelGeometry = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
+const voxelMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff
 });
 
-let maxChunkSize = 150;
+let maxChunkSize = 100;
 maxChunkSize = Math.pow(maxChunkSize, 2);
 let instancedModelIndex = [];
+// const chunkParent = new THREE.Object3D();
+// scene.add(chunkParent);
+// rotate chunkParent to match model rotation
+// chunkParent.rotation.set(modelRotation.x, modelRotation.y, modelRotation.z);
 
 // dict with chunk instancedmesh : array of voxel objects in that chunk
 let voxelPositions = [];
@@ -206,12 +216,11 @@ const buildJSONModel = function(jsondata) {
 
     for (let i = 0; i < numberOfChunks; i++) {
         let instancedWorldModel = new THREE.InstancedMesh(
-            voxelMesh,
+            voxelGeometry,
             voxelMaterial,
             chunkSize
         );
         instancedWorldModel.name = i;
-
 
         let localVoxelIterator = 0;
         let startPos = globalVoxelIterator;
@@ -225,7 +234,9 @@ const buildJSONModel = function(jsondata) {
             {
                 if (!debugMode) thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
                 const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
-    
+                // multiply by voxel size to get correct position
+                thisVoxelPosition.multiplyScalar(voxelSize);
+
                 // adjust floor color
                 if (globalVoxelIterator == 0) groundFloor.material.color.set(thisVoxelColor);
     
@@ -246,6 +257,34 @@ const buildJSONModel = function(jsondata) {
             voxels: voxelsInChunk
         });
 
+        // generate a MeshBVH boundstree that encapsulates all the voxels in this chunk
+        // this is used for raycasting
+        // STEP 1: Create an imaginary geometry in memory that contains all the voxels in this chunk
+        // STEP 2: Create a MeshBVH boundstree from that geometry
+        // STEP 3: Add the boundstree to the instancedmesh
+
+        // STEP 1: Create an imaginary geometry in memory that contains all the voxels in this chunk
+        // let imaginaryChunkGeometry = voxelGeometry;
+        // for (let i = 0; i < voxelsInChunk.length; i++) {
+        //     // add this geometry to the imaginary geometry, keeping its real position
+        //     const scale = 10000;
+        //     const newVoxelGeometryWithPosition = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
+        //     newVoxelGeometryWithPosition.translate(voxelsInChunk[i].x * scale, voxelsInChunk[i].y * scale, voxelsInChunk[i].z * scale);
+        //     BufferGeometryUtils.mergeBufferGeometries([imaginaryChunkGeometry, newVoxelGeometryWithPosition]);
+
+        // }
+        // const testMesh = new THREE.Mesh(imaginaryChunkGeometry, voxelMaterial);
+        // scene.add(testMesh);
+        // testMesh.position.z -= 3;
+
+
+        // // STEP 2: Create a MeshBVH boundstree from that geometry
+        // const voxelBoundsTree = new MeshBVH(imaginaryChunkGeometry);
+        // console.log(new MeshBVH(imaginaryChunkGeometry));
+
+        // // STEP 3: Add the boundstree to the instancedmesh
+        // instancedWorldModel.boundsTree = voxelBoundsTree;
+        
         instancedModelIndex.push(instancedWorldModel);
         instancedWorldModel.instanceMatrix.needsUpdate = true;
         scene.add(instancedWorldModel);
@@ -257,8 +296,13 @@ const buildJSONModel = function(jsondata) {
     console.log("DONE GENERATING with " + foundCount + " destroyed voxels and " + globalVoxelIterator + " total voxels in " + totalTime + "ms");
 }
 
+
 generateModelWorld(modelURL);
 
+// TODO i realize i wrote most of this while high out of my mind but this function chain might be the worst piece of code i've ever written
+// like there are two wholly unnecessary, single-use function calls here for the same exact thing?
+// maybe in a networked game it may be necessary ... maybe it's not so dumb after all ...
+// ill look into it later.
 const generateModelWeapon = function(modelURL) {
     let loader = new THREE.FileLoader();
     loader.load(
@@ -273,15 +317,21 @@ const generateModelWeapon = function(modelURL) {
 }
 
 var instancedWeaponModel;
-const weaponModelMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+const weaponModelMaterial = new THREE.MeshStandardMaterial({
+    // highly reflective
+    envMap: reflectionCube,
+    roughness: 0,
+    color: 0xffffff
+});
 var instancedWeaponTarget;
 
+const weaponPosition = new THREE.Vector3(4, -9, -8);
 const buildJSONWeapon = function(jsondata) {
     let jsonModel = JSON.parse(jsondata);
     let voxelPositionsFromFile = jsonModel.voxels;
 
     instancedWeaponModel = new THREE.InstancedMesh(
-        voxelMesh,
+        voxelGeometry,
         weaponModelMaterial,
         voxelPositionsFromFile.length
     );
@@ -308,7 +358,34 @@ const buildJSONWeapon = function(jsondata) {
     // add the weapon to the scene
     scene.add(instancedWeaponModel);
     // set the position to just in front of, to the right of the camera
-    instancedWeaponTarget.position.set(7.5, -25, 5);    
+    instancedWeaponTarget.position.copy(weaponPosition);
+    // on press of up arrow, move the weapon up
+    document.addEventListener('keydown', function(event) {
+        if (event.key == 'ArrowLeft') {
+            instancedWeaponTarget.position.x -= 1;
+            console.log(instancedWeaponTarget.position);
+        }
+        if (event.key == 'ArrowRight') {
+            instancedWeaponTarget.position.x += 1;
+            console.log(instancedWeaponTarget.position);
+        }
+        if (event.key == 'ArrowUp') {
+            instancedWeaponTarget.position.y += 1;
+            console.log(instancedWeaponTarget.position);
+        }
+        if (event.key == 'ArrowDown') {
+            instancedWeaponTarget.position.y -= 1;
+            console.log(instancedWeaponTarget.position);
+        }
+        if (event.key == '1') {
+            instancedWeaponTarget.position.z -= 1;
+            console.log(instancedWeaponTarget.position);
+        }
+        if (event.key == '2') {
+            instancedWeaponTarget.position.z += 1;
+            console.log(instancedWeaponTarget.position);
+        }
+    });
     // rotate it 90
     instancedWeaponTarget.rotation.set(0, Math.PI / 2.1, 0);
     
@@ -466,34 +543,47 @@ const color = new THREE.Color( 0, 0, 0 );
 const shootRay = function(event) {
 
     const raycaster = new THREE.Raycaster();
+    raycaster.firstHitOnly = true;
     raycaster.far = weaponRange;
     raycaster.setFromCamera( new THREE.Vector2( 0, 0 ), camera );
 
     let nearbyObjectsToIntersect = [];
-    for (let i = 0; i < instancedModelIndex.length; i++) {
+    for (let i = 0; i < voxelPositions.length; i++) {
         // if it is NOT frustum culled, add it to the nearbyObjectsToIntersect array
         // #####
         // IMPORTANT OPTIMIZATION NOTE: Three.js doesnt frustrum cull instanced meshes automatically. It can be implemented fairly easily, know this for the future in case u need bigger maps!!
         // #####
-        if (instancedModelIndex[i].frustumCulled === false) {
-            nearbyObjectsToIntersect.push(instancedModelIndex[i]);
+        // check if distance is less than weaponRange
+        const thisChunkFirstPos = new THREE.Vector3(
+            voxelPositions[i].voxels[0].x,
+            voxelPositions[i].voxels[0].y,
+            voxelPositions[i].voxels[0].z
+        );
+        const thisChunkLastPos = new THREE.Vector3(
+            voxelPositions[i].voxels[voxelPositions[i].voxels.length - 1].x,
+            voxelPositions[i].voxels[voxelPositions[i].voxels.length - 1].y,
+            voxelPositions[i].voxels[voxelPositions[i].voxels.length - 1].z
+        );
+        if (thisChunkFirstPos.distanceTo(camera.position) <= weaponRange || thisChunkLastPos.distanceTo(camera.position) <= weaponRange) {
+            // find the object in instancedModelIndex that has the name instancedModelName
+            nearbyObjectsToIntersect.push(instancedModelIndex[parseInt(voxelPositions[i].chunkID)]);
         }
     }
+    
+    console.log("Raycasting to objects: " + nearbyObjectsToIntersect.length)
+    console.log(nearbyObjectsToIntersect);
 
     // measaure the time for raycast
     const t0 = performance.now();
 
-    const intersection = raycaster.intersectObjects( nearbyObjectsToIntersect, false );
+    const intersection = raycaster.intersectObjects( nearbyObjectsToIntersect );
 
     if ( intersection.length > 0 ) {
+        console.log("TOTAL FOUND INTERSECTIONS: " + intersection.length);
         const currentModel = intersection[0].object;
-        // put a large red sphere at the position
-        // const sphere = new THREE.Mesh(
-        //     new THREE.SphereGeometry(0.5),
-        //     new THREE.MeshStandardMaterial({color: 0xff0000})
-        // );
-        // sphere.position.copy(intersection[0].point);
-        // scene.add(sphere);
+        // console.log("FOUND INTERSECTION");
+        // console.log(currentModel);
+
         const allVoxelsInChunk = voxelPositions[intersection[0].object.name].voxels;
 
         let destroyedVoxelsInChunk = [];
@@ -530,26 +620,21 @@ const shootRay = function(event) {
         // generateDestroyedChunkAt = function(modelName, chunk, destroyedVoxelsInChunk)
         generateDestroyedChunkAt(currentModel.name, allVoxelsInChunk, destroyedVoxelsInChunk);
 
-        console.log("Rebuilt World");
+        // console.log("Rebuilt World");
 
     }
 
     const t1 = performance.now();
-    console.log("Call to raycast took " + (t1 - t0) + " milliseconds.")
+    // console.log("Call to raycast took " + (t1 - t0) + " milliseconds.")
 }
 
 const triVoxelDroppedPieces = {};
 
 const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyedVoxelsInChunk) {
+    // measure time
+    const t0 = performance.now();
     // first, get the scene object with the modelName, and copy it
     const model = scene.getObjectByName(modelName);
-    const newModel = model.clone();
-    // remove the old model
-    scene.remove(model);
-    // also remove it from the instancedModelIndex
-    instancedModelIndex.splice(instancedModelIndex.indexOf(model), 1);
-    // new voxels array
-    const newVoxels = [];
     // for each block in the chunk
     for (let i = 0; i < allVoxelsInChunk.length; i++) {
         // get the position of the block
@@ -558,30 +643,27 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
             allVoxelsInChunk[i].y,
             allVoxelsInChunk[i].z
         );
-        // if it exists in destroyedVoxelsInChunk, then remove it from the chunk by setMatrixAt to 0,0,0
-        // also remove it from destroyedVoxelsInChunk
+        // if it exists in destroyedVoxelsInChunk, tset its matrix position to 0,0,0
         let found = false;
         for (let x = 0; x < destroyedVoxelsInChunk.length; x++)
         {
             const thisDestroyedVoxelPosition = destroyedVoxelsInChunk[x].sceneObject.position;
             if (voxelPosition.x == thisDestroyedVoxelPosition.x && voxelPosition.y == thisDestroyedVoxelPosition.y && voxelPosition.z == thisDestroyedVoxelPosition.z) {
-                newModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
-                destroyedVoxelsInChunk.splice(destroyedVoxelsInChunk.indexOf(voxelPosition), 1);
+                // set its position using setMatrixAt to far away
+                model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
                 found = true;
-            }
-            if (found == true) {
+                // set matrix world needs to be called after setMatrixAt
+                model.instanceMatrix.needsUpdate = true;
                 break;
             }
         }
+        
+        model.getColorAt(i, color)
+        const voxel = new trackedVoxel(model.children[i], color);
 
-        newModel.getColorAt(i, color)
-        const voxel = new trackedVoxel(newModel.children[i], color);
-        if (!found) {
-            newVoxels.push(voxel);
-        }
-
-        if (Math.random() < 0.25 && found)
+        if (Math.random() < 1 && found)
         {
+            if (Object.keys(triVoxelDroppedPieces).length > 250) continue;
             const triVoxel = new THREE.Mesh(
                 // cone with minimal segments
                 new THREE.BoxGeometry(1, 1, 1),
@@ -615,24 +697,40 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
             triVoxelDroppedPieces[triVoxel.name] = triVoxelBody;
         }
     }
-    // add to the scene
-    scene.add(newModel);
+    // add tpo the scene
     // add to the instancedmesh
-    instancedModelIndex.push(newModel);
     // update the instancedmesh
-    newModel.instanceMatrix.needsUpdate = true;
     // update voxelPositions
-    voxelPositions.push({
-        chunkID: newModel.name,
-        voxels: newVoxels
-    });
 }
 
-document.addEventListener( 'click', function(e) {
+var isLeftClicking = false;
+document.addEventListener('mousedown', function(e) {
     // if its not left click, return
     if (e.button != 0) return;
-    shootRay();
+    isLeftClicking = true;
 });
+
+document.addEventListener('mouseup', function(e) {
+    // if its not left click, return
+    if (e.button != 0) return;
+    isLeftClicking = false;
+});
+
+const bulletTracer = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({color: 0xffffff})
+);
+// x is left/right
+// y is up/down
+// z is closeness to cam
+bulletTracer.position.set(weaponPosition.x - 0.5, weaponPosition.y + 7, weaponPosition.z - 8);
+// rotate 15 degrees Y
+bulletTracer.rotateY(-1.75 * Math.PI / 180);
+bulletTracer.name = "BULLETTRACER";
+camera.add(bulletTracer);
+const muzzleFlashSize = 4.5;
+var shootRayAvailable = true;
+const rateOfFire = 10; // time in ms in between shootRay()
 
 const clock = new THREE.Clock();
 const render = function() {
@@ -644,19 +742,43 @@ const render = function() {
     document.querySelector("#position-overlay").innerHTML = "X: " + Math.round(controls.getObject().position.x) + " Y: " + Math.round(controls.getObject().position.y) + " Z: " + Math.round(controls.getObject().position.z);
 
     // lerp the instancedweaponmodel to the instancedWeaponTarget
-    if (instancedWeaponModel && instancedWeaponTarget)
+    if (instancedWeaponModel && instancedWeaponTarget && delta > 0)
     {
         // first get the world position of instancedWeaponTarget
         const instancedWeaponTargetWorldPosition = new THREE.Vector3();
         instancedWeaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
         // then lerp it
-        instancedWeaponModel.position.lerp(instancedWeaponTargetWorldPosition, 25 * delta);
+        instancedWeaponModel.position.lerp(instancedWeaponTargetWorldPosition, 30 * delta);
         // set the rotation
         instancedWeaponModel.rotation.setFromRotationMatrix(instancedWeaponTarget.matrixWorld);
     }
+
+    if (isLeftClicking) {
+        if (shootRayAvailable)
+        {
+            bulletTracer.visible = true;
+            bulletTracer.scale.x = Math.random() * muzzleFlashSize;
+            bulletTracer.scale.y = Math.random() * muzzleFlashSize;
+            bulletTracer.rotateZ(Math.random() * 5);
+            const baseColor = new THREE.Color(0xffdfbd);
+            // randomize the color
+            const randomColor = baseColor.offsetHSL(Math.random() * 0.2 - 0.1, Math.random() * 0.2 - 0.1, Math.random() * 0.2 - 0.1);
+            bulletTracer.material.color = randomColor;
+
+            shootRay();
+            shootRayAvailable = false;
+            setTimeout(function() {
+                shootRayAvailable = true;
+            }, rateOfFire);
+        }
+    }
+    else
+    {
+        bulletTracer.visible = false;
+    }
+
     // composer
     requestAnimationFrame( render );
-
 
     composer.render();
 }
@@ -699,21 +821,23 @@ window.addEventListener( 'resize', () => {
 
 // on click of "p", console log the world and trackedVoxels
 document.addEventListener('keydown', function(e) {
-    if (e.keyCode === 80) {
-        console.log("world");
+    if (e.key == "p") {
+        console.log("\n+==============================+\n")
+        console.log("PHYSICS WORLD:");
         console.log(world);
         console.log("CAMERA POSITION");
         console.log(camera.position);
         console.log("trackedVoxelChunks");
         console.log(trackedVoxelChunks);
-        console.log("draw calls");
+        console.log("draw calls #");
         console.log(renderer.info.render.calls);
-        console.log("scene");
+        console.log("THREE SCENE");
         console.log(scene);
         console.log("instanced model index");
         console.log(instancedModelIndex);
         console.log("TRIVOXELS INDEX");
         console.log(triVoxelDroppedPieces);
+        console.log("\n+==============================+\n")
 
         // create a cube at the camer's position, give it a body
         camCube = new THREE.Mesh(

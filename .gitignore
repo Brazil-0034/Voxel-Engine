@@ -1,3 +1,7 @@
+# Wreckmesh Specific
+/maps/
+/SwedishRoyalCastle/
+
 # Logs
 logs
 *.log
