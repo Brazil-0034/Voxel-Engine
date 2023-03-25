@@ -1,6 +1,8 @@
 # Wreckmesh Specific
 /maps/
 /weapons/
+/level_models/
+/exported_maps/
 /SwedishRoyalCastle/
 
 # Logs
@@ -119,4 +121,3 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-.vscode/settings.json

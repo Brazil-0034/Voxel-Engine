@@ -38,10 +38,10 @@ const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 
 // PHOTOREALISTIC LIGHTING
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 scene.add(ambientLight);
 
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.5);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
 scene.add(hemiLight);
 
 // cubemap
@@ -61,7 +61,7 @@ scene.background = reflectionCube;
 
 // first person camera
 const playerMoveSpeed = 50;
-camera.position.set(2.8, 40, 153);
+camera.position.set(93, 20, 108);
 const controls = new PointerLockControls(camera, renderer.domElement);
 controls.movementSpeed = 150;
 controls.lookSpeed = 100;
@@ -150,7 +150,9 @@ const groundBody = new CANNON.Body({
 
 world.addBody(groundBody);
 
-const modelURL = 'maps/' + 'wall.json';
+const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
+
+const modelURL = 'maps/' + 'roads.json';
 const weaponURL = 'weapons/' + 'weapon_ar.json';
 const weaponRange = 500;
 
@@ -167,6 +169,10 @@ class DiscreteVectorField {
 
     // Sets the value of the vector field at the given position
     set(x, y, z, value, indexInChunk, chunk) {
+        // round to nearest integer
+        x = Math.round(x);
+        y = Math.round(y);
+        z = Math.round(z);
         if (!this.field[x]) {
             this.field[x] = [];
         }
@@ -259,10 +265,9 @@ const generateModelWorld = function(modelURL) {
 const voxelSize = 1;
 let voxelGeometry = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
 const voxelMaterial = new THREE.MeshStandardMaterial({
-    // highly reflective
-    envMap: reflectionCube,
-    roughness: 0.5,
-    color: 0xffffff
+    color: 0xffffff,
+    // roughness: 0.0,
+    // envMap: reflectionCube
 });
 
 let maxChunkSize =  150;
@@ -276,8 +281,7 @@ const buildJSONModel = function(jsondata) {
 
     const startTime = Date.now();
 
-    let jsonModel = JSON.parse(JSONData);
-    let voxelPositionsFromFile = jsonModel.voxels;
+    let voxelPositionsFromFile = JSON.parse(JSONData).voxels;
     let foundCount = 0;
 
     // create an instancedmesh cube to represent each point
@@ -382,7 +386,7 @@ const weaponModelMaterial = new THREE.MeshStandardMaterial({
 });
 var instancedWeaponTarget;
 
-const weaponPosition = new THREE.Vector3(4, -9, -8);
+const weaponPosition = new THREE.Vector3(7, -10, -20);
 const buildJSONWeapon = function(jsondata) {
     let jsonModel = JSON.parse(jsondata);
     let voxelPositionsFromFile = jsonModel.voxels;
@@ -442,9 +446,29 @@ const buildJSONWeapon = function(jsondata) {
             instancedWeaponTarget.position.z += 1;
             console.log(instancedWeaponTarget.position);
         }
+        if (event.key == '3')
+        {
+            // rotate X
+            instancedWeaponTarget.rotation.z += Math.PI / 100;
+        }
+        if (event.key == '4')
+        {
+            instancedWeaponTarget.rotation.z -= Math.PI / 100;
+            console.log(instancedWeaponTarget.rotation);
+        }
+        if (event.key == '5')
+        {
+            // rotate Y
+            instancedWeaponTarget.rotation.y += Math.PI / 100;
+        }
+        if (event.key == '6')
+        {
+            instancedWeaponTarget.rotation.y -= Math.PI / 100;
+            console.log(instancedWeaponTarget.rotation);
+        }
     });
-    // rotate it 90
-    instancedWeaponTarget.rotation.set(0, Math.PI / 2.1, 0);
+    // set euler 0.06283185307179587, 1.4959965017094252, 0
+    instancedWeaponTarget.rotation.set(0.06283185307179587, 1.4959965017094252, 0);
     
     // make the instancedWeaponTarget follow the camera while keeping the same offset
 }
@@ -593,7 +617,8 @@ class trackedVoxelChunk {
 
 const trackedVoxelChunks = [];
 
-let destroyedChunkRange = 3;
+let destroyedChunkRange = 2; // max distance for voxel destruction from intersection
+const normalizedGuaranteeRate = 0.15; // minimum % that must be destroyed
 
 const color = new THREE.Color( 0, 0, 0 );
 var lastObjectIntersected;
@@ -616,19 +641,13 @@ const shootRay = function(event) {
     const cameraDirection = new THREE.Vector3();
     camera.getWorldDirection(cameraDirection);
     // round the direction to the nearest integer
-    console.log(cameraDirection);
 
     // RAYCAST
     const intersection = voxelField.raycast(cameraPosition, cameraDirection, weaponRange);
-
+    
     if (intersection != null)
     {
         // intersection is an object with x, y, z, and indexInChunk, and the chunk it's in
-        console.log("INTERSECTION");
-
-        // draw an arrow helper
-        // const arrowHelper = new THREE.ArrowHelper(cameraDirection, cameraPosition, weaponRange, 0xffffff * Math.random());
-        // scene.add(arrowHelper);
 
         const currentModel = intersection.chunk;
 
@@ -638,7 +657,7 @@ const shootRay = function(event) {
         // get the matrixes of all the cubes around the clicked cube
         for ( let i = 0; i < allVoxelsInChunk.length; i++ ) {
 
-            let currentRange = destroyedChunkRange * Math.random();
+            let currentRange = destroyedChunkRange * clamp(Math.random() + normalizedGuaranteeRate, 0, 1);
 
             const voxelPosition = new THREE.Vector3(
                 allVoxelsInChunk[i].x,
@@ -668,7 +687,7 @@ const shootRay = function(event) {
         trackedVoxelChunks.push(new trackedVoxelChunk(destroyedVoxelsInChunk));
 
         // generateDestroyedChunkAt = function(modelName, chunk, destroyedVoxelsInChunk)
-        generateDestroyedChunkAt(currentModel.name, allVoxelsInChunk, destroyedVoxelsInChunk);
+        generateDestroyedChunkAt(currentModel.name, allVoxelsInChunk, destroyedVoxelsInChunk, currentModel);
 
         // console.log("Rebuilt World");
 
@@ -709,9 +728,7 @@ const toggleDebugMode = function() {
 
 const triVoxelDroppedPieces = {};
 
-const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyedVoxelsInChunk, convexMesh) {
-    // measure time
-    const t0 = performance.now();
+const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyedVoxelsInChunk) {
     // first, get the scene object with the modelName, and copy it
     const model = scene.getObjectByName(modelName);
     // for each block in the chunk
@@ -733,6 +750,7 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
                 found = true;
                 // set matrix world needs to be called after setMatrixAt
                 model.instanceMatrix.needsUpdate = true;
+                voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 0, x, model);
                 break;
             }
         }
@@ -776,11 +794,6 @@ const generateDestroyedChunkAt = function(modelName, allVoxelsInChunk, destroyed
             triVoxelDroppedPieces[triVoxel.name] = triVoxelBody;
         }
     }
-    
-    // create a convex mesh
-    // remove the old convex mesh
-    scene.remove(convexMesh);
-    convertInstancedMeshtoConvexHull(model);
 }
 
 var isLeftClicking = false;
@@ -803,7 +816,7 @@ const muzzleFlash = new THREE.Mesh(
 // x is left/right
 // y is up/down
 // z is closeness to cam
-muzzleFlash.position.set(weaponPosition.x - 1, weaponPosition.y + 7, weaponPosition.z - 8);
+muzzleFlash.position.set(weaponPosition.x - 1, weaponPosition.y + 8, weaponPosition.z - 8);
 muzzleFlash.name = "muzzleFlash";
 camera.add(muzzleFlash);
 const muzzleFlashReverseAngle = muzzleFlash.clone();
@@ -843,7 +856,7 @@ const render = function() {
 
             // random scale and rotation X
             const scaleRange = 0.15;
-            const rotationRange = 0.2;
+            const rotationRange = 0.6;
             muzzleFlash.scale.set(Math.random() * scaleRange + 1, Math.random() * scaleRange + 1, Math.random() * scaleRange + 1);
             muzzleFlash.rotation.z = Math.random() * rotationRange - rotationRange/2;
 
