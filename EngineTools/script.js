@@ -95,6 +95,12 @@ document.addEventListener('keydown', function (e) {
         case 'KeyR':
             mouseRayFollower.rotation.y += 90 * Math.PI / 180;
             break;
+        case 'KeyQ':
+            camera.position.y -= 10;
+            break;
+        case 'KeyE':
+            camera.position.y += 10;
+            break;
     }
 });
 

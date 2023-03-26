@@ -25,3 +25,7 @@ The engine will divide the model into chunks (of gpu-instanced cubes) and will s
 The physics implemented are cannones-based and are quite poor. Using something that can support convex hulls would be much preferred, but I can't find a JavaScript-compaible engine that has support for that in 3D yet, so maybe I'll build my own. For now, a square mesh is created (see the colorful lines in the screenshot above) that acts as a box collider.
 
 Alternatively, particle physics could work (rounded to one world unit), with interpolation to make it look smooth.
+
+**Approach & Design**
+- keep as few objects in memory as possible (emphasis on streaming and disk reads on-the-fly)
+- offload as much as possible to the GPU (WebGL)
