@@ -9,7 +9,7 @@ import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 // (Requires Reload) builds the world with random chunk colors, among other changes
-var debugMode = true;
+var debugMode = false;
 
 // Sets the help text on the bottom center of the player's screen
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 

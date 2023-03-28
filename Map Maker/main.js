@@ -34,7 +34,7 @@ function createWindow() {
             fs.mkdirSync('./saves');
         }
         // save the arg (JSON string) to .json file
-        fs.writeFile('./saves/savedata.json', arg, function (err) {
+        fs.writeFile('../maps/savedata.json', arg, function (err) {
             if (err) {
                 return console.log(err);
             }

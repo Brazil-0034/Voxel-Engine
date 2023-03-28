@@ -87,7 +87,7 @@
     <script type="module">
         // ### IMPORTANT METADATA
         const editorVersion = "0.1.0"
-        document.title = "WreckMesh Mod Tools " + editorVersion
+        document.title = "WreckMesh Mod Tools v" + editorVersion;
 
         //  ### IMPORTS
         import * as THREE from 'three';
@@ -431,69 +431,6 @@
             }
             // Camera (only one in scene)
             if (selectedObject.isCamera == true) {
-                // FOV
-                const fov = document.createElement("div");
-                fov.classList.add("inspector-element");
-                fov.innerHTML = "<h3>FOV</h3>";
-                const fovInput = document.createElement("input");
-                fovInput.type = "number";
-                fovInput.value = selectedObject.fov;
-                fovInput.addEventListener("input", function () {
-                    selectedObject.fov = fovInput.value;
-                });
-                fov.appendChild(fovInput);
-                inspector.appendChild(fov);
-
-                // Near
-                const near = document.createElement("div");
-                near.classList.add("inspector-element");
-                near.innerHTML = "<h3>Near</h3>";
-                const nearInput = document.createElement("input");
-                nearInput.type = "number";
-                nearInput.value = selectedObject.near;
-                nearInput.addEventListener("input", function () {
-                    selectedObject.near = nearInput.value;
-                });
-                near.appendChild(nearInput);
-                inspector.appendChild(near);
-
-                // Far
-                const far = document.createElement("div");
-                far.classList.add("inspector-element");
-                far.innerHTML = "<h3>Far</h3>";
-                const farInput = document.createElement("input");
-                farInput.type = "number";
-                farInput.value = selectedObject.far;
-                farInput.addEventListener("input", function () {
-                    selectedObject.far = farInput.value;
-                });
-                far.appendChild(farInput);
-                inspector.appendChild(far);
-
-                // [USERDATA] Controller Type - selection with options FirstPersonController, Static Object
-                const controllerType = document.createElement("div");
-                controllerType.classList.add("inspector-element");
-                controllerType.innerHTML = "<h3>Controller Type</h3>";
-                const controllerTypeInput = document.createElement("select");
-                const controllerTypes = ["FirstPersonController", "Static Object"];
-                for (let i = 0; i < controllerTypes.length; i++) {
-                    const option = document.createElement("option");
-                    option.value = controllerTypes[i];
-                    option.innerHTML = controllerTypes[i];
-                    if (selectedObject.userData.controllerType == controllerTypes[i]) {
-                        option.selected = true;
-                    }
-                    controllerTypeInput.appendChild(option);
-                }
-                if (selectedObject.userData.controllerType == undefined) {
-                    selectedObject.userData.controllerType = "FirstPersonController";
-                }
-                controllerTypeInput.addEventListener("input", function () {
-                    selectedObject.userData.controllerType = controllerTypeInput.value;
-                });
-                controllerType.appendChild(controllerTypeInput);
-                inspector.appendChild(controllerType);
-
                 // [USERDATA] Movement Speed
                 // Set the default to 10
                 if (selectedObject.userData.movementSpeed == undefined) {
@@ -696,11 +633,6 @@
             defaultCamera.name = "Main Camera";
             defaultCamera.position.z = 5;
             defaultCamera.position.y = 1;
-            defaultCamera.userData.controllerProfile = "FirstPersonController";
-            defaultCamera.userData.controllerInfo = {
-                "MoveSpeed": 10,
-                "LookSpeed": 1
-            };
             addToScene(defaultCamera);
 
             cameraHelper = new THREE.CameraHelper(defaultCamera);
@@ -765,12 +697,12 @@
                     case 'w':
                         transformControls.setMode("translate");
                         break;
-                    case 'e':
-                        transformControls.setMode("rotate");
-                        break;
-                    case 'r':
-                        transformControls.setMode("rotate");
-                        break;
+                    // case 'e':
+                    //     transformControls.setMode("rotate");
+                    //     break;
+                    // case 'r':
+                        // transformControls.setMode("rotate");
+                        // break;
                     case 't':
                         transformControls.setMode("scale");
                         break;
@@ -805,6 +737,7 @@
                             }
                             addToScene(clone);
                             attachHandles(clone);
+                            MAPOBJECTS.push(clone);
                         }
                         break;
                     case 'e':
@@ -896,7 +829,7 @@
                     spotLight.shadow.mapSize.width = 1024;
                     spotLight.shadow.mapSize.height = 1024;
                     spotLight.shadow.camera.near = 0.5;
-                    spotLight.shadow.camera.far = 500;
+                    spotLight.shadow.camera.far = 9999;
                     spotLight.shadow.camera.fov = 30;
                     addToScene(spotLight);
                     const spotLightHelper = new THREE.SpotLightHelper(spotLight);
@@ -974,10 +907,6 @@
             if (clickedElement.id == "left-panel" || clickedElement.id == "editor-canvas") {
                 options.push("[] Add Geometry");
                 options.push("Create Cube");
-                options.push("Create Sphere");
-                options.push("Create Cone");
-                options.push("Create Cylinder");
-                options.push("Create Torus");
                 options.push("[] Add Lighting");
                 options.push("Create Point Light");
                 options.push("Create Spot Light");
@@ -1211,26 +1140,33 @@
                 // MESHES
                 if (object.isMesh)
                 {
+                    const color = object.material.color;
+                    const r = Math.round(color.r * 255);
+                    const g = Math.round(color.g * 255);
+                    const b = Math.round(color.b * 255);
                     // if it's not an instanceMesh
                     if (!object.isInstanceMesh)
                     {
-                        const size = object.scale;
+                        const size = object.scale.clone();
                         // absolute value
                         size.x = Math.abs(size.x);
                         size.y = Math.abs(size.y);
                         size.z = Math.abs(size.z);
+                        const position = object.position.clone();
+                        position.x -= size.x / 2;
+                        position.y -= size.y / 2;
+                        position.z -= size.z / 2;
 
                         for (let x = 0; x < size.x; x++) {
                             for (let y = 0; y < size.y; y++) {
                                 for (let z = 0; z < size.z; z++) {
-                                    console.log(x, y, z);
                                     saveData.voxels.push({
-                                            "x": object.position.x + x,
-                                            "y": object.position.y + y,
-                                            "z": object.position.z + z,
-                                            "r": object.material.color.r,
-                                            "g": object.material.color.g,
-                                            "b": object.material.color.b
+                                            "x": position.x + x,
+                                            "y": position.y + y,
+                                            "z": position.z + z,
+                                            "r": r,
+                                            "g": g,
+                                            "b": b
                                     });
                                 }
                             }
@@ -1263,6 +1199,19 @@
             });
 
             console.log(saveData);
+
+            // check for duplicate voxels (in reverse, so most recent is kept)
+            for (let i = saveData.voxels.length - 1; i >= 0; i--) {
+                for (let j = i - 1; j >= 0; j--) {
+                    if (saveData.voxels[i].x == saveData.voxels[j].x &&
+                        saveData.voxels[i].y == saveData.voxels[j].y &&
+                        saveData.voxels[i].z == saveData.voxels[j].z)
+                    {
+                        saveData.voxels.splice(i, 1);
+                        break;
+                    }
+                }
+            }
 
             // save to file
             var ipc = require('electron').ipcRenderer;
@@ -1413,6 +1362,22 @@
             grid-column: 1 / 2;
             grid-row: 2 / 4;
             background-color: var(--side-panel-bg-color);
+            overflow-y: scroll !important;
+        }
+
+        /* scrollbar */
+        #left-panel::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #left-panel::-webkit-scrollbar-track {
+            background: rgb(40, 40, 40);
+        }
+
+        #left-panel::-webkit-scrollbar-thumb {
+            background-color: rgb(64, 64, 64);
+            border-radius: 20px;
+            border: 3px solid rgb(40, 40, 40);
         }
 
         #left-panel ul {
