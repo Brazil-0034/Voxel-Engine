@@ -1,7 +1,7 @@
 # Wreckmesh Specific
 /maps/
 /weapons/
-/SwedishRoyalCastle/
+/skyboxes/
 
 # Logs
 logs
@@ -120,3 +120,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .vscode/settings.json
+EngineTools/package-lock.json
+EngineTools/package-lock.json
+Map Maker/package-lock.json

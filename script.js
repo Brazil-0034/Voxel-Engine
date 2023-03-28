@@ -1,7 +1,6 @@
 // This is my JavaScript-based Voxel game (engine)
 
 // IMPORTS
-import * as CANNON from './node_modules/cannon-es/dist/cannon-es.js';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -10,7 +9,7 @@ import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 // (Requires Reload) builds the world with random chunk colors, among other changes
-var debugMode = false;
+var debugMode = true;
 
 // Sets the help text on the bottom center of the player's screen
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 
@@ -19,10 +18,6 @@ const setHelpText = (text) => { document.querySelector("#help-text").innerHTML =
 // Initializes the THREE.js scene, and CANNON.js world
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-const world = new CANNON.World({
-    gravity: new CANNON.Vec3(0, -9.82 * 10, 0)
-});
-
 // RENDERER SETUP
 // Initializes the THREE.js renderer
 const renderer = new THREE.WebGLRenderer();
@@ -44,7 +39,7 @@ const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 scene.add(ambientLight);
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
 scene.add(hemiLight);
-const path = 'SwedishRoyalCastle/';
+const path = 'skyboxes/SwedishRoyalCastle/';
 const format = '.jpg';
 const urls = [
     path + 'px' + format, path + 'nx' + format,
@@ -134,34 +129,14 @@ const groundFloor = new THREE.Mesh(
 groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
 scene.add(groundFloor);
 
-// CANNONES MATERIALS
-// these are physics "materials", that define the way objects will interact with each other
-// material for bouncy objects, like voxels, to eject from
-const bouncyMaterial = new CANNON.Material('bouncyMaterial');
-const groundMaterial = new CANNON.Material('groundMaterial');
-const groundBouncyContactMaterial = new CANNON.ContactMaterial(groundMaterial, bouncyMaterial, {
-    friction: 0.1,
-    restitution: 0.25,
-});
-world.addContactMaterial(groundBouncyContactMaterial);
-// This is a physics body for the ground, so it can interact with the rest of the world
-const groundBody = new CANNON.Body({
-    mass: 0,
-    position: new CANNON.Vec3(groundFloor.position.x, groundFloor.position.y, groundFloor.position.z),
-    shape: new CANNON.Box(new CANNON.Vec3(1000, 1, 1000)),
-    type: CANNON.Body.STATIC,
-    material: groundMaterial
-});
-world.addBody(groundBody);
-
 // This is a function that can clamp two numbers within a range.
 // For some reason, it doesn't seem to exist in Vanilla JS? so we must write one ourselves:
 const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
-const modelURL = 'maps/' + 'castle.json';
-const weaponURL = 'weapons/' + 'weapon_ar.json';
+const modelURL = 'maps/' + 'savedata.json';
+const weaponURL = 'weapons/' + 'weapon_smg.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
@@ -408,11 +383,14 @@ const buildJSONModel = function (jsondata) {
         for (let x = globalVoxelIterator; x < startPos + chunkSize; x++) {
             const thisVoxelData = voxelPositionsFromFile[globalVoxelIterator];
             if (thisVoxelData != undefined) {
-                thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
+                thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
                 if (debugMode) thisVoxelColor = thisChunkDebugColor;
                 const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
                 // if the color is BLACK, set its position to the origin
-                if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) thisVoxelPosition.set(0, 0, 0);
+                if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
+                    thisVoxelPosition.set(0, 0, 0);
+                    console.log("Voxel Blacked");
+                }
                 // multiply by voxel size to get correct position
                 thisVoxelPosition.multiplyScalar(voxelSize);
                 // adjust floor color
@@ -641,7 +619,7 @@ const toggleDebugMode = function () {
 }
 
 // Dict of tracked voxels for physics... i think? idrk, wrote this awhile ago
-const triVoxelDroppedPieces = {};
+const triVoxelDroppedPieces = [];
 const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroyedVoxelsInChunk) {
     const color = new THREE.Color(0, 0, 0);
     const model = scene.getObjectByName(modelName);
@@ -658,41 +636,54 @@ const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroye
             const thisDestroyedVoxelPosition = destroyedVoxelsInChunk[x].sceneObject.position;
             if (voxelPosition.x == thisDestroyedVoxelPosition.x && voxelPosition.y == thisDestroyedVoxelPosition.y && voxelPosition.z == thisDestroyedVoxelPosition.z) {
                 // set its position using setMatrixAt to far away
-                model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
+                // setTimeOut 10 ms
                 found = true;
-                // set matrix world needs to be called after setMatrixAt
-                model.instanceMatrix.needsUpdate = true;
-                voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 0, x, model);
+                setTimeout(function () {
+                    model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
+                    // set matrix world needs to be called after setMatrixAt
+                    model.instanceMatrix.needsUpdate = true;
+                    voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 0, x, model);
+                }, 100 * Math.random());
                 break;
             }
         }
         model.getColorAt(i, color)
         if (Math.random() < 1 && found) {
-            if (Object.keys(triVoxelDroppedPieces).length > 250) continue;
-            const triVoxel = new THREE.Mesh(
-                // cone with minimal segments
-                new THREE.BoxGeometry(1, 1, 1),
-                new THREE.MeshStandardMaterial({ color: color })
-            );
-            // for some reason i named the destroyed pieces of a mesh 'trivoxels', prolly cuz they were originally triangular prisms.
-            // that has changed since, but the name still slaps.
-            triVoxel.name = "TRIVOXEL-" + Math.random();
-            scene.add(triVoxel);
-            const x = parseInt(voxelPosition.x);
-            const y = parseInt(voxelPosition.y);
-            const z = parseInt(voxelPosition.z);
-            const range = 10;
-            // cannon-es point body for the trivoxel
-            const triVoxelBody = new CANNON.Body({
-                mass: 1,
-                position: new CANNON.Vec3(x, y, z),
-                shape: new CANNON.Box(new CANNON.Vec3(0.9, 0.9, 0.9)),
-                material: bouncyMaterial
-            });
-            triVoxelBody.angularVelocity.set(Math.floor(Math.random() * range) - range / 2, Math.floor(Math.random() * range) - range / 2, Math.floor(Math.random() * range) - range / 2);
-            world.addBody(triVoxelBody);
-            triVoxel.position.set(triVoxelBody.position.x, triVoxelBody.position.y, triVoxelBody.position.z);
-            triVoxelDroppedPieces[triVoxel.name] = triVoxelBody;
+            // if (Object.keys(triVoxelDroppedPieces).length < 250)
+            {
+                if (Math.random() < 0.1)
+                {
+                    const triVoxel = new THREE.Mesh(
+                        // cone with minimal segments
+                        new THREE.BoxGeometry(1, 1, 1),
+                        new THREE.MeshStandardMaterial({ color: color })
+                    );
+                    // for some reason i named the destroyed pieces of a mesh 'trivoxels', prolly cuz they were originally triangular prisms.
+                    // that has changed since, but the name still slaps.
+                    triVoxel.name = "TRIVOXEL-" + Math.random();
+                    scene.add(triVoxel);
+                    const x = parseInt(voxelPosition.x);
+                    const y = parseInt(voxelPosition.y);
+                    const z = parseInt(voxelPosition.z);
+                    triVoxel.position.set(x, y, z);
+                    
+                    // velocity (random)
+                    const velocityRange = 0.25;
+                    const triVoxelVelocity = new THREE.Vector3(
+                        (Math.random() * velocityRange) - (velocityRange / 2),
+                        (Math.random() * velocityRange) - (velocityRange / 2),
+                        (Math.random() * velocityRange) - (velocityRange / 2)
+                    );
+
+                    // normalize the velocity
+                    triVoxelVelocity.normalize();
+    
+                    triVoxelDroppedPieces.push({
+                        "sceneObject" : triVoxel,
+                        "velocity" : triVoxelVelocity
+                    });
+                }
+            }
         }
     }
 };
@@ -795,44 +786,48 @@ const render = function () {
         camera.getWorldPosition(cameraCenterPosition);
         const direction = new THREE.Vector3();
         camera.getWorldDirection(direction);
-        const intersect = voxelField.raycast(
-            cameraCenterPosition,
-            direction,
-            weaponRange
-        );
-        if (intersect) {
-            mouseRayFollower.visible = true;
-            mouseRayFollower.position.set(intersect.x, intersect.y, intersect.z);
-            mouseRayFollower.lookAt(cameraCenterPosition);
-        }
+        // const intersect = voxelField.raycast(
+        //     cameraCenterPosition,
+        //     direction,
+        //     weaponRange
+        // );
+        // if (intersect) {
+        //     mouseRayFollower.visible = true;
+        //     mouseRayFollower.position.set(intersect.x, intersect.y, intersect.z);
+        //     mouseRayFollower.lookAt(cameraCenterPosition);
+        // }
     }
     requestAnimationFrame(render);
     composer.render();
 }
 
 // ### PHYSICS LOOP ###
-// for physics stuffz
-var camCube, cubeBody;
+const timesPerSecond = 60; // physics speed
 const physicsUpdate = function () {
-    world.fixedStep();
-    for (const key in triVoxelDroppedPieces) {
-        if (Math.random() < 0.01) {
-            world.removeBody(triVoxelDroppedPieces[key]);
-            scene.remove(scene.getObjectByName(key));
-            delete triVoxelDroppedPieces[key];
-            continue;
+    // for each sceneObject in triVoxelDroppedPieces
+    triVoxelDroppedPieces.forEach((triVoxel) => {
+        if (Math.random() < 1 / timesPerSecond) {
+            scene.remove(triVoxel.sceneObject);
+            triVoxelDroppedPieces.splice(triVoxelDroppedPieces.indexOf(triVoxel), 1);
         }
-        const sceneObject = scene.getObjectByName(key);
-        const body = triVoxelDroppedPieces[key];
-        sceneObject.position.copy(body.position);
-        sceneObject.quaternion.copy(body.quaternion);
-    }
-    if (cubeBody) camCube.position.copy(cubeBody.position);
-    physicsBodies.forEach(physicsBody => {
-        physicsBody.update();
+        else
+        {
+            const sceneObject = triVoxel.sceneObject;
+            const velocity = triVoxel.velocity;
+            
+            const newPosition = new THREE.Vector3(
+                sceneObject.position.x + velocity.x,
+                sceneObject.position.y + velocity.y,
+                sceneObject.position.z + velocity.z
+            );
+    
+            // apply some gravity (-1 y)
+            velocity.y -= 1 / (timesPerSecond / 2);
+    
+            sceneObject.position.copy(newPosition);
+        }
     });
 }
-const timesPerSecond = 200;
 
 setInterval(physicsUpdate, 1000 / timesPerSecond); // calls physics loop
 render(); // calls render loop
