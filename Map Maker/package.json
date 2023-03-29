@@ -1,12 +1,10 @@
 {
-  "name": "electron-quick-start",
+  "name": "wreckmesh-mod-tools",
   "version": "1.0.0",
-  "description": "A minimal Electron application",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
-  "repository": "https://github.com/electron/electron-quick-start",
   "keywords": [
     "Electron",
     "quick",
@@ -15,7 +13,6 @@
     "demo"
   ],
   "author": "GitHub",
-  "license": "CC0-1.0",
   "devDependencies": {
     "electron": "^23.1.3"
   },

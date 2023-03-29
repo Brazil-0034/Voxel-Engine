@@ -145,7 +145,7 @@
         const fxaaPass = new ShaderPass(FXAAShader);
         fxaaPass.uniforms['resolution'].value.set(1 / canvas.width, 1 / canvas.height);
         composer.addPass(fxaaPass);
-        const gridHelper = new THREE.GridHelper(25, 12);
+        const gridHelper = new THREE.GridHelper(512, 512);
         gridHelper.name = "GridHelper";
         gridHelper.userData.existInGame = false;
         DEFAULTOBJECTS.push(gridHelper);
@@ -168,10 +168,13 @@
         
         // ### ANIMATION LOOP
         const animate = function () {
+            if (selectedObjects) {
+                outlinePass.selectedObjects = selectedObjects.children;
+            }
+
             requestAnimationFrame(animate);
             controls.update();
             composer.render();
-            if (selectedObjects) outlinePass.selectedObjects = selectedObjects;
         };
         animate();
 
@@ -184,18 +187,25 @@
         transformControls.setTranslationSnap( 1 );
         transformControls.setScaleSnap( 1 );
         transformControls.userData.existInGame = false;
-        var primarySelectedObject;
-        var selectedObjects = [];
+        var selectedObjects = new THREE.Group();
+        scene.add(selectedObjects);
+        transformControls.attach(selectedObjects);
+        document.body.addEventListener('keydown', function (event) {
+            if (event.key == "s") {
+                console.log(scene);
+            }
+        });
         var retachAvailable = true;
         transformControls.size = 1.25;
         DEFAULTOBJECTS.push(transformControls);
         scene.add(transformControls);
+        var lastAttachedObject;
         transformControls.addEventListener('dragging-changed', function (event) {
             controls.enabled = !event.value;
             retachAvailable = !event.value;
 
             // if the object type includes "LightHelper", then set the light in the helper's userdata's transform to the light helper
-            selectedObjects.forEach(selectedObject => {
+            selectedObjects.children.forEach(selectedObject => {
                 if (selectedObject.type.includes("LightHelper")) {
                     // Position
                     selectedObject.light.position.x = selectedObject.position.x;
@@ -206,7 +216,6 @@
                     selectedObject.light.rotation.x = selectedObject.rotation.x;
                     selectedObject.light.rotation.y = selectedObject.rotation.y;
                     selectedObject.light.rotation.z = selectedObject.rotation.z;
-
                     if (selectedObject.light.target != undefined) {
                         // Target
                         selectedObject.light.target.position.x = selectedObject.userData.target.position.x;
@@ -214,26 +223,37 @@
                         selectedObject.light.target.position.z = selectedObject.userData.target.position.z;
                     }
                 }
-                if (selectedObject != primarySelectedObject) {
-                    const positionDifference = new THREE.Vector3();
-                    positionDifference.subVectors(selectedObject.position, primarySelectedObject.position);
-                    console.log(positionDifference);
-                }
             });
         });
-        const attachHandles = function (item) {
-            if (!retachAvailable) return;
-            if (item.userData.selectParentInstead == true) item = item.parent;
-            if (item.type.includes("LightHelper")) {
-                item = item.light;
-            }
-            if (selectedObjects.includes(item)) return;
-            if (!isHoldingShift) selectedObjects = [];
-            selectedObjects.push(item);
-            primarySelectedObject = item;
-            console.log(selectedObjects);
 
-            transformControls.attach(item);
+        const clearSelectedObjects = function() {
+            transformControls.visible = false;
+            selectedObjects.children.forEach(child => {
+                // get world pos
+                const newPos = new THREE.Vector3();
+                newPos.setFromMatrixPosition(child.matrixWorld);
+                child.parent.remove(child);
+                scene.add(child);
+                child.position.set(newPos.x, newPos.y, newPos.z);
+            });
+        }
+        
+        const attachHandles = function (item) {
+            // if the retach isnt loaded yet, skip
+            if (!retachAvailable) return;
+            // if the item is a helper object, select the parent or light instead
+            if (item.userData.selectParentInstead == true) item = item.parent;
+            if (item.type.includes("LightHelper")) item = item.light;
+            // if we already have it selected, forget about it!
+            if (selectedObjects.children.includes(item)) return;
+            // if we are holding shift, add to the selection
+            if (!isHoldingShift) {
+                clearSelectedObjects();
+            }
+
+            transformControls.visible = true;
+            selectedObjects.attach(item);
+            lastAttachedObject = item;
 
             document.querySelector("#selection-name").innerHTML = item.name;
 
@@ -695,7 +715,6 @@
                 }
             }
             // if transformControls is on it
-            if (transformControls.object == item) transformControls.detach();
             // remove the item
             scene.remove(item);
             document.querySelector("#object-counter").innerHTML = parseInt(document.querySelector("#object-counter").innerHTML) - 1;
@@ -704,7 +723,6 @@
 
             updateLeftPanel();
             // detach handles
-            transformControls.detach();
 
             // if it's in MAPOBJECTS, remove it
             for (let i = 0; i < MAPOBJECTS.length; i++) {
@@ -779,10 +797,6 @@
                             attachHandles(clone);
                             MAPOBJECTS.push(clone);
                         }
-                        break;
-                    case 'e':
-                        // detach handles
-                        transformControls.detach();
                         break;
                     case 'w':
                         // prevent default browser behavior
@@ -1005,12 +1019,6 @@
             rightClickMenu.style.display = "none";
         });
 
-        // Editor Click Events
-        canvas.addEventListener("mouseup", function (e) {
-            if (e.button == 0) {
-                // transformControls.detach();
-            }
-        });
         canvas.addEventListener("click", function (e) {
             // shoot ray until first target is hit, attach transformControls to it
             const raycaster = new THREE.Raycaster();
@@ -1057,8 +1065,7 @@
                     }
                 }
                 if (!intersects[index]) {
-                    selectedObjects = [];
-                    transformControls.detach();
+                    clearSelectedObjects();
                     return;
                 }
                 attachHandles(intersects[index].object);
