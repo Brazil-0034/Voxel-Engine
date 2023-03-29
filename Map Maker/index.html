@@ -685,11 +685,24 @@
             
             updateLeftPanel();
         }
+        const groundFloor = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1, 1, 1),
+            new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
+        );
+        groundFloor.scale.set(1000, 1, 1000);
+        groundFloor.name = "Ground Floor";
+        // groundFloor.userData.cannotBeRemoved = true; // make it removable for things like space maps, air maps, etc
+        groundFloor.userData.doNotVoxelize = true;
+        groundFloor.rotation.x = Math.PI / 2;
+        groundFloor.position.y = -1;
+        DEFAULTOBJECTS.push(groundFloor);
+        addToScene(groundFloor);
         let cameraHelper;
         const addDefaultCamera = function () {
             // adds a camerahelper as a placeholder for the camera
             let defaultCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             defaultCamera.userData.existInGame = true;
+            defaultCamera.userData.cannotBeRemoved = true;
             defaultCamera.name = "Main Camera";
             defaultCamera.position.z = 5;
             defaultCamera.position.y = 1;
@@ -698,6 +711,7 @@
             cameraHelper = new THREE.CameraHelper(defaultCamera);
             cameraHelper.name = "Camera Helper";
             cameraHelper.userData.existInGame = false;
+            cameraHelper.userData.cannotBeRemoved = true;
             scene.add(cameraHelper);
             DEFAULTOBJECTS.push(defaultCamera);
             DEFAULTOBJECTS.push(cameraHelper);
@@ -717,17 +731,19 @@
         addDefaultLight();
         addDefaultCamera();
         const removeFromScene = function (item) {
+            if (item.userData.cannotBeRemoved == true) return;
             // if the item is of type light, scan the scene for any helpers for it
             if (item.isLight == true) {
                 for (let i = 0; i < scene.children.length; i++) {
-                    if (scene.children[i].light != undefined && scene.children[i].light == item) {
-                        scene.remove(scene.children[i]);
+                    const thisObj = scene.children[i];
+                    if (thisObj.light != undefined && thisObj.light == item) {
+                        thisObj.parent.remove(thisObj);
                     }
                 }
             }
             // if transformControls is on it
             // remove the item
-            scene.remove(item);
+            item.parent.remove(item);
             document.querySelector("#object-counter").innerHTML = parseInt(document.querySelector("#object-counter").innerHTML) - 1;
             if (document.querySelector("#object-counter").innerHTML == 1) document.querySelector("#object-counter-label").innerHTML = " object";
             else document.querySelector("#object-counter-label").innerHTML = " total objects";
@@ -752,7 +768,10 @@
         document.body.addEventListener('keydown', function (event) {
             // if press 'del' and there is an object selected, remove it
             if (event.key == "Delete" && transformControls.object != undefined) {
-                removeFromScene(transformControls.object);
+                selectedObjects.children.forEach(object => {
+                    removeFromScene(object);
+                });
+                clearSelectedObjects();
             }
             if (event.key == "Shift") {
                 isHoldingShift = true;
@@ -1115,6 +1134,24 @@
                 }
             }
 
+            if (scene.children.includes(groundFloor)) {
+                saveData.groundData = {
+                    "groundSize" : {
+                        "x": groundFloor.scale.x,
+                        "z": groundFloor.scale.z
+                    },
+                    "groundColor" : {
+                        "r": groundFloor.material.color.r,
+                        "g": groundFloor.material.color.g,
+                        "b": groundFloor.material.color.b
+                    }
+                }
+            }
+            else
+            {
+                console.log("Skipping Ground [Removed from Scene]");
+            }
+
             saveData.lightData = {
                 spotLights: [],
                 pointLights: [],
@@ -1126,6 +1163,7 @@
 
             saveData.voxels = [];
             MAPOBJECTS.forEach(function (object) {
+                if (object.userData.doNotVoxelize == true) return;
                 // LIGHTS
                 if (object.isLight)
                 {

@@ -113,12 +113,7 @@ document.addEventListener('keyup', function (e) {
 });
 
 // This is the ground floor, a simple large box that does not interact with the world 
-const groundFloor = new THREE.Mesh(
-    new THREE.BoxGeometry(1000, 1, 1000),
-    new THREE.MeshStandardMaterial({ color: 0xe0e0e0 })
-);
-groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
-scene.add(groundFloor);
+var groundFloor;
 
 // This is a function that can clamp two numbers within a range.
 // For some reason, it doesn't seem to exist in Vanilla JS? so we must write one ourselves:
@@ -352,7 +347,19 @@ let instancedModelIndex = []; // An index of all instancedMeshes (which for my o
 let voxelPositions = []; // same as above, but contains voxels, for later physics simulations
 const buildJSONModel = function () {
     const startTime = Date.now();
-    let voxelPositionsFromFile = JSON.parse(JSONData).voxels;
+    const parsedData = JSON.parse(JSONData);
+    let voxelPositionsFromFile = parsedData.voxels;
+    if (parsedData.groundData) {
+        groundFloor = new THREE.Mesh(
+            new THREE.BoxGeometry(parsedData.groundData.groundSize.x, 1, parsedData.groundData.groundSize.z),
+            new THREE.MeshStandardMaterial({ 
+                // rgb 
+                color: new THREE.Color(parsedData.groundData.groundColor.r, parsedData.groundData.groundColor.g, parsedData.groundData.groundColor.b),
+            })
+        );
+        groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
+        scene.add(groundFloor);
+    }
     let foundCount = 0;
     // create an instancedmesh cube to represent each point
     const numberOfChunks = Math.ceil(voxelPositionsFromFile.length / maxChunkSize);
@@ -377,15 +384,15 @@ const buildJSONModel = function () {
                 thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
                 if (debugMode) thisVoxelColor = thisChunkDebugColor;
                 const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
-                // if the color is BLACK, set its position to the origin
-                if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
-                    thisVoxelPosition.set(0, 0, 0);
-                    console.log("Voxel Blacked");
-                }
+                // if the color is BLACK, set its position to the origin (TRANSPARENCY FIX for OLD [DEV] MAPS)
+                // if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
+                //     thisVoxelPosition.set(0, 0, 0);
+                //     console.log("Voxel Blacked");
+                // }
                 // multiply by voxel size to get correct position
                 thisVoxelPosition.multiplyScalar(voxelSize);
                 // adjust floor color
-                if (globalVoxelIterator == 0) groundFloor.material.color.set(thisVoxelColor);
+                // if (globalVoxelIterator == 0) groundFloor.material.color.set(thisVoxelColor);
                 instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
                 instancedWorldModel.setColorAt(localVoxelIterator, thisVoxelColor);
                 voxelsInChunk.push(thisVoxelData);
