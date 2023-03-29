@@ -193,6 +193,7 @@
         document.body.addEventListener('keydown', function (event) {
             if (event.key == "s") {
                 console.log(scene);
+                console.log(selectedObjects.children);
             }
         });
         var retachAvailable = true;
@@ -232,11 +233,17 @@
                 // get world pos
                 const newPos = new THREE.Vector3();
                 newPos.setFromMatrixPosition(child.matrixWorld);
+                // get world scale
+                const newScale = new THREE.Vector3();
+                newScale.setFromMatrixScale(child.matrixWorld);
+
                 child.parent.remove(child);
                 scene.add(child);
                 child.position.set(newPos.x, newPos.y, newPos.z);
+                child.scale.set(newScale.x, newScale.y, newScale.z);
             });
         }
+        clearSelectedObjects();
         
         const attachHandles = function (item) {
             // if the retach isnt loaded yet, skip
@@ -254,6 +261,10 @@
             transformControls.visible = true;
             selectedObjects.attach(item);
             lastAttachedObject = item;
+
+            transformControls.children.forEach(child => {
+                child.position.set(item.position.x, item.position.y, item.position.z);
+            });
 
             document.querySelector("#selection-name").innerHTML = item.name;
 
@@ -516,16 +527,16 @@
                 if (!sceneObjects[i].userData.existInGame) continue;
                 if (sceneObjects[i].userData.existInGame != false)
                 {
-                    var numOfParents = 0;
-                    var parent = sceneObjects[i].parent;
-                    while (parent != scene) {
-                        numOfParents++;
-                        parent = parent.parent;
-                    }
+                    // var numOfParents = 0;
+                    // var parent = sceneObjects[i].parent;
+                    // while (parent != scene) {
+                    //     numOfParents++;
+                    //     parent = parent.parent;
+                    // }
 
                     const item = document.createElement("li");
                     item.innerHTML = sceneObjects[i].name;
-                    item.style.paddingLeft = numOfParents * 20 + "px";
+                    // item.style.paddingLeft = numOfParents * 20 + "px";
                     
                     list.appendChild(item);
 
