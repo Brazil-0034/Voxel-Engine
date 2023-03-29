@@ -1,6 +1,6 @@
 {
-  "name": "cosmic-web",
-  "version": "1.0.0",
+  "name": "WreckMesh",
+  "version": "0.1.42",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "electron ."
   },
   "author": "",
-  "license": "ISC",
+  "license": "",
   "dependencies": {
     "cannon-es": "^0.20.0",
     "fastnoise-lite": "0.0.1",

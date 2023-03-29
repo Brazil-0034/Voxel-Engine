@@ -2,8 +2,6 @@
 
 // IMPORTS
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
@@ -15,7 +13,6 @@ var debugMode = false;
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 
 
 // SCENE SETUP
-// Initializes the THREE.js scene, and CANNON.js world
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 // RENDERER SETUP
@@ -26,12 +23,6 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.physicallyCorrectLights = true;
 renderer.setClearColor(0x00ffff);
 document.body.appendChild(renderer.domElement);
-
-// POST PROCESSING
-// Initializes the THREE.js post processing
-const composer = new EffectComposer(renderer);
-const renderPass = new RenderPass(scene, camera);
-composer.addPass(renderPass);
 
 // LIGHTING
 // Initializes the THREE.js lighting
@@ -359,7 +350,7 @@ maxChunkSize = Math.pow(maxChunkSize, 2); // squares it cuz why not? :3
 
 let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
 let voxelPositions = []; // same as above, but contains voxels, for later physics simulations
-const buildJSONModel = function (jsondata) {
+const buildJSONModel = function () {
     const startTime = Date.now();
     let voxelPositionsFromFile = JSON.parse(JSONData).voxels;
     let foundCount = 0;
@@ -710,11 +701,18 @@ var isAttackAvailable = true;
 // ### RENDER LOOP ###
 // this renders things. separate from the physics loop.
 const clock = new THREE.Clock();
+var frameRate = 0;
 const render = function () {
     const delta = clock.getDelta();
+    frameRate = Math.round(1 / delta);
     controls.moveRight(playerMoveSpeed * delta * xAxis * sprinting);
     controls.moveForward(-playerMoveSpeed * delta * zAxis * sprinting);
-    document.querySelector("#position-overlay").innerHTML = "X: " + Math.round(controls.getObject().position.x) + " Y: " + Math.round(controls.getObject().position.y) + " Z: " + Math.round(controls.getObject().position.z);
+    document.querySelector("#position-overlay").innerHTML = (
+        "<font color='red'>X: " + Math.round(controls.getObject().position.x) +
+        "<font color='lightgreen'> Y: " + Math.round(controls.getObject().position.y) +
+        "<font color='cyan'> Z: " + Math.round(controls.getObject().position.z) +
+        "<font color='yellow'> FPS: " + frameRate
+    );
     if (instancedWeaponModel && instancedWeaponTarget && delta > 0) {
         const instancedWeaponTargetWorldPosition = new THREE.Vector3();
         instancedWeaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
@@ -798,7 +796,7 @@ const render = function () {
         // }
     }
     requestAnimationFrame(render);
-    composer.render();
+    renderer.render(scene, camera);
 }
 
 // ### PHYSICS LOOP ###
@@ -845,8 +843,6 @@ window.addEventListener('resize', () => {
 document.addEventListener('keydown', function (e) {
     if (e.key == "p") {
         console.log("\n+==============================+\n")
-        console.log("PHYSICS WORLD:");
-        console.log(world);
         console.log("CAMERA POSITION");
         console.log(camera.position);
         console.log("draw calls #");
