@@ -351,7 +351,7 @@ const buildJSONModel = function () {
     let voxelPositionsFromFile = parsedData.voxels;
     if (parsedData.groundData) {
         groundFloor = new THREE.Mesh(
-            new THREE.BoxGeometry(parsedData.groundData.groundSize.x, 1, parsedData.groundData.groundSize.z),
+            new THREE.BoxGeometry(parsedData.groundData.groundSize.x, 1, parsedData.groundData.groundSize.y),
             new THREE.MeshStandardMaterial({ 
                 // rgb 
                 color: new THREE.Color(parsedData.groundData.groundColor.r, parsedData.groundData.groundColor.g, parsedData.groundData.groundColor.b),
@@ -359,6 +359,10 @@ const buildJSONModel = function () {
         );
         groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
         scene.add(groundFloor);
+    }
+    else
+    {
+        console.log("Map has no ground floor, skipping...");
     }
     let foundCount = 0;
     // create an instancedmesh cube to represent each point

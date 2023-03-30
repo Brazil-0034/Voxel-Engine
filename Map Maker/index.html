@@ -201,6 +201,9 @@
         DEFAULTOBJECTS.push(transformControls);
         scene.add(transformControls);
         var lastAttachedObject;
+        const objectsUnderground = [];
+        // load ../img/errorTex as errorTex
+        const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
         transformControls.addEventListener('dragging-changed', function (event) {
             controls.enabled = !event.value;
             retachAvailable = !event.value;
@@ -225,6 +228,36 @@
                     }
                 }
             });
+            
+            if (event.value == false)
+            {
+                // if lastAttachedObject has any part below y=-1, move it up to y=0
+                if (lastAttachedObject != undefined) {
+                    const boundingBox = new THREE.Box3().setFromObject(lastAttachedObject);
+                    if (boundingBox.min.y < -1) {
+                        console.log("It's underground!");
+                        objectsUnderground.push(lastAttachedObject);
+                    }
+                }
+
+                objectsUnderground.forEach(sceneObject => {
+                    // set its texture to errorTex
+                    const boundingBox = new THREE.Box3().setFromObject(sceneObject);
+                    if (boundingBox.min.y < -1) {
+                        sceneObject.material.map = errorTex;
+                        sceneObject.material.map.repeat.set(boundingBox.max.x, boundingBox.max.z);
+                        sceneObject.material.map.wrapS = THREE.RepeatWrapping;
+                        sceneObject.material.map.wrapT = THREE.RepeatWrapping;
+                        sceneObject.material.needsUpdate = true;
+                    }
+                    else
+                    {
+                        objectsUnderground.splice(objectsUnderground.indexOf(sceneObject), 1);
+                        sceneObject.material.map = null;
+                        sceneObject.material.needsUpdate = true;
+                    }
+                })
+            }
         });
 
         const clearSelectedObjects = function() {
@@ -489,6 +522,18 @@
                     }
                 }
             }
+            if (item.userData.isGroundFloor) {
+                const groundFloorEnabled = document.createElement("div");
+                groundFloorEnabled.classList.add("inspector-element");
+                groundFloorEnabled.innerHTML = "<h3>Enabled</h3>";
+                const groundFloorEnabledInput = document.createElement("input");
+                groundFloorEnabledInput.type = "checkbox";
+                groundFloorEnabledInput.checked = item.userData.isGroundFloor;
+                groundFloorEnabledInput.addEventListener("input", function () {
+                    mapHasGround = groundFloorEnabledInput.checked;
+                    groundFloor.visible = mapHasGround;
+                });
+            }
             // Camera (only one in scene)
             if (item.isCamera == true) {
                 // [USERDATA] Movement Speed
@@ -685,14 +730,16 @@
             
             updateLeftPanel();
         }
+        var mapHasGround = true;
         const groundFloor = new THREE.Mesh(
-            new THREE.PlaneGeometry(1, 1, 1, 1),
+            new THREE.BoxGeometry(1, 1, 1),
             new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
         );
-        groundFloor.scale.set(1000, 1, 1000);
+        groundFloor.scale.set(1000, 1000, 1);
         groundFloor.name = "Ground Floor";
-        // groundFloor.userData.cannotBeRemoved = true; // make it removable for things like space maps, air maps, etc
         groundFloor.userData.doNotVoxelize = true;
+        groundFloor.userData.cannotBeRemoved = true;
+        groundFloor.userData.isGroundFloor = true;
         groundFloor.rotation.x = Math.PI / 2;
         groundFloor.position.y = -1;
         DEFAULTOBJECTS.push(groundFloor);
@@ -749,7 +796,6 @@
             else document.querySelector("#object-counter-label").innerHTML = " total objects";
 
             updateLeftPanel();
-            // detach handles
 
             // if it's in MAPOBJECTS, remove it
             for (let i = 0; i < MAPOBJECTS.length; i++) {
@@ -989,6 +1035,10 @@
                     break;
             }
         }
+        const mouseDownPosition = new THREE.Vector2();
+        const mouseUpPosition = new THREE.Vector2();
+        document.addEventListener("mousedown", function(e) { mouseDownPosition.set(e.clientX, e.clientY); });
+        document.addEventListener("mouseup", function(e) { mouseUpPosition.set(e.clientX, e.clientY); });
         const invokeContextMenu = function(e) {
             const clickedElement = document.elementFromPoint(globalMousePosition.clientX, globalMousePosition.clientY);
             const options = [];
@@ -1050,63 +1100,65 @@
         });
 
         canvas.addEventListener("click", function (e) {
-            // shoot ray until first target is hit, attach transformControls to it
-            const raycaster = new THREE.Raycaster();
+            if (mouseUpPosition.distanceTo(mouseDownPosition) < 5) {
+                // shoot ray until first target is hit, attach transformControls to it
+                const raycaster = new THREE.Raycaster();
 
-            var mouse = new THREE.Vector2();
+                var mouse = new THREE.Vector2();
 
-            const rect = renderer.domElement.getBoundingClientRect();
-            const x = globalMousePosition.clientX - rect.left;
-            const y = globalMousePosition.clientY - rect.top;
+                const rect = renderer.domElement.getBoundingClientRect();
+                const x = globalMousePosition.clientX - rect.left;
+                const y = globalMousePosition.clientY - rect.top;
 
-            mouse.x = (x / canvas.clientWidth) * 2 - 1;
-            mouse.y = (y / canvas.clientHeight) * - 2 + 1
+                mouse.x = (x / canvas.clientWidth) * 2 - 1;
+                mouse.y = (y / canvas.clientHeight) * - 2 + 1
 
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children, true);
 
-            let index = 0;
-            if (intersects.length > 0) {
-                // organize the interects by distance
-                intersects.sort(function (a, b) {
-                    return a.distance - b.distance;
-                });
-                const disallowedObjects = [
-                    "TransformControlsGizmo",
-                    "TransformControlsPlane",
-                    "CameraHelper",
-                    "GridHelper",
-                    "LineSegments",
-                    "Line"
-                ]
-                // remove any intersects that are, have a parent that is, or have a parent whose parent is, any disallowedObjects type
-                for (let i = 0; i < intersects.length; i++) {
-                    if (disallowedObjects.includes(intersects[i].object.type)) {
-                        intersects.splice(i, 1);
-                        i--;
+                let index = 0;
+                if (intersects.length > 0) {
+                    // organize the interects by distance
+                    intersects.sort(function (a, b) {
+                        return a.distance - b.distance;
+                    });
+                    const disallowedObjects = [
+                        "TransformControlsGizmo",
+                        "TransformControlsPlane",
+                        "CameraHelper",
+                        "GridHelper",
+                        "LineSegments",
+                        "Line"
+                    ]
+                    // remove any intersects that are, have a parent that is, or have a parent whose parent is, any disallowedObjects type
+                    for (let i = 0; i < intersects.length; i++) {
+                        if (disallowedObjects.includes(intersects[i].object.type)) {
+                            intersects.splice(i, 1);
+                            i--;
+                        }
+                        else if (intersects[i].object.parent != null && disallowedObjects.includes(intersects[i].object.parent.type)) {
+                            intersects.splice(i, 1);
+                            i--;
+                        }
+                        else if (intersects[i].object.parent != null && intersects[i].object.parent.parent != null && disallowedObjects.includes(intersects[i].object.parent.parent.type)) {
+                            intersects.splice(i, 1);
+                            i--;
+                        }
                     }
-                    else if (intersects[i].object.parent != null && disallowedObjects.includes(intersects[i].object.parent.type)) {
-                        intersects.splice(i, 1);
-                        i--;
+                    if (!intersects[index]) {
+                        clearSelectedObjects();
+                        return;
                     }
-                    else if (intersects[i].object.parent != null && intersects[i].object.parent.parent != null && disallowedObjects.includes(intersects[i].object.parent.parent.type)) {
-                        intersects.splice(i, 1);
-                        i--;
-                    }
-                }
-                if (!intersects[index]) {
-                    clearSelectedObjects();
-                    return;
-                }
-                attachHandles(intersects[index].object);
-                // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
-                const list = document.querySelector("#scene-objects-list");
-                for (let i = 0; i < list.children.length; i++) {
-                    if (list.children[i].innerHTML == intersects[index].object.name) {
-                        list.children[i].classList.add("active");
-                    }
-                    else {
-                        list.children[i].classList.remove("active");
+                    attachHandles(intersects[index].object);
+                    // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
+                    const list = document.querySelector("#scene-objects-list");
+                    for (let i = 0; i < list.children.length; i++) {
+                        if (list.children[i].innerHTML == intersects[index].object.name) {
+                            list.children[i].classList.add("active");
+                        }
+                        else {
+                            list.children[i].classList.remove("active");
+                        }
                     }
                 }
             }
@@ -1134,11 +1186,11 @@
                 }
             }
 
-            if (scene.children.includes(groundFloor)) {
+            if (mapHasGround) {
                 saveData.groundData = {
                     "groundSize" : {
                         "x": groundFloor.scale.x,
-                        "z": groundFloor.scale.z
+                        "y": groundFloor.scale.y
                     },
                     "groundColor" : {
                         "r": groundFloor.material.color.r,
