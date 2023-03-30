@@ -588,7 +588,7 @@
             transformControls.visible = true;
 
             transformControls.children.forEach(child => {
-                child.position.set(item.position.x, item.position.y, item.position.z);
+                child.position.set(itemWorldPos.x, itemWorldPos.y, itemWorldPos.z);
             });
 
             updateRightPanel(item);
