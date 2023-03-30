@@ -73,8 +73,17 @@
         </div>
         <div id="bottom-panel" class="panel">
             <div class="resize-unflip">
-                <h1>Resources</h1>
-                <p>0 Available Objects</p>
+                <h1>Map Settings</h1>
+                <!-- Ground Settings -->
+                <h2>Ground</h2>
+                <div class="settings-group">
+                    <h3>Ground Color</h3>
+                    <input type="color" id="ground-color" value="#ffffff">
+                </div>
+                <div class="settings-group">
+                    <h3>Ground Scale</h3>
+                    <input type="number" id="ground-scale" value="1000" min="0" max="10000" step="0.1">
+                </div>
             </div>
         </div>
 
@@ -87,7 +96,7 @@
     <script type="module">
         // ### IMPORTANT METADATA
         const editorVersion = "0.1.0"
-        document.title = "WreckMesh Mod Tools v" + editorVersion;
+        document.title = "WreckMesh Map Maker v" + editorVersion;
 
         //  ### IMPORTS
         import * as THREE from 'three';
@@ -167,7 +176,11 @@
         window.addEventListener('resize', adjustCanvasSize);
         
         // ### ANIMATION LOOP
+        const clock = new THREE.Clock();
         const animate = function () {
+            const delta = clock.getDelta();
+            const fps = 1 / delta;
+            document.title = "WreckMesh Map Maker v" + editorVersion + " - [" + fps.toFixed(0) + " FPS]";
             if (selectedObjects) {
                 outlinePass.selectedObjects = selectedObjects.children;
             }
@@ -180,125 +193,9 @@
 
 
         //  ### SIMPLE FUNCTIONS
-        const randomColor = function () { return new THREE.Color(0xffffff * Math.random()); }
-        var transformControls = new TransformControls(camera, canvas);
-        transformControls.name = "TransformControls"
-        transformControls.setRotationSnap( THREE.MathUtils.degToRad( 90 ) );
-        transformControls.setTranslationSnap( 1 );
-        transformControls.setScaleSnap( 1 );
-        transformControls.userData.existInGame = false;
-        var selectedObjects = new THREE.Group();
-        scene.add(selectedObjects);
-        transformControls.attach(selectedObjects);
-        document.body.addEventListener('keydown', function (event) {
-            if (event.key == "s") {
-                console.log(scene);
-                console.log(selectedObjects.children);
-            }
-        });
-        var retachAvailable = true;
-        transformControls.size = 1.25;
-        DEFAULTOBJECTS.push(transformControls);
-        scene.add(transformControls);
-        var lastAttachedObject;
-        const objectsUnderground = [];
-        // load ../img/errorTex as errorTex
-        const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
-        transformControls.addEventListener('dragging-changed', function (event) {
-            controls.enabled = !event.value;
-            retachAvailable = !event.value;
-
-            // if the object type includes "LightHelper", then set the light in the helper's userdata's transform to the light helper
-            selectedObjects.children.forEach(selectedObject => {
-                if (selectedObject.type.includes("LightHelper")) {
-                    // Position
-                    selectedObject.light.position.x = selectedObject.position.x;
-                    selectedObject.light.position.y = selectedObject.position.y;
-                    selectedObject.light.position.z = selectedObject.position.z;
-
-                    // Rotation
-                    selectedObject.light.rotation.x = selectedObject.rotation.x;
-                    selectedObject.light.rotation.y = selectedObject.rotation.y;
-                    selectedObject.light.rotation.z = selectedObject.rotation.z;
-                    if (selectedObject.light.target != undefined) {
-                        // Target
-                        selectedObject.light.target.position.x = selectedObject.userData.target.position.x;
-                        selectedObject.light.target.position.y = selectedObject.userData.target.position.y;
-                        selectedObject.light.target.position.z = selectedObject.userData.target.position.z;
-                    }
-                }
-            });
-            
-            if (event.value == false)
-            {
-                // if lastAttachedObject has any part below y=-1, move it up to y=0
-                if (lastAttachedObject != undefined) {
-                    const boundingBox = new THREE.Box3().setFromObject(lastAttachedObject);
-                    if (boundingBox.min.y < -1) {
-                        console.log("It's underground!");
-                        objectsUnderground.push(lastAttachedObject);
-                    }
-                }
-
-                objectsUnderground.forEach(sceneObject => {
-                    // set its texture to errorTex
-                    const boundingBox = new THREE.Box3().setFromObject(sceneObject);
-                    if (boundingBox.min.y < -1) {
-                        sceneObject.material.map = errorTex;
-                        sceneObject.material.map.repeat.set(boundingBox.max.x, boundingBox.max.z);
-                        sceneObject.material.map.wrapS = THREE.RepeatWrapping;
-                        sceneObject.material.map.wrapT = THREE.RepeatWrapping;
-                        sceneObject.material.needsUpdate = true;
-                    }
-                    else
-                    {
-                        objectsUnderground.splice(objectsUnderground.indexOf(sceneObject), 1);
-                        sceneObject.material.map = null;
-                        sceneObject.material.needsUpdate = true;
-                    }
-                })
-            }
-        });
-
-        const clearSelectedObjects = function() {
-            transformControls.visible = false;
-            selectedObjects.children.forEach(child => {
-                // get world pos
-                const newPos = new THREE.Vector3();
-                newPos.setFromMatrixPosition(child.matrixWorld);
-                // get world scale
-                const newScale = new THREE.Vector3();
-                newScale.setFromMatrixScale(child.matrixWorld);
-
-                child.parent.remove(child);
-                scene.add(child);
-                child.position.set(newPos.x, newPos.y, newPos.z);
-                child.scale.set(newScale.x, newScale.y, newScale.z);
-            });
-        }
-        clearSelectedObjects();
         
-        const attachHandles = function (item) {
-            // if the retach isnt loaded yet, skip
-            if (!retachAvailable) return;
-            // if the item is a helper object, select the parent or light instead
-            if (item.userData.selectParentInstead == true) item = item.parent;
-            if (item.type.includes("LightHelper")) item = item.light;
-            // if we already have it selected, forget about it!
-            if (selectedObjects.children.includes(item)) return;
-            // if we are holding shift, add to the selection
-            if (!isHoldingShift) {
-                clearSelectedObjects();
-            }
-
-            transformControls.visible = true;
-            selectedObjects.attach(item);
-            lastAttachedObject = item;
-
-            transformControls.children.forEach(child => {
-                child.position.set(item.position.x, item.position.y, item.position.z);
-            });
-
+        const updateRightPanel = function(item) {
+            
             document.querySelector("#selection-name").innerHTML = item.name;
 
             // for each property in the object, create an input field in #object-inspector-elements
@@ -308,28 +205,30 @@
             if (item.isObject3D == true) {
                 // Position (X, Y, Z) in a row
                 const position = document.createElement("div");
+                const itemPosition = new THREE.Vector3();
+                item.getWorldPosition(itemPosition);
                 position.classList.add("inspector-element");
                 position.innerHTML = "<h3>Position</h3>";
                 const positionX = document.createElement("input");
                 positionX.type = "number";
-                positionX.value = item.position.x;
+                positionX.value = itemPosition.x;
                 positionX.style.width = "75px";
                 positionX.addEventListener("input", function () {
-                    item.position.x = positionX.value;
+                    itemPosition.x = positionX.value;
                 });
                 const positionY = document.createElement("input");
                 positionY.type = "number";
-                positionY.value = item.position.y;
+                positionY.value = itemPosition.y;
                 positionY.style.width = "75px";
                 positionY.addEventListener("input", function () {
-                    item.position.y = positionY.value;
+                    itemPosition.y = positionY.value;
                 });
                 const positionZ = document.createElement("input");
                 positionZ.type = "number";
-                positionZ.value = item.position.z;
+                positionZ.value = itemPosition.z;
                 positionZ.style.width = "75px";
                 positionZ.addEventListener("input", function () {
-                    item.position.z = positionZ.value;
+                    itemPosition.z = positionZ.value;
                 });
                 position.appendChild(positionX);
                 position.appendChild(positionY);
@@ -554,6 +453,147 @@
                 inspector.appendChild(movementSpeed);
             }
         }
+        const randomColor = function () { return new THREE.Color(0xffffff * Math.random()); }
+        var transformControls = new TransformControls(camera, canvas);
+        transformControls.name = "TransformControls"
+        transformControls.setRotationSnap( THREE.MathUtils.degToRad( 90 ) );
+        transformControls.setTranslationSnap( 1 );
+        transformControls.setScaleSnap( 1 );
+        transformControls.userData.existInGame = false;
+        var selectedObjects = new THREE.Group();
+        scene.add(selectedObjects);
+        transformControls.attach(selectedObjects);
+        document.body.addEventListener('keydown', function (event) {
+            if (event.key == "s") {
+                console.log(scene);
+                console.log(selectedObjects.children);
+            }
+        });
+        var retachAvailable = true;
+        transformControls.size = 1.25;
+        DEFAULTOBJECTS.push(transformControls);
+        scene.add(transformControls);
+        var lastAttachedObject;
+        const objectsUnderground = [];
+        // load ../img/errorTex as errorTex
+        const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
+        transformControls.addEventListener('dragging-changed', function (event) {
+            controls.enabled = !event.value;
+            retachAvailable = !event.value;
+
+            // if the object type includes "LightHelper", then set the light in the helper's userdata's transform to the light helper
+            selectedObjects.children.forEach(selectedObject => {
+                if (selectedObject.type.includes("LightHelper")) {
+                    // Position
+                    selectedObject.light.position.x = selectedObject.position.x;
+                    selectedObject.light.position.y = selectedObject.position.y;
+                    selectedObject.light.position.z = selectedObject.position.z;
+
+                    // Rotation
+                    selectedObject.light.rotation.x = selectedObject.rotation.x;
+                    selectedObject.light.rotation.y = selectedObject.rotation.y;
+                    selectedObject.light.rotation.z = selectedObject.rotation.z;
+                    if (selectedObject.light.target != undefined) {
+                        // Target
+                        selectedObject.light.target.position.x = selectedObject.userData.target.position.x;
+                        selectedObject.light.target.position.y = selectedObject.userData.target.position.y;
+                        selectedObject.light.target.position.z = selectedObject.userData.target.position.z;
+                    }
+                }
+            });
+            
+            if (event.value == false)
+            {
+                // if lastAttachedObject has any part below y=-1, move it up to y=0
+                if (lastAttachedObject != undefined) {
+                    if (lastAttachedObject.userData.isGroundFloor != true)
+                    {
+                        const boundingBox = new THREE.Box3().setFromObject(lastAttachedObject);
+                        if (boundingBox.min.y < -1) {
+                            objectsUnderground.push(lastAttachedObject);
+                        }
+                    }
+                }
+
+                objectsUnderground.forEach(sceneObject => {
+                    // set its texture to errorTex
+                    const boundingBox = new THREE.Box3().setFromObject(sceneObject);
+                    if (boundingBox.min.y < -1) {
+                        console.log("It's underground!");
+                        sceneObject.material.map = errorTex;
+                        sceneObject.material.map.repeat.set(boundingBox.max.x, boundingBox.max.z);
+                        sceneObject.material.map.wrapS = THREE.RepeatWrapping;
+                        sceneObject.material.map.wrapT = THREE.RepeatWrapping;
+                        sceneObject.material.needsUpdate = true;
+                    }
+                    else
+                    {
+                        objectsUnderground.splice(objectsUnderground.indexOf(sceneObject), 1);
+                        sceneObject.material.map = null;
+                        sceneObject.material.needsUpdate = true;
+                    }
+                })
+
+                updateRightPanel(lastAttachedObject);
+            }
+        });
+
+        const clearSelectedObjects = function() {
+            transformControls.visible = false;
+            selectedObjects.children.forEach(child => {
+                // get world pos
+                const newPos = new THREE.Vector3();
+                newPos.setFromMatrixPosition(child.matrixWorld);
+                // get world scale
+                const newScale = new THREE.Vector3();
+                newScale.setFromMatrixScale(child.matrixWorld);
+
+                child.parent.remove(child);
+                scene.add(child);
+                child.position.set(newPos.x, newPos.y, newPos.z);
+                child.scale.set(newScale.x, newScale.y, newScale.z);
+            });
+        }
+        clearSelectedObjects();
+        const attachHandles = function (item) {
+            // if the retach isnt loaded yet, skip
+            if (!retachAvailable) return;
+            if (item.userData.isGroundFloor) return;
+            // if the item is a helper object, select the parent or light instead
+            if (item.userData.selectParentInstead == true) item = item.parent;
+            if (item.type.includes("LightHelper")) item = item.light;
+            // if we already have it selected, forget about it!
+            if (selectedObjects.children.includes(item)) return;
+            // if we are holding shift, add to the selection
+            if (!isHoldingShift) {
+                clearSelectedObjects();
+            }
+
+            const itemWorldPos = new THREE.Vector3();
+            item.getWorldPosition(itemWorldPos);
+
+            const cacheSelectedObjects = [];
+            selectedObjects.children.forEach(child => {
+                cacheSelectedObjects.push(child);
+            });
+            cacheSelectedObjects.push(item);
+            clearSelectedObjects();
+
+            cacheSelectedObjects.forEach(child => {
+                console.log(child);
+                selectedObjects.attach(child);
+            });
+
+            lastAttachedObject = item;
+            transformControls.visible = true;
+
+            transformControls.children.forEach(child => {
+                child.position.set(item.position.x, item.position.y, item.position.z);
+            });
+
+            updateRightPanel(item);
+
+        }
         // ### UPDATING HIERARCHY PANEL ###
         const updateLeftPanel = function () {
             const list = document.querySelector("#scene-objects-list");
@@ -735,6 +775,8 @@
             new THREE.BoxGeometry(1, 1, 1),
             new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
         );
+        document.querySelector("#ground-color").addEventListener("input", function (e) { groundFloor.material.color.set(e.target.value); });
+        document.querySelector("#ground-scale").addEventListener("input", function (e) { groundFloor.scale.set(e.target.value, e.target.value, 1); });
         groundFloor.scale.set(1000, 1000, 1);
         groundFloor.name = "Ground Floor";
         groundFloor.userData.doNotVoxelize = true;
@@ -856,8 +898,8 @@
                         event.preventDefault();
                         // if there is a selected object, duplicate it
                         if (transformControls.object != undefined) {
-                            const clone = transformControls.object.clone();
-                            clone.name = transformControls.object.name + " (clone " + Math.floor(Math.random() * 1000) + ")";
+                            const clone = lastAttachedObject.clone();
+                            clone.name = lastAttachedObject.name + " (clone " + Math.floor(Math.random() * 1000) + ")";
                             // clone the materials too
                             if (clone.material != undefined) {
                                 if (Array.isArray(clone.material)) {
