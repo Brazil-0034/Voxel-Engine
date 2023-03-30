@@ -521,9 +521,6 @@
                     if (boundingBox.min.y < -1) {
                         console.log("It's underground!");
                         sceneObject.material.map = errorTex;
-                        sceneObject.material.map.repeat.set(boundingBox.max.x, boundingBox.max.z);
-                        sceneObject.material.map.wrapS = THREE.RepeatWrapping;
-                        sceneObject.material.map.wrapT = THREE.RepeatWrapping;
                         sceneObject.material.needsUpdate = true;
                     }
                     else
@@ -578,6 +575,7 @@
             });
             cacheSelectedObjects.push(item);
             clearSelectedObjects();
+            selectedObjects.position.copy(itemWorldPos);
 
             cacheSelectedObjects.forEach(child => {
                 console.log(child);
@@ -587,9 +585,9 @@
             lastAttachedObject = item;
             transformControls.visible = true;
 
-            transformControls.children.forEach(child => {
-                child.position.set(itemWorldPos.x, itemWorldPos.y, itemWorldPos.z);
-            });
+            // transformControls.children.forEach(child => {
+            //     child.position.set(itemWorldPos.x, itemWorldPos.y, itemWorldPos.z);
+            // });
 
             updateRightPanel(item);
 
@@ -802,7 +800,6 @@
             cameraHelper.userData.existInGame = false;
             cameraHelper.userData.cannotBeRemoved = true;
             scene.add(cameraHelper);
-            DEFAULTOBJECTS.push(defaultCamera);
             DEFAULTOBJECTS.push(cameraHelper);
         }
         const addDefaultLight = function () {
@@ -898,6 +895,7 @@
                         event.preventDefault();
                         // if there is a selected object, duplicate it
                         if (transformControls.object != undefined) {
+                            clearSelectedObjects();
                             const clone = lastAttachedObject.clone();
                             clone.name = lastAttachedObject.name + " (clone " + Math.floor(Math.random() * 1000) + ")";
                             // clone the materials too
@@ -1211,8 +1209,16 @@
 
         const saveProject = function () {
             console.log("Saving...")
+            clearSelectedObjects(); // this will apply all scales outside of selectedObjects group
             
             const saveData = {};
+            const JSONScene = scene.toJSON();
+            JSONScene.object.children.forEach(child => {
+                if (child.userData && child.userData.existInGame == false) {
+                    JSONScene.object.children.splice(JSONScene.object.children.indexOf(child), 1);
+                }
+            });
+            saveData.mapMakerSave = JSONScene;
 
 
             saveData.cameraData = {
@@ -1415,7 +1421,7 @@
             // save to file
             var ipc = require('electron').ipcRenderer;
             ipc.send('save-file', JSONSaveData);
-            console.log("File Written Successfully.");
+            console.log("File Written Successfully. " + saveData.voxels.length + " total voxels.");
         }
 
         document.querySelector("#save-button").addEventListener("click", function () {
@@ -1426,6 +1432,7 @@
         // we will ask the user for a file, and load it into the scene
         const importProject = function () {
             console.log("Importing...")
+            clearSelectedObjects();
 
             // ask for a file
             var input = document.createElement('input');
@@ -1437,12 +1444,12 @@
 
                 reader.onload = readerEvent => {
                     var content = readerEvent.target.result;
-                    const saveData = JSON.parse(content);
+                    const saveData = JSON.parse(content).mapMakerSave;
                     // console.log the number of elements in scene.object.children\
-                    console.log(saveData.scene.object.children.length + " - RAWJson");
+                    console.log(saveData.object.children.length + " - RAWJson");
                     // load the scene
                     const loader = new THREE.ObjectLoader();
-                    const gameScene = loader.parse(saveData.scene);
+                    const gameScene = loader.parse(saveData);
                     console.log(gameScene.children.length + " - ParsedJson");
 
                     // remove every child of scene
@@ -1470,9 +1477,12 @@
                             helper.name = objectsToAdd[i].name + "Helper";
                             addToScene(helper);
                         }
+                        MAPOBJECTS.push(objectsToAdd[i]);
                     }
 
                     updateLeftPanel();
+                    scene.add(selectedObjects);
+                    console.log(transformControls.object);
                 }
             }
             input.click();

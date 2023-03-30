@@ -641,7 +641,7 @@ const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroye
                 // setTimeOut 10 ms
                 found = true;
                 setTimeout(function () {
-                    model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, 0, 0));
+                    model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, -2, 0));
                     // set matrix world needs to be called after setMatrixAt
                     model.instanceMatrix.needsUpdate = true;
                     voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 0, x, model);
