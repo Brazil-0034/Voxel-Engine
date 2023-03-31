@@ -537,7 +537,9 @@
 
         const clearSelectedObjects = function() {
             transformControls.visible = false;
-            selectedObjects.children.forEach(child => {
+            console.log("There are " + selectedObjects.children.length + " selected objects.");
+            for (let i = 0; i < selectedObjects.children.length; i++) {
+                const child = selectedObjects.children[i];
                 // get world pos
                 const newPos = new THREE.Vector3();
                 newPos.setFromMatrixPosition(child.matrixWorld);
@@ -549,7 +551,8 @@
                 scene.add(child);
                 child.position.set(newPos.x, newPos.y, newPos.z);
                 child.scale.set(newScale.x, newScale.y, newScale.z);
-            });
+                clearSelectedObjects();
+            }
         }
         clearSelectedObjects();
         const attachHandles = function (item) {
@@ -578,7 +581,6 @@
             selectedObjects.position.copy(itemWorldPos);
 
             cacheSelectedObjects.forEach(child => {
-                console.log(child);
                 selectedObjects.attach(child);
             });
 
@@ -1186,6 +1188,7 @@
                         }
                     }
                     if (!intersects[index]) {
+                        console.log("Clicked Air");
                         clearSelectedObjects();
                         return;
                     }
@@ -1212,13 +1215,40 @@
             clearSelectedObjects(); // this will apply all scales outside of selectedObjects group
             
             const saveData = {};
-            const JSONScene = scene.toJSON();
-            JSONScene.object.children.forEach(child => {
-                if (child.userData && child.userData.existInGame == false) {
-                    JSONScene.object.children.splice(JSONScene.object.children.indexOf(child), 1);
+            saveData.mapMakerSave = [];
+            MAPOBJECTS.forEach(mapObject => {
+                if (mapObject.isMesh)
+                {
+                    console.log(mapObject);
+                    // save the size, position, color
+                    saveData.mapMakerSave.push({
+                        "type": "box",
+                        "size": {
+                            "x": mapObject.scale.x,
+                            "y": mapObject.scale.y,
+                            "z": mapObject.scale.z
+                        },
+                        "position": {
+                            "x": mapObject.position.x,
+                            "y": mapObject.position.y,
+                            "z": mapObject.position.z
+                        },
+                        "rotation": {
+                            "x": mapObject.rotation.x,
+                            "y": mapObject.rotation.y,
+                            "z": mapObject.rotation.z
+                        },
+                        "color": {
+                            "r": mapObject.material.color.r,
+                            "g": mapObject.material.color.g,
+                            "b": mapObject.material.color.b
+                        }
+                    });
                 }
             });
-            saveData.mapMakerSave = JSONScene;
+
+            console.log(saveData.mapMakerSave);
+
 
 
             saveData.cameraData = {
@@ -1445,44 +1475,25 @@
                 reader.onload = readerEvent => {
                     var content = readerEvent.target.result;
                     const saveData = JSON.parse(content).mapMakerSave;
-                    // console.log the number of elements in scene.object.children\
-                    console.log(saveData.object.children.length + " - RAWJson");
-                    // load the scene
-                    const loader = new THREE.ObjectLoader();
-                    const gameScene = loader.parse(saveData);
-                    console.log(gameScene.children.length + " - ParsedJson");
-
-                    // remove every child of scene
-                    for (let i = 0; i < scene.children.length; i++) {
-                        // if it isnt in DEFAULTOBJECTS[]
-                        if (!DEFAULTOBJECTS.includes(scene.children[i])) {
-                            scene.remove(scene.children[i]);
+                    console.log(saveData);
+                    
+                    saveData.forEach(mapMakerObject => {
+                        if (mapMakerObject.type == "box")
+                        {
+                            const newBox = new THREE.Mesh(
+                                new THREE.BoxGeometry(mapMakerObject.size.x, mapMakerObject.size.y, mapMakerObject.size.z),
+                                new THREE.MeshStandardMaterial({
+                                    color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b)
+                                })
+                            );
+                            newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
+                            scene.add(newBox);
                         }
-                    }
+                    })
 
-                    const objectsToAdd = [];
-                    for (let i = 0; i < gameScene.children.length; i++) {
-                        if (!DEFAULTOBJECTS.includes(gameScene.children[i]) && 
-                            !gameScene.children[i].name.startsWith("DEFAULT_") &&
-                            !gameScene.children[i].name.endsWith("Helper")) {
-                            objectsToAdd.push(gameScene.children[i]);
-                        }
-                    }
-
-                    for (let i = 0; i < objectsToAdd.length; i++) {
-                        addToScene(objectsToAdd[i]);
-                        // if it's a light, add a helper for it (at its position and rotation)
-                        if (objectsToAdd[i].type == "DirectionalLight" || objectsToAdd[i].type == "PointLight") {
-                            const helper = new THREE.PointLightHelper(objectsToAdd[i], 1);
-                            helper.name = objectsToAdd[i].name + "Helper";
-                            addToScene(helper);
-                        }
-                        MAPOBJECTS.push(objectsToAdd[i]);
-                    }
 
                     updateLeftPanel();
                     scene.add(selectedObjects);
-                    console.log(transformControls.object);
                 }
             }
             input.click();
