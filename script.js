@@ -6,6 +6,9 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
+// Predictive RNG for Physics
+var seedrandom = require('seedrandom');
+
 // (Requires Reload) builds the world with random chunk colors, among other changes
 var debugMode = false;
 
@@ -26,10 +29,6 @@ document.body.appendChild(renderer.domElement);
 
 // LIGHTING
 // Initializes the THREE.js lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 1);
-scene.add(ambientLight);
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
-scene.add(hemiLight);
 const path = 'skyboxes/SwedishRoyalCastle/';
 const format = '.jpg';
 const urls = [
@@ -364,6 +363,44 @@ const buildJSONModel = function () {
     {
         console.log("Map has no ground floor, skipping...");
     }
+    if (parsedData.lightData) {
+        const lightData = parsedData.lightData;
+        const spotLights = lightData.spotLights;
+        const pointLights = lightData.pointLights;
+        const ambientLights = lightData.ambientLights;
+        const hemiLights = lightData.hemiLights;
+
+        spotLights.forEach(light => {
+            const newLight = new THREE.SpotLight(new THREE.Color(light.color.r, light.color.g, light.color.b), light.intensity);
+            newLight.position.set(light.position.x, light.position.y, light.position.z);
+            newLight.target.position.set(light.targetPosition.x, light.targetPosition.y, light.targetPosition.z);
+            newLight.angle = light.angle;
+            newLight.penumbra = light.penumbra;
+            newLight.decay = light.decay;
+            newLight.distance = light.distance;
+            scene.add(newLight);
+            console.log(newLight);
+        });
+
+        pointLights.forEach(light => {
+            const newLight = new THREE.PointLight(new THREE.Color(light.color.r, light.color.g, light.color.b), light.intensity);
+            newLight.position.set(light.position.x, light.position.y, light.position.z);
+            newLight.decay = light.decay;
+            newLight.distance = light.distance;
+            scene.add(newLight);
+        });
+
+        ambientLights.forEach(light => {
+            const newLight = new THREE.AmbientLight(new THREE.Color(light.color.r, light.color.g, light.color.b), light.intensity);
+            scene.add(newLight);
+        });
+
+        hemiLights.forEach(light => {
+            const newLight = new THREE.HemisphereLight(new THREE.Color(light.color.r, light.color.g, light.color.b), new THREE.Color(light.groundColor.r, light.groundColor.g, light.groundColor.b), light.intensity);
+            newLight.position.set(light.position.x, light.position.y, light.position.z);
+            scene.add(newLight);
+        });
+    }
     let foundCount = 0;
     // create an instancedmesh cube to represent each point
     const numberOfChunks = Math.ceil(voxelPositionsFromFile.length / maxChunkSize);
@@ -544,6 +581,14 @@ class trackedVoxel {
     }
 }
 
+// create an array of random numbers
+const bankLength = 10;
+const randomBank = [];
+for (let i = 0; i < bankLength; i++) {
+    randomBank.push(Math.random());
+}
+var bankIterator = 0;
+const rapidFloat = () => {return randomBank[bankIterator++ % bankLength];}
 const shootRay = function () {
     // RAYCAST INTO THE VOXEL FIELD
     // STEP 1: GET THE CAMERA POSITION
@@ -559,21 +604,22 @@ const shootRay = function () {
     const cameraDirection = new THREE.Vector3();
     camera.getWorldDirection(cameraDirection);
     const intersection = voxelField.raycast(cameraPosition, cameraDirection, weaponRange);
+    // Determine which voxels in chunk are to be destroyed
     if (intersection != null) {
         const color = new THREE.Color(0, 0, 0);
         const currentModel = intersection.chunk;
         const allVoxelsInChunk = voxelPositions[currentModel.name].voxels;
         let destroyedVoxelsInChunk = [];
         for (let i = 0; i < allVoxelsInChunk.length; i++) {
-            let currentRange = destroyedChunkRange * clamp(Math.random() + normalizedGuaranteeRate, 0, 1);
             const voxelPosition = new THREE.Vector3(
                 allVoxelsInChunk[i].x,
                 allVoxelsInChunk[i].y,
                 allVoxelsInChunk[i].z
             );
+            let currentRange = destroyedChunkRange * clamp(rapidFloat() + normalizedGuaranteeRate, 0, 1);
             const distance = voxelPosition.distanceTo(intersection);
             if (distance < currentRange) {
-                if (destroyedVoxelsInChunk.length % 10 == 0) currentRange = Math.floor(Math.random() * currentRange) + 10;
+                if (destroyedVoxelsInChunk.length % 10 == 0) currentRange = Math.floor(rapidFloat() * currentRange) + 10;
                 destroyedVoxels.push(voxelPosition);
                 const newCube = new THREE.BoxGeometry(1, 1, 1);
                 currentModel.getColorAt(i, color);

@@ -9,6 +9,7 @@
   "dependencies": {
     "cannon-es": "^0.20.0",
     "fastnoise-lite": "0.0.1",
+    "seedrandom": "^3.0.5",
     "three": "^0.144.0",
     "three-mesh-bvh": "^0.5.23"
   }
