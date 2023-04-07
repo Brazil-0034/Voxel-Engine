@@ -1247,7 +1247,6 @@
                 }
             });
 
-            console.log(saveData.mapMakerSave);
 
 
 
@@ -1434,24 +1433,52 @@
 
             console.log(saveData);
             console.log("Construction Complete, sending to filewriter...")
-            
-            // we can't use stringify, because the data is too big
-            // so we will use a custom function to convert the data to a string
-            const JSONSaveData = JSON.stringify(saveData, function (key, value) {
-                if (value instanceof THREE.Vector3) {
-                    return value.toArray();
-                }
-                if (value instanceof THREE.Color) {
-                    return value.toArray();
-                }
-                return value;
+
+            var ipc = require('electron').ipcRenderer;
+            ipc.send('init-new-savefile');
+
+            // SEND CAMERA DATA
+            ipc.send('savefile-add-custom-data', {
+                dataName: "cameraData",
+                data: JSON.stringify(saveData.cameraData)
             });
 
+            // SEND LIGHTING DATA
+            ipc.send('savefile-add-custom-data', {
+                dataName: "lightData",
+                data: JSON.stringify(saveData.lightData)
+            });
 
-            // save to file
-            var ipc = require('electron').ipcRenderer;
-            ipc.send('save-file', JSONSaveData);
-            console.log("File Written Successfully. " + saveData.voxels.length + " total voxels.");
+            // SEND GROUND DATA
+            if (mapHasGround)
+            {
+                ipc.send('savefile-add-custom-data', {
+                    dataName: "groundData",
+                    data: JSON.stringify(saveData.groundData)
+                });
+            }
+
+            
+            
+
+            const length = saveData.voxels.length;
+            const numOfChunks = Math.ceil(length / 35000);
+            const chunkSize = Math.ceil(length / numOfChunks);
+
+            for (let i = 0; i < numOfChunks; i++) {
+                const start = i * chunkSize;
+                const end = start + chunkSize;
+                const chunk = JSON.stringify(saveData.voxels.slice(start, end));
+                console.log(chunk);
+                const JSONSaveData = {
+                    index: i,
+                    total: numOfChunks,
+                    voxels: chunk
+                };
+                ipc.send('savefile-add-voxel-chunk', JSONSaveData);
+            }
+
+            console.log("Written Successfully. " + length + " voxels written within " + numOfChunks + " chunks, averaging " + chunkSize + " voxels per chunk.");
         }
 
         document.querySelector("#save-button").addEventListener("click", function () {

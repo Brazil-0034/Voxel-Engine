@@ -8,7 +8,7 @@ import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { VoxelInstancedMesh } from './VoxelInstancedMesh.js';
 
 // (Requires Reload) builds the world with random chunk colors, among other changes
-var debugMode = true;
+var debugMode = false;
 
 // Sets the help text on the bottom center of the player's screen
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 
@@ -85,9 +85,6 @@ document.addEventListener('keydown', function (e) {
         case 'ShiftLeft':
             sprinting = 5;
             break;
-        case 'KeyF':
-            toggleDebugMode();
-            break;
         case 'KeyR':
             controls.getObject().position.set(0, 15, 0);
             break;
@@ -122,7 +119,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
-const modelURL = 'maps/' + 'jafro.json';
+const modelURL = 'maps/' + 'savedata.json';
 const weaponURL = 'weapons/' + 'weapon_smg.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
@@ -401,7 +398,7 @@ const buildWorldModel = function () {
             newLight.shadow.mapSize.height = 64;
             newLight.shadow.camera.near = 0.5;
             newLight.shadow.camera.far = 500;
-            newLight.shadow.camefra.fov = 30;
+            newLight.shadow.camera.fov = 30;
             newLight.castShadow = false;
 
             scene.add(newLight);
@@ -445,12 +442,11 @@ const buildWorldModel = function () {
         let localVoxelIterator = 0;
         let startPos = globalVoxelIterator;
         let voxelsInChunk = [];
-        let thisVoxelColor = new THREE.Color(0xffffff);
         const thisChunkDebugColor = new THREE.Color(Math.random(), Math.random(), Math.random());
         for (let x = globalVoxelIterator; x < startPos + chunkSize; x++) {
             const thisVoxelData = voxelPositionsFromFile[globalVoxelIterator];
             if (thisVoxelData != undefined) {
-                thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
+                var thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
                 if (debugMode) thisVoxelColor = thisChunkDebugColor;
                 const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
                 // if the color is BLACK, set its position to the origin (TRANSPARENCY FIX for OLD [DEV] MAPS)
@@ -495,11 +491,21 @@ const buildWorldModel = function () {
                 (chunkMinPosition.z + chunkMaxPosition.z) / 2
             ),
             new THREE.Vector3(
-                (chunkMaxPosition.x - chunkMinPosition.x) / 2,
-                (chunkMaxPosition.y - chunkMinPosition.y) / 2,
-                (chunkMaxPosition.z - chunkMinPosition.z) / 2
+                (chunkMaxPosition.x - chunkMinPosition.x),
+                (chunkMaxPosition.y - chunkMinPosition.y),
+                (chunkMaxPosition.z - chunkMinPosition.z)
             )
         );
+
+        // add a 0.1 opacity box to visualize it
+        if (debugMode) 
+        {
+            const box = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0x00ff00);
+            box.material.transparent = true;
+            box.material.opacity = 0.1;
+            
+            scene.add(box);
+        }
 
         scene.add(instancedWorldModel);
         convertInstancedMeshtoConvexHull(instancedWorldModel); // leftover code for computing hulls for physics. may return to this later for volumetric explosions.
@@ -713,12 +719,6 @@ const convertInstancedMeshtoConvexHull = function (imesh) {
     // convexMeshes.push(convexMesh);
     // scene.add(convexMesh);
 }
-const toggleDebugMode = function () {
-    for (let i = 0; i < convexMeshes.length; i++) {
-        convexMeshes[i].visible = !convexMeshes[i].visible;
-    }
-}
-
 // Dict of tracked voxels for physics... i think? idrk, wrote this awhile ago
 const triVoxelDroppedPieces = [];
 const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroyedVoxelsInChunk) {
@@ -919,6 +919,8 @@ const render = function () {
 
     requestAnimationFrame(render);
     renderer.render(scene, camera);
+
+    console.log(renderer.info.render.calls);
 }
 
 // ### PHYSICS LOOP ###

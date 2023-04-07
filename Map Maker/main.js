@@ -1,5 +1,7 @@
 // Modules to control application life and create native browser window
 const { app, BrowserWindow } = require('electron')
+const fs = require('fs');
+var ipc = require('electron').ipcMain;
 
 const ignore_modules = /node_modules|[/\\]\./;
 const ignore_saves = /saves|[/\\]\./;
@@ -27,21 +29,48 @@ function createWindow() {
     // Open the DevTools.
     mainWindow.webContents.openDevTools()
 
-    var ipc = require('electron').ipcMain;
-    ipc.on('save-file', function (event, arg) {
-        var fs = require('fs');
-        // if there is no "saves" directory, create it
-        if (!fs.existsSync('./saves')) {
-            fs.mkdirSync('./saves');
+    var saveFileData = "{";
+
+    ipc.on('init-new-savefile', function (event, arg) {
+        saveFileData = "{";
+    });
+
+    ipc.on('savefile-add-custom-data', function (event, arg) {
+        const dataName = arg.dataName;
+        const stringData = arg.data;
+        saveFileData += `"${dataName}":${stringData},`;
+    });
+
+    ipc.on('savefile-add-voxel-chunk', function (event, arg) {
+        // arg format:
+        // [chunkNumber, totalChunks, chunkData]
+        const index = arg.index; // # index of this json chunk
+        const total = arg.total; // total # of json chunks
+        const data = arg.voxels; // string as json chunk
+
+        // if this is the first chunk, clear the save file
+        if (index == 0) {
+            saveFileData += `"voxels":`;
         }
-        // save the arg (JSON string) to .json file
-        fs.writeFile('../maps/savedata.json', arg, function (err) {
+
+        // add this chunk to the save file
+        saveFileData += data;
+
+        // if this is the last chunk, write the save file
+        if (index == total - 1) {
+            saveFileData += `}`;
+            writeFile();
+        }
+    });
+
+    const writeFile = function() {
+        fs.writeFile('../maps/savedata.json', saveFileData, function (err) {
             if (err) {
                 return console.log(err);
             }
             console.log("The file was saved!");
         });
-    });
+    }
 }
 
 // This method will be called when Electron has finished
