@@ -15,7 +15,7 @@ const setHelpText = (text) => { document.querySelector("#help-text").innerHTML =
 
 // SCENE SETUP
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 999999);
 // RENDERER SETUP
 // Initializes the THREE.js renderer
 const renderer = new THREE.WebGLRenderer();
@@ -122,7 +122,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
-const modelURL = 'maps/' + 'boat.json';
+const modelURL = 'maps/' + 'jafro.json';
 const weaponURL = 'weapons/' + 'weapon_smg.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
@@ -425,6 +425,17 @@ const buildWorldModel = function () {
     let globalVoxelIterator = 0;
     for (let i = 0; i < numberOfChunks; i++) {
         // For every chunk ...
+        const chunkMinPosition = new THREE.Vector3(
+            Number.MAX_SAFE_INTEGER,
+            Number.MAX_SAFE_INTEGER,
+            Number.MAX_SAFE_INTEGER
+        );
+        const chunkMaxPosition = new THREE.Vector3(
+            Number.MIN_SAFE_INTEGER,
+            Number.MIN_SAFE_INTEGER,
+            Number.MIN_SAFE_INTEGER
+        );
+        
         let instancedWorldModel = new THREE.InstancedMesh(
             voxelGeometry,
             voxelMaterial,
@@ -455,6 +466,15 @@ const buildWorldModel = function () {
                 instancedWorldModel.setColorAt(localVoxelIterator, thisVoxelColor);
                 voxelsInChunk.push(thisVoxelData);
                 voxelField.set(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z, 1, localVoxelIterator, instancedWorldModel);
+
+                // calculate the min and max positions of the chunk
+                if (thisVoxelPosition.x < chunkMinPosition.x) chunkMinPosition.x = thisVoxelPosition.x;
+                if (thisVoxelPosition.y < chunkMinPosition.y) chunkMinPosition.y = thisVoxelPosition.y;
+                if (thisVoxelPosition.z < chunkMinPosition.z) chunkMinPosition.z = thisVoxelPosition.z;
+                if (thisVoxelPosition.x > chunkMaxPosition.x) chunkMaxPosition.x = thisVoxelPosition.x;
+                if (thisVoxelPosition.y > chunkMaxPosition.y) chunkMaxPosition.y = thisVoxelPosition.y;
+                if (thisVoxelPosition.z > chunkMaxPosition.z) chunkMaxPosition.z = thisVoxelPosition.z;
+
                 globalVoxelIterator++;
                 localVoxelIterator++;
             }
@@ -466,25 +486,21 @@ const buildWorldModel = function () {
         instancedModelIndex.push(instancedWorldModel);
         instancedWorldModel.instanceMatrix.needsUpdate = true;
         // frustum culling
-        // calculate the radius of the model
-        instancedWorldModel.frustumSphere = new THREE.Sphere();
-        // set the center to the MIDDLE MOST voxel in the chunk
-        const voxelData = voxelsInChunk[Math.floor(voxelsInChunk.length / 2)];
-        // if the voxel data is undefined, set the center to the origin
-        if (voxelData == undefined) {
-            instancedWorldModel.frustumSphere.center.set(0, 0, 0);
-        }
-        instancedWorldModel.frustumSphere.center.set(voxelData.x, voxelData.y, voxelData.z);
-        // set radius to sqrt of count
-        instancedWorldModel.frustumSphere.radius = (Math.sqrt(instancedWorldModel.count) / 1.5);
-        // visualize the sphere with a transparent random colored sphere
-        const sphere = new THREE.Mesh(new THREE.SphereGeometry(instancedWorldModel.frustumSphere.radius, 32, 32), new THREE.MeshBasicMaterial({
-            color: new THREE.Color(Math.random(), Math.random(), Math.random()),
-            transparent: true,
-            opacity: 0.2
-        }));
-        sphere.position.set(instancedWorldModel.frustumSphere.center.x, instancedWorldModel.frustumSphere.center.y, instancedWorldModel.frustumSphere.center.z);
-        scene.add(sphere);
+        instancedWorldModel.frustumBox = new THREE.Box3();
+        // determine dimensions of box from chunkMinposition and  chunkMaxPosition
+        instancedWorldModel.frustumBox.setFromCenterAndSize(
+            new THREE.Vector3(
+                (chunkMinPosition.x + chunkMaxPosition.x) / 2,
+                (chunkMinPosition.y + chunkMaxPosition.y) / 2,
+                (chunkMinPosition.z + chunkMaxPosition.z) / 2
+            ),
+            new THREE.Vector3(
+                (chunkMaxPosition.x - chunkMinPosition.x) / 2,
+                (chunkMaxPosition.y - chunkMinPosition.y) / 2,
+                (chunkMaxPosition.z - chunkMinPosition.z) / 2
+            )
+        );
+
         scene.add(instancedWorldModel);
         convertInstancedMeshtoConvexHull(instancedWorldModel); // leftover code for computing hulls for physics. may return to this later for volumetric explosions.
     }
@@ -893,8 +909,7 @@ const render = function () {
     var frustum = new THREE.Frustum();
     frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     instancedModelIndex.forEach(model => {
-        // if the frustum contains the point model.geometry.boundingSphere.center
-        if (frustum.intersectsSphere(model.frustumSphere)) {
+        if (frustum.intersectsBox(model.frustumBox)) {
             model.visible = true;
         }
         else {
