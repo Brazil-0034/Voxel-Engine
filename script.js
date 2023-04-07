@@ -5,12 +5,10 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-
-// Predictive RNG for Physics
-var seedrandom = require('seedrandom');
+import { VoxelInstancedMesh } from './VoxelInstancedMesh.js';
 
 // (Requires Reload) builds the world with random chunk colors, among other changes
-var debugMode = false;
+var debugMode = true;
 
 // Sets the help text on the bottom center of the player's screen
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 
@@ -23,12 +21,16 @@ const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.physicallyCorrectLights = true;
 renderer.setClearColor(0x00ffff);
 document.body.appendChild(renderer.domElement);
 
 // LIGHTING
 // Initializes the THREE.js lighting
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+hemiLight.color.setHSL(0.6, 1, 0.6);
+hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+hemiLight.position.set(0, 50, 0);
+scene.add(hemiLight);
 const path = 'skyboxes/SwedishRoyalCastle/';
 const format = '.jpg';
 const urls = [
@@ -120,7 +122,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
-const modelURL = 'maps/' + 'savedata.json';
+const modelURL = 'maps/' + 'boat.json';
 const weaponURL = 'weapons/' + 'weapon_smg.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
@@ -304,18 +306,18 @@ class DiscreteVectorFieldPhysicsObject {
 }
 
 // This starts building the map, loaded from modelURL (at the top of the file)
-// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildJSONModel(), which actually builds the instanceMeshes
+// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
 // (Only one map can be loaded at once... unless?)
 // TODO - origin offsets for multiple map loading?
 //  ^ this is very unncessary but could be useful for features like streaming
-const generateModelWorld = function (modelURL) {
+const generateWorldModel = function (modelURL) {
     if (!JSONData) {
         let loader = new THREE.FileLoader();
         loader.load(
             modelURL,
             function (jsondata) {
                 JSONData = jsondata;
-                buildJSONModel();
+                buildWorldModel();
             },
             function (err) {
                 // console.log(err);
@@ -323,7 +325,7 @@ const generateModelWorld = function (modelURL) {
         );
     }
     else {
-        buildJSONModel();
+        buildWorldModel();
     }
 }
 // VOXEL OBJECT DATA
@@ -344,7 +346,7 @@ maxChunkSize = Math.pow(maxChunkSize, 2); // squares it cuz why not? :3
 
 let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
 let voxelPositions = []; // same as above, but contains voxels, for later physics simulations
-const buildJSONModel = function () {
+const buildWorldModel = function () {
     const startTime = Date.now();
     const parsedData = JSON.parse(JSONData);
     let voxelPositionsFromFile = parsedData.voxels;
@@ -378,6 +380,14 @@ const buildJSONModel = function () {
             newLight.penumbra = light.penumbra;
             newLight.decay = light.decay;
             newLight.distance = light.distance;
+
+            newLight.shadow.mapSize.width = 64;
+            newLight.shadow.mapSize.height = 64;
+            newLight.shadow.camera.near = 0.5;
+            newLight.shadow.camera.far = 500;
+            newLight.shadow.camera.fov = 30;
+            newLight.castShadow = false;
+
             scene.add(newLight);
             console.log(newLight);
         });
@@ -387,6 +397,13 @@ const buildJSONModel = function () {
             newLight.position.set(light.position.x, light.position.y, light.position.z);
             newLight.decay = light.decay;
             newLight.distance = light.distance;
+            newLight.shadow.mapSize.width = 64;
+            newLight.shadow.mapSize.height = 64;
+            newLight.shadow.camera.near = 0.5;
+            newLight.shadow.camera.far = 500;
+            newLight.shadow.camefra.fov = 30;
+            newLight.castShadow = false;
+
             scene.add(newLight);
         });
 
@@ -448,6 +465,26 @@ const buildJSONModel = function () {
         });
         instancedModelIndex.push(instancedWorldModel);
         instancedWorldModel.instanceMatrix.needsUpdate = true;
+        // frustum culling
+        // calculate the radius of the model
+        instancedWorldModel.frustumSphere = new THREE.Sphere();
+        // set the center to the MIDDLE MOST voxel in the chunk
+        const voxelData = voxelsInChunk[Math.floor(voxelsInChunk.length / 2)];
+        // if the voxel data is undefined, set the center to the origin
+        if (voxelData == undefined) {
+            instancedWorldModel.frustumSphere.center.set(0, 0, 0);
+        }
+        instancedWorldModel.frustumSphere.center.set(voxelData.x, voxelData.y, voxelData.z);
+        // set radius to sqrt of count
+        instancedWorldModel.frustumSphere.radius = (Math.sqrt(instancedWorldModel.count) / 1.5);
+        // visualize the sphere with a transparent random colored sphere
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(instancedWorldModel.frustumSphere.radius, 32, 32), new THREE.MeshBasicMaterial({
+            color: new THREE.Color(Math.random(), Math.random(), Math.random()),
+            transparent: true,
+            opacity: 0.2
+        }));
+        sphere.position.set(instancedWorldModel.frustumSphere.center.x, instancedWorldModel.frustumSphere.center.y, instancedWorldModel.frustumSphere.center.z);
+        scene.add(sphere);
         scene.add(instancedWorldModel);
         convertInstancedMeshtoConvexHull(instancedWorldModel); // leftover code for computing hulls for physics. may return to this later for volumetric explosions.
     }
@@ -456,7 +493,7 @@ const buildJSONModel = function () {
     console.log("DONE GENERATING with " + foundCount + " destroyed voxels and " + globalVoxelIterator + " total voxels in " + totalTime + "ms");
 }
 
-generateModelWorld(modelURL); // finally, we load and generate the model!
+generateWorldModel(modelURL); // finally, we load and generate the model!
 
 // TODO i realize i wrote most of this while high out of my mind but this function chain might be the worst piece of code i've ever written
 // like there are two wholly unnecessary, single-use function calls here for the same exact thing?
@@ -686,12 +723,12 @@ const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroye
                 // set its position using setMatrixAt to far away
                 // setTimeOut 10 ms
                 found = true;
-                setTimeout(function () {
-                    model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, -2, 0));
+                // setTimeout(function () {
+                    model.setMatrixAt(i, new THREE.Matrix4().makeTranslation(0, -2, 0)); // WE PUSH DEAD VOXELS to -2 to hide them, also making instancedmesh operations faster and simpler
                     // set matrix world needs to be called after setMatrixAt
                     model.instanceMatrix.needsUpdate = true;
                     voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 0, x, model);
-                }, 100 * Math.random());
+                // }, 100 * Math.random());
                 break;
             }
         }
@@ -852,6 +889,19 @@ const render = function () {
         //     mouseRayFollower.lookAt(cameraCenterPosition);
         // }
     }
+
+    var frustum = new THREE.Frustum();
+    frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    instancedModelIndex.forEach(model => {
+        // if the frustum contains the point model.geometry.boundingSphere.center
+        if (frustum.intersectsSphere(model.frustumSphere)) {
+            model.visible = true;
+        }
+        else {
+            model.visible = false;
+        }
+    });
+
     requestAnimationFrame(render);
     renderer.render(scene, camera);
 }
