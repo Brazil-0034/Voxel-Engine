@@ -1216,6 +1216,7 @@
             
             const saveData = {};
             saveData.mapMakerSave = [];
+            console.log(MAPOBJECTS);
             MAPOBJECTS.forEach(mapObject => {
                 if (mapObject.isMesh)
                 {
@@ -1458,6 +1459,11 @@
                 });
             }
 
+            // SAVE MAPMAKERSAVE
+            ipc.send('savefile-add-custom-data', {
+                dataName: "mapMakerSave",
+                data: JSON.stringify(saveData.mapMakerSave)
+            });
             
             
 
@@ -1469,7 +1475,6 @@
                 const start = i * chunkSize;
                 const end = start + chunkSize;
                 const chunk = JSON.stringify(saveData.voxels.slice(start, end));
-                console.log(chunk);
                 const JSONSaveData = {
                     index: i,
                     total: numOfChunks,
@@ -1501,26 +1506,28 @@
 
                 reader.onload = readerEvent => {
                     var content = readerEvent.target.result;
-                    const saveData = JSON.parse(content).mapMakerSave;
-                    console.log(saveData);
+                    const mapMakerSaveData = JSON.parse(content).mapMakerSave;
+                    console.log(mapMakerSaveData);
                     
-                    saveData.forEach(mapMakerObject => {
+                    mapMakerSaveData.forEach(mapMakerObject => {
                         if (mapMakerObject.type == "box")
                         {
                             const newBox = new THREE.Mesh(
-                                new THREE.BoxGeometry(mapMakerObject.size.x, mapMakerObject.size.y, mapMakerObject.size.z),
+                                new THREE.BoxGeometry(1, 1, 1),
                                 new THREE.MeshStandardMaterial({
                                     color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b)
                                 })
                             );
+                            newBox.scale.set(mapMakerObject.size.x, mapMakerObject.size.y, mapMakerObject.size.z);
                             newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
-                            scene.add(newBox);
+                            addToScene(newBox);
+                            MAPOBJECTS.push(newBox);
                         }
                     })
 
 
                     updateLeftPanel();
-                    scene.add(selectedObjects);
+                    // scene.add(selectedObjects);
                 }
             }
             input.click();
