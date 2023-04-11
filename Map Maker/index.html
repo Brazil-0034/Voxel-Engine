@@ -171,10 +171,10 @@
             composer.setSize(canvas.width, canvas.height);
             fxaaPass.uniforms['resolution'].value.set(1 / canvas.width, 1 / canvas.height);
         };
-        
+
         // ### EVENT LISTENERS
         window.addEventListener('resize', adjustCanvasSize);
-        
+
         // ### ANIMATION LOOP
         const clock = new THREE.Clock();
         const animate = function () {
@@ -193,9 +193,9 @@
 
 
         //  ### SIMPLE FUNCTIONS
-        
-        const updateRightPanel = function(item) {
-            
+
+        const updateRightPanel = function (item) {
+
             document.querySelector("#selection-name").innerHTML = item.name;
 
             // for each property in the object, create an input field in #object-inspector-elements
@@ -456,9 +456,9 @@
         const randomColor = function () { return new THREE.Color(0xffffff * Math.random()); }
         var transformControls = new TransformControls(camera, canvas);
         transformControls.name = "TransformControls"
-        transformControls.setRotationSnap( THREE.MathUtils.degToRad( 90 ) );
-        transformControls.setTranslationSnap( 1 );
-        transformControls.setScaleSnap( 1 );
+        transformControls.setRotationSnap(THREE.MathUtils.degToRad(90));
+        transformControls.setTranslationSnap(1);
+        transformControls.setScaleSnap(1);
         transformControls.userData.existInGame = false;
         var selectedObjects = new THREE.Group();
         scene.add(selectedObjects);
@@ -501,13 +501,11 @@
                     }
                 }
             });
-            
-            if (event.value == false)
-            {
+
+            if (event.value == false) {
                 // if lastAttachedObject has any part below y=-1, move it up to y=0
                 if (lastAttachedObject != undefined) {
-                    if (lastAttachedObject.userData.isGroundFloor != true)
-                    {
+                    if (lastAttachedObject.userData.isGroundFloor != true) {
                         const boundingBox = new THREE.Box3().setFromObject(lastAttachedObject);
                         if (boundingBox.min.y < -1) {
                             objectsUnderground.push(lastAttachedObject);
@@ -523,8 +521,7 @@
                         sceneObject.material.map = errorTex;
                         sceneObject.material.needsUpdate = true;
                     }
-                    else
-                    {
+                    else {
                         objectsUnderground.splice(objectsUnderground.indexOf(sceneObject), 1);
                         sceneObject.material.map = null;
                         sceneObject.material.needsUpdate = true;
@@ -535,9 +532,8 @@
             }
         });
 
-        const clearSelectedObjects = function() {
+        const clearSelectedObjects = function () {
             transformControls.visible = false;
-            console.log("There are " + selectedObjects.children.length + " selected objects.");
             for (let i = 0; i < selectedObjects.children.length; i++) {
                 const child = selectedObjects.children[i];
                 // get world pos
@@ -610,8 +606,7 @@
             for (let i = 0; i < sceneObjects.length; i++) {
                 sceneObjects[i].updateMatrixWorld();
                 if (!sceneObjects[i].userData.existInGame) continue;
-                if (sceneObjects[i].userData.existInGame != false)
-                {
+                if (sceneObjects[i].userData.existInGame != false) {
                     // var numOfParents = 0;
                     // var parent = sceneObjects[i].parent;
                     // while (parent != scene) {
@@ -622,13 +617,13 @@
                     const item = document.createElement("li");
                     item.innerHTML = sceneObjects[i].name;
                     // item.style.paddingLeft = numOfParents * 20 + "px";
-                    
+
                     list.appendChild(item);
 
                     item.addEventListener("click", function () {
                         // add transform controls to the item
                         var sceneObject;
-                        for (let i = 0; i <sceneObjects.length; i++) {
+                        for (let i = 0; i < sceneObjects.length; i++) {
                             if (sceneObjects[i].name == item.innerHTML) {
                                 sceneObject = sceneObjects[i];
                                 break;
@@ -696,8 +691,7 @@
                         // set the element's top border to white
                         e.target.style.borderTop = snapBorderStyle;
                     }
-                    else
-                    {
+                    else {
                         e.target.style.opacity = 0.25;
                     }
                 });
@@ -767,7 +761,7 @@
             else document.querySelector("#object-counter-label").innerHTML = " total objects";
 
             const list = document.querySelector("#scene-objects-list");
-            
+
             updateLeftPanel();
         }
         var mapHasGround = true;
@@ -876,8 +870,8 @@
                     //     transformControls.setMode("rotate");
                     //     break;
                     // case 'r':
-                        // transformControls.setMode("rotate");
-                        // break;
+                    // transformControls.setMode("rotate");
+                    // break;
                     case 't':
                         transformControls.setMode("scale");
                         break;
@@ -1079,9 +1073,9 @@
         }
         const mouseDownPosition = new THREE.Vector2();
         const mouseUpPosition = new THREE.Vector2();
-        document.addEventListener("mousedown", function(e) { mouseDownPosition.set(e.clientX, e.clientY); });
-        document.addEventListener("mouseup", function(e) { mouseUpPosition.set(e.clientX, e.clientY); });
-        const invokeContextMenu = function(e) {
+        document.addEventListener("mousedown", function (e) { mouseDownPosition.set(e.clientX, e.clientY); });
+        document.addEventListener("mouseup", function (e) { mouseUpPosition.set(e.clientX, e.clientY); });
+        const invokeContextMenu = function (e) {
             const clickedElement = document.elementFromPoint(globalMousePosition.clientX, globalMousePosition.clientY);
             const options = [];
             if (clickedElement.id == "left-panel" || clickedElement.id == "editor-canvas") {
@@ -1188,7 +1182,6 @@
                         }
                     }
                     if (!intersects[index]) {
-                        console.log("Clicked Air");
                         clearSelectedObjects();
                         return;
                     }
@@ -1213,16 +1206,14 @@
         const saveProject = function () {
             console.log("Saving...")
             clearSelectedObjects(); // this will apply all scales outside of selectedObjects group
-            
-            const saveData = {};
-            saveData.mapMakerSave = [];
-            console.log(MAPOBJECTS);
+
+            const saveData = [];
+            const metaData = {};
+            metaData.mapMakerSave = [];
             MAPOBJECTS.forEach(mapObject => {
-                if (mapObject.isMesh)
-                {
-                    console.log(mapObject);
+                if (mapObject.isMesh) {
                     // save the size, position, color
-                    saveData.mapMakerSave.push({
+                    metaData.mapMakerSave.push({
                         "type": "box",
                         "size": {
                             "x": mapObject.scale.x,
@@ -1251,7 +1242,7 @@
 
 
 
-            saveData.cameraData = {
+            metaData.cameraData = {
                 "cameraPosition": {
                     "x": camera.position.x,
                     "y": camera.position.y,
@@ -1265,41 +1256,40 @@
             }
 
             if (mapHasGround) {
-                saveData.groundData = {
-                    "groundSize" : {
+                metaData.groundData = {
+                    "groundSize": {
                         "x": groundFloor.scale.x,
                         "y": groundFloor.scale.y
                     },
-                    "groundColor" : {
+                    "groundColor": {
                         "r": groundFloor.material.color.r,
                         "g": groundFloor.material.color.g,
                         "b": groundFloor.material.color.b
                     }
                 }
             }
-            else
-            {
+            else {
                 console.log("Skipping Ground [Removed from Scene]");
             }
 
-            saveData.lightData = {
+            metaData.lightData = {
                 spotLights: [],
                 pointLights: [],
                 ambientLights: [],
                 hemiLights: []
             }
 
-            // saveData.groundData = [];
+            // metaData.groundData = [];
 
-            saveData.voxels = [];
+            var chunkIndex = 0;
+            saveData[chunkIndex] = { voxels: [] }
             MAPOBJECTS.forEach(function (object) {
                 if (object.userData.doNotVoxelize == true) return;
                 // LIGHTS
-                if (object.isLight)
-                {
+                if (object.isLight) {
                     switch (object.type) {
                         case "SpotLight":
-                            saveData.lightData.spotLights.push({
+                        metaData.lightData.spotLights.push({
                                 "position": {
                                     "x": object.position.x,
                                     "y": object.position.y,
@@ -1323,7 +1313,7 @@
                             });
                             break;
                         case "PointLight":
-                            saveData.lightData.pointLights.push({
+                        metaData.lightData.pointLights.push({
                                 "position": {
                                     "x": object.position.x,
                                     "y": object.position.y,
@@ -1340,7 +1330,7 @@
                             });
                             break;
                         case "HemisphereLight":
-                            saveData.lightData.hemiLights.push({
+                        metaData.lightData.hemiLights.push({
                                 "position": {
                                     "x": object.position.x,
                                     "y": object.position.y,
@@ -1360,7 +1350,7 @@
                             });
                             break;
                         case "AmbientLight":
-                            saveData.lightData.ambientLights.push({
+                        metaData.lightData.ambientLights.push({
                                 "color": {
                                     "r": object.color.r,
                                     "g": object.color.g,
@@ -1372,15 +1362,13 @@
                     }
                 }
                 // MESHES
-                if (object.isMesh)
-                {
+                if (object.isMesh) {
                     const color = object.material.color;
                     const r = Math.round(color.r * 255);
                     const g = Math.round(color.g * 255);
                     const b = Math.round(color.b * 255);
                     // if it's not an instanceMesh
-                    if (!object.isInstanceMesh)
-                    {
+                    if (!object.isInstanceMesh) {
                         const size = object.scale.clone();
                         // absolute value
                         size.x = Math.abs(size.x);
@@ -1394,20 +1382,19 @@
                         for (let x = 0; x < size.x; x++) {
                             for (let y = 0; y < size.y; y++) {
                                 for (let z = 0; z < size.z; z++) {
-                                    saveData.voxels.push({
-                                            "x": position.x + x,
-                                            "y": position.y + y,
-                                            "z": position.z + z,
-                                            "r": r,
-                                            "g": g,
-                                            "b": b
-                                    });
+                                    saveData[chunkIndex].voxels.push(
+                                        position.x + x,
+                                        position.y + y,
+                                        position.z + z,
+                                        r,
+                                        g,
+                                        b
+                                    );
                                 }
                             }
                         }
                     }
-                    else
-                    {
+                    else {
                         // for each voxel in the instanceMesh
                         for (let i = 0; i < object.count; i++) {
                             // get the voxel's position in the instanceMesh
@@ -1419,71 +1406,81 @@
                             object.getColorAt(i, voxelColor);
 
                             // save the voxel
-                            saveData.voxels.push({
-                                    "x": voxelPosition.x,
-                                    "y": voxelPosition.y,
-                                    "z": voxelPosition.z,
-                                    "r": voxelColor.r,
-                                    "g": voxelColor.g,
-                                    "b": voxelColor.b
+                            saveData[chunkIndex].voxels.push({
+                                "x": voxelPosition.x,
+                                "y": voxelPosition.y,
+                                "z": voxelPosition.z,
+                                "r": voxelColor.r,
+                                "g": voxelColor.g,
+                                "b": voxelColor.b
                             });
                         }
                     }
                 }
+                if (saveData[chunkIndex].voxels.length >=  (2090000 / 60)) { // max JSON string length / avg. length of voxeldata JSON string (~35000 with len of 60)
+                    chunkIndex++;
+                    saveData[chunkIndex] = { voxels: [] }
+                }
             });
 
-            console.log(saveData);
             console.log("Construction Complete, sending to filewriter...")
 
             var ipc = require('electron').ipcRenderer;
-            ipc.send('init-new-savefile');
-
-            // SEND CAMERA DATA
-            ipc.send('savefile-add-custom-data', {
-                dataName: "cameraData",
-                data: JSON.stringify(saveData.cameraData)
+            ipc.send('refresh-save', {
+                saveName: 'savedata'
             });
 
-            // SEND LIGHTING DATA
-            ipc.send('savefile-add-custom-data', {
-                dataName: "lightData",
-                data: JSON.stringify(saveData.lightData)
-            });
+            var saveIndex = 0;
+            ipc.on('ready-to-save', (event, arg) => {
+                ipc.send('init-new-savefile');
 
-            // SEND GROUND DATA
-            if (mapHasGround)
-            {
+                // SEND CAMERA DATA
                 ipc.send('savefile-add-custom-data', {
-                    dataName: "groundData",
-                    data: JSON.stringify(saveData.groundData)
+                    dataName: "cameraData",
+                    data: JSON.stringify(saveData.cameraData)
                 });
-            }
+                // SEND LIGHTING DATA
+                ipc.send('savefile-add-custom-data', {
+                    dataName: "lightData",
+                    data: JSON.stringify(saveData.lightData)
+                });
+                // SEND GROUND DATA
+                if (mapHasGround) {
+                    ipc.send('savefile-add-custom-data', {
+                        dataName: "groundData",
+                        data: JSON.stringify(saveData.groundData)
+                    });
+                }
+                // SAVE MAPMAKERSAVE
+                ipc.send('savefile-add-custom-data', {
+                    dataName: "mapMakerSave",
+                    data: JSON.stringify(saveData.mapMakerSave)
+                });
+                // END CUSTOM DATA
+                ipc.send('savefile-end-custom-data');
 
-            // SAVE MAPMAKERSAVE
-            ipc.send('savefile-add-custom-data', {
-                dataName: "mapMakerSave",
-                data: JSON.stringify(saveData.mapMakerSave)
+
+                const length = saveData[saveIndex].voxels.length;
+                const numOfChunks = saveData.length;
+                ipc.send('init-new-savefile');
+
+                let i = 0;
+                const shipChunk = function() {
+                    const chunk = JSON.stringify(saveData[saveIndex].voxels);
+                    const JSONSaveData = { voxels: chunk };
+                    ipc.send('savefile-add-voxel-chunk', JSONSaveData);
+                    i++;
+                    // wait for "ready-to-save-voxelchunk" event
+                    ipc.on('ready-to-save-voxelchunk', (event, arg) => {
+                        if (i < numOfChunks) shipChunk();
+                    });
+                }
+                shipChunk();
+                saveIndex++;
+
+                console.log("Written Successfully: " + length + " voxels written within " + numOfChunks + " chunks.");
             });
-            
-            
 
-            const length = saveData.voxels.length;
-            const numOfChunks = Math.ceil(length / 35000);
-            const chunkSize = Math.ceil(length / numOfChunks);
-
-            for (let i = 0; i < numOfChunks; i++) {
-                const start = i * chunkSize;
-                const end = start + chunkSize;
-                const chunk = JSON.stringify(saveData.voxels.slice(start, end));
-                const JSONSaveData = {
-                    index: i,
-                    total: numOfChunks,
-                    voxels: chunk
-                };
-                ipc.send('savefile-add-voxel-chunk', JSONSaveData);
-            }
-
-            console.log("Written Successfully. " + length + " voxels written within " + numOfChunks + " chunks, averaging " + chunkSize + " voxels per chunk.");
         }
 
         document.querySelector("#save-button").addEventListener("click", function () {
@@ -1508,10 +1505,9 @@
                     var content = readerEvent.target.result;
                     const mapMakerSaveData = JSON.parse(content).mapMakerSave;
                     console.log(mapMakerSaveData);
-                    
+
                     mapMakerSaveData.forEach(mapMakerObject => {
-                        if (mapMakerObject.type == "box")
-                        {
+                        if (mapMakerObject.type == "box") {
                             const newBox = new THREE.Mesh(
                                 new THREE.BoxGeometry(1, 1, 1),
                                 new THREE.MeshStandardMaterial({
@@ -1745,8 +1741,8 @@
 
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button {
-          -webkit-appearance: none !important;
-          margin: 0 !important;
+            -webkit-appearance: none !important;
+            margin: 0 !important;
         }
     </style>
 </body>

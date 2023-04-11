@@ -29,7 +29,32 @@ function createWindow() {
     // Open the DevTools.
     mainWindow.webContents.openDevTools()
 
+    var thisSaveName = "savedata";
     var saveFileData = "{";
+    var chunkCounter = 0;
+    var metadata = `{"error": "no metadata"}`
+
+    ipc.on('refresh-save', function(event, arg) {
+        thisSaveName = arg.saveName;
+        chunkCounter = 0;
+        // if a directory in ../maps/ doesnt exist, create it
+        if (!fs.existsSync("../maps/" + thisSaveName)) {
+            fs.mkdirSync("../maps/" + thisSaveName);
+        } 
+
+        // DELETE ALL FILES IN THIS DIRECTORY
+        fs.readdir("../maps/" + thisSaveName, (err, files) => {
+            if (err) throw err;
+            for (const file of files) {
+              fs.unlinkSync(path.join("../maps/" + thisSaveName, file), err => {
+                if (err) throw err;
+              });
+            }
+
+            // send "ready-to-save"
+            mainWindow.webContents.send('ready-to-save');
+        });
+    });
 
     ipc.on('init-new-savefile', function (event, arg) {
         saveFileData = "{";
@@ -41,34 +66,37 @@ function createWindow() {
         saveFileData += `"${dataName}":${stringData},`;
     });
 
+    ipc.on('savefile-end-custom-data', function (event, arg) {
+        saveFileData = saveFileData.slice(0, -1);
+        saveFileData += `}`;
+        metadata = saveFileData;
+        writeFile("metadata", metadata);
+    });
+
     ipc.on('savefile-add-voxel-chunk', function (event, arg) {
         // arg format:
         // [chunkNumber, totalChunks, chunkData]
-        const index = arg.index; // # index of this json chunk
-        const total = arg.total; // total # of json chunks
         const data = arg.voxels; // string as json chunk
 
-        // if this is the first chunk, clear the save file
-        if (index == 0) {
-            saveFileData += `"voxels":`;
-        }
+        saveFileData += `"voxels":`;
 
         // add this chunk to the save file
         saveFileData += data;
 
-        // if this is the last chunk, write the save file
-        if (index == total - 1) {
-            saveFileData += `}`;
-            writeFile();
-        }
+        saveFileData += `}`;
+
+        // write the file as this chunk #
+        writeFile("chunk" + chunkCounter, saveFileData);
+        chunkCounter++;
     });
 
-    const writeFile = function() {
-        fs.writeFile('../maps/savedata.json', saveFileData, function (err) {
+    const writeFile = function(fileName, data) {
+        fs.writeFile("../maps/" + thisSaveName + "/" + fileName + ".json", data, function (err) {
             if (err) {
                 return console.log(err);
             }
-            console.log("The file was saved!");
+            console.log("The file was saved! - [" + fileName + ".json]");
+            if (fileName.includes("chunk")) mainWindow.webContents.send('ready-to-save-voxelchunk');
         });
     }
 }
