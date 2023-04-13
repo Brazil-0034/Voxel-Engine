@@ -78,15 +78,15 @@ function createWindow() {
         // [chunkNumber, totalChunks, chunkData]
         const data = arg.voxels; // string as json chunk
 
-        saveFileData += `"voxels":`;
+        var voxelSaveData = `{"voxels":`;
 
         // add this chunk to the save file
-        saveFileData += data;
+        voxelSaveData += data;
 
-        saveFileData += `}`;
+        voxelSaveData += `}`;
 
         // write the file as this chunk #
-        writeFile("chunk" + chunkCounter, saveFileData);
+        writeFile("chunk" + chunkCounter, voxelSaveData);
         chunkCounter++;
     });
 

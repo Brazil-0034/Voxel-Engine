@@ -28,44 +28,60 @@ function createWindow() {
     mainWindow.webContents.openDevTools()
 
     var ipc = require('electron').ipcMain;
-    ipc.on('read-models', function (event, arg) {
-        console.log("read-models");
-        // save the file names of every .json file in the /level_models/ folder, then set it
-        const directoryPath = path.join(__dirname, 'level_models');
+    ipc.on('list-maps', function (event, arg) {
+        console.log("List Maps...");
 
-        const files = fs.readdirSync(directoryPath);
-        var models = [];
-        files.forEach(file => {
-            if (file.endsWith(".json")) {
-                // remove the .json extension
-                file = file.substring(0, file.length - 5);
-                models.push(file);
+        // return an array of stringsd with everything in /maps/
+        // LIST ONLY DIRECTORIES
+        var maps = fs.readdirSync(__dirname + '/maps/').filter(function(file) {
+            if (fs.statSync(path.join(__dirname + '/maps/', file)).isDirectory()) {
+                return true;
             }
         });
 
-        // in the ul #available-models, empty it and add a new li for each model
-        event.returnValue = models;
+        console.log(maps);
+
+        // send the array back to the renderer
+        // "list-maps-reply"
+        event.sender.send('list-maps-reply', maps);
     });
 
-    // save-map which takes a json object and saves it as .json in /exported_maps/ (create the folder if it doesn't exist)
-    ipc.on('save-map', function (event, arg) {
-        console.log("save-map");
-        // save the file names of every .json file in the /level_models/ folder, then set it
-        const directoryPath = path.join(__dirname, 'exported_maps');
+    ipc.on('get-map-metadata', function (event, arg) {
+        // return the metadata.json 
+        // arg is the map name
+        console.log("Get Map Metadata: " + arg.mapName);
 
-        // create the folder if it doesn't exist
-        if (!fs.existsSync(directoryPath)) {
-            fs.mkdirSync(directoryPath);
-        }
-
-        // save the json object as a .json file
-        var json = JSON.stringify(arg);
-        fs.writeFile(path.join(directoryPath, arg.name + ".json"), json, 'utf8', function (err) {
+        fs.readFile(__dirname + '/maps/' + arg.mapName + '/metadata.json', 'utf8', function (err, data) {
             if (err) {
-                console.log("An error occured while writing JSON Object to File.");
-                return console.log(err);
+                console.log(err);
+                event.sender.send('get-map-metadata-reply', null);
+                return;
             }
-            console.log("JSON file has been saved as " + arg.name + ".json");
+            // count the number of chunks
+            var totalChunks = 0;
+            // search the directory /maps/arg.mapName/ for any file that ends in ".json" and starts with "chunk"
+            fs.readdirSync(__dirname + '/maps/' + arg.mapName).filter(function(file) {
+                if (file.endsWith(".json") && file.startsWith("chunk")) {
+                    totalChunks++;
+                }
+            });
+            event.sender.send('get-map-metadata-reply', {
+                metadata: JSON.parse(data),
+                totalChunks: totalChunks
+            });
+        });
+    });
+
+    ipc.on('get-map-chunk', function (event, arg) {
+        const mapDirName = arg.mapName;
+        const index = arg.chunkIndex;
+
+        // send back the URL (absolute path) of the chunk
+        // arg is the map name
+        console.log("Get Map Chunk: " + mapDirName + "#" + index);
+
+        event.sender.send('get-map-chunk-reply', {
+            modelURL: __dirname + '/maps/' + mapDirName + '/chunk' + index + '.json'
         });
     });
 }

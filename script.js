@@ -6,9 +6,10 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { VoxelInstancedMesh } from './VoxelInstancedMesh.js';
+var ipcRenderer = require('electron').ipcRenderer;
 
 // (Requires Reload) builds the world with random chunk colors, among other changes
-var debugMode = false;
+var debugMode = true;
 
 // Sets the help text on the bottom center of the player's screen
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 
@@ -124,7 +125,6 @@ const weaponURL = 'weapons/' + 'weapon_smg.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
-let JSONData;
 
 // WEAPON DATA
 // These objects store data on the currently selected weapon, globally.
@@ -308,22 +308,53 @@ class DiscreteVectorFieldPhysicsObject {
 // TODO - origin offsets for multiple map loading?
 //  ^ this is very unncessary but could be useful for features like streaming
 const generateWorldModel = function (modelURL) {
-    if (!JSONData) {
-        let loader = new THREE.FileLoader();
-        loader.load(
-            modelURL,
-            function (jsondata) {
-                JSONData = jsondata;
-                buildWorldModel();
-            },
-            function (err) {
-                // console.log(err);
+
+    // send IPC message 'list-maps' and wait for response (sends eventResponse)
+    // TODO - make this a promise
+    ipcRenderer.send('list-maps');
+    ipcRenderer.on('list-maps-reply', (event, arg) => {
+        // THIS LISTS ALL AVAILABLE MAPS (later: map selector)
+        // console.log(arg);
+        
+        // THIS CHOOSES THE MAP TO LOAD
+        ipcRenderer.send('get-map-metadata', {
+            mapName: 'savedata'
+        });
+
+        // THIS GETS METADATA (PRELOAD)
+        ipcRenderer.on('get-map-metadata-reply', (event, arg) => {
+            const metadata = arg.metadata
+            
+            const totalChunks = arg.totalChunks;
+
+            let loader = new THREE.FileLoader();
+            const loadMapChunk = function(counter) {
+                ipcRenderer.send('get-map-chunk', {
+                    mapName: 'savedata',
+                    chunkIndex: counter
+                });
+
+                ipcRenderer.on('get-map-chunk-reply', (event, arg) => {
+                    console.log('received chunk ' + counter + ' of ' + totalChunks);
+                    loader.load(
+                        arg.modelURL,
+                        function (JSONData) {
+                            buildWorldModel(JSONData);
+                        },
+                        function (err) {
+                            // console.log(err);
+                        }
+                    );
+                });
             }
-        );
-    }
-    else {
-        buildWorldModel();
-    }
+
+            for (var i = 0; i < totalChunks; i++) {
+                loadMapChunk(i);
+            }
+            
+        });
+
+    });
 }
 // VOXEL OBJECT DATA
 const voxelSize = 1; // the relative size of voxels
@@ -343,10 +374,19 @@ maxChunkSize = Math.pow(maxChunkSize, 2); // squares it cuz why not? :3
 
 let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
 let voxelPositions = []; // same as above, but contains voxels, for later physics simulations
-const buildWorldModel = function () {
+const buildWorldModel = function (JSONData) {
     const startTime = Date.now();
     const parsedData = JSON.parse(JSONData);
     let voxelPositionsFromFile = parsedData.voxels;
+    let tempVoxelPositions = [];
+    // group every sixth value in an array brackets []
+    // this is because the JSON file stores the data in a flat array, and we need to group them into 6s
+    for (var i = 0; i < voxelPositionsFromFile.length; i += 6) {
+        tempVoxelPositions.push(voxelPositionsFromFile.slice(i, i + 6));
+    }
+    voxelPositionsFromFile = tempVoxelPositions;
+    // gc tempVoxelPositions - dunno if this is necessary and may be platform dependent, but jesus christ thats a ton of memory wasted
+    tempVoxelPositions = null;
     if (parsedData.groundData) {
         groundFloor = new THREE.Mesh(
             new THREE.BoxGeometry(parsedData.groundData.groundSize.x, 1, parsedData.groundData.groundSize.y),
@@ -420,7 +460,10 @@ const buildWorldModel = function () {
     const numberOfChunks = Math.ceil(voxelPositionsFromFile.length / maxChunkSize);
     const chunkSize = Math.ceil(voxelPositionsFromFile.length / numberOfChunks);
     let globalVoxelIterator = 0;
+    console.log("Number of chunks: " + numberOfChunks);
     for (let i = 0; i < numberOfChunks; i++) {
+        globalVoxelIterator+= chunkSize;
+        console.log("Building chunk #" + i + " of " + numberOfChunks + " from position " + globalVoxelIterator + " to " + (globalVoxelIterator + chunkSize) + " of " + voxelPositionsFromFile.length + " total voxels.");
         // For every chunk ...
         const chunkMinPosition = new THREE.Vector3(
             Number.MAX_SAFE_INTEGER,
@@ -440,41 +483,50 @@ const buildWorldModel = function () {
         );
         instancedWorldModel.name = i;
         let localVoxelIterator = 0;
-        let startPos = globalVoxelIterator;
         let voxelsInChunk = [];
         const thisChunkDebugColor = new THREE.Color(Math.random(), Math.random(), Math.random());
-        for (let x = globalVoxelIterator; x < startPos + chunkSize; x++) {
-            const thisVoxelData = voxelPositionsFromFile[globalVoxelIterator];
-            if (thisVoxelData != undefined) {
-                var thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
-                if (debugMode) thisVoxelColor = thisChunkDebugColor;
-                const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
-                // if the color is BLACK, set its position to the origin (TRANSPARENCY FIX for OLD [DEV] MAPS)
-                // if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
-                //     thisVoxelPosition.set(0, 0, 0);
-                //     console.log("Voxel Blacked");
-                // }
-                // multiply by voxel size to get correct position
-                thisVoxelPosition.multiplyScalar(voxelSize);
-                // adjust floor color
-                // if (globalVoxelIterator == 0) groundFloor.material.color.set(thisVoxelColor);
-                instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
-                instancedWorldModel.setColorAt(localVoxelIterator, thisVoxelColor);
-                voxelsInChunk.push(thisVoxelData);
-                voxelField.set(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z, 1, localVoxelIterator, instancedWorldModel);
+        for (let x = globalVoxelIterator; x < globalVoxelIterator + chunkSize; x++) {
+            if (voxelPositionsFromFile[x])
+            {
+                const thisVoxelData = {
+                    x: voxelPositionsFromFile[x][0],
+                    y: voxelPositionsFromFile[x][1],
+                    z: voxelPositionsFromFile[x][2],
+                    r: voxelPositionsFromFile[x][3],
+                    g: voxelPositionsFromFile[x][4],
+                    b: voxelPositionsFromFile[x][5]
+                }
+                if (thisVoxelData != undefined) {
+                    var thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
+                    if (debugMode) thisVoxelColor = thisChunkDebugColor;
+                    const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
+                    // if the color is BLACK, set its position to the origin (TRANSPARENCY FIX for OLD [DEV] MAPS)
+                    // if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
+                    //     thisVoxelPosition.set(0, 0, 0);
+                    //     console.log("Voxel Blacked");
+                    // }
+                    // multiply by voxel size to get correct position
+                    thisVoxelPosition.multiplyScalar(voxelSize);
+                    // adjust floor color
+                    // if (globalVoxelIterator == 0) groundFloor.material.color.set(thisVoxelColor);
+                    instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
+                    instancedWorldModel.setColorAt(localVoxelIterator, thisVoxelColor);
+                    voxelsInChunk.push(thisVoxelData);
+                    voxelField.set(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z, 1, localVoxelIterator, instancedWorldModel);
 
-                // calculate the min and max positions of the chunk
-                if (thisVoxelPosition.x < chunkMinPosition.x) chunkMinPosition.x = thisVoxelPosition.x;
-                if (thisVoxelPosition.y < chunkMinPosition.y) chunkMinPosition.y = thisVoxelPosition.y;
-                if (thisVoxelPosition.z < chunkMinPosition.z) chunkMinPosition.z = thisVoxelPosition.z;
-                if (thisVoxelPosition.x > chunkMaxPosition.x) chunkMaxPosition.x = thisVoxelPosition.x;
-                if (thisVoxelPosition.y > chunkMaxPosition.y) chunkMaxPosition.y = thisVoxelPosition.y;
-                if (thisVoxelPosition.z > chunkMaxPosition.z) chunkMaxPosition.z = thisVoxelPosition.z;
+                    // calculate the min and max positions of the chunk
+                    if (thisVoxelPosition.x < chunkMinPosition.x) chunkMinPosition.x = thisVoxelPosition.x;
+                    if (thisVoxelPosition.y < chunkMinPosition.y) chunkMinPosition.y = thisVoxelPosition.y;
+                    if (thisVoxelPosition.z < chunkMinPosition.z) chunkMinPosition.z = thisVoxelPosition.z;
+                    if (thisVoxelPosition.x > chunkMaxPosition.x) chunkMaxPosition.x = thisVoxelPosition.x;
+                    if (thisVoxelPosition.y > chunkMaxPosition.y) chunkMaxPosition.y = thisVoxelPosition.y;
+                    if (thisVoxelPosition.z > chunkMaxPosition.z) chunkMaxPosition.z = thisVoxelPosition.z;
 
-                globalVoxelIterator++;
-                localVoxelIterator++;
+                    localVoxelIterator++;
+                }
             }
         }
+        console.log("LVI " + localVoxelIterator + " GVI " + globalVoxelIterator);
         voxelPositions.push({
             chunkID: instancedWorldModel.name,
             voxels: voxelsInChunk
@@ -525,8 +577,8 @@ const generateModelWeapon = function (modelURL) {
     let loader = new THREE.FileLoader();
     loader.load(
         modelURL,
-        function (jsondata) {
-            buildJSONWeapon(jsondata);
+        function (JSONData) {
+            buildJSONWeapon(JSONData);
         },
         function (err) {
             // console.log(err);

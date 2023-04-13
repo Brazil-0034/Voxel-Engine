@@ -1207,7 +1207,6 @@
             console.log("Saving...")
             clearSelectedObjects(); // this will apply all scales outside of selectedObjects group
 
-            const saveData = [];
             const metaData = {};
             metaData.mapMakerSave = [];
             MAPOBJECTS.forEach(mapObject => {
@@ -1281,204 +1280,203 @@
 
             // metaData.groundData = [];
 
-            var chunkIndex = 0;
-            saveData[chunkIndex] = { voxels: [] }
-            MAPOBJECTS.forEach(function (object) {
-                if (object.userData.doNotVoxelize == true) return;
-                // LIGHTS
-                if (object.isLight) {
-                    switch (object.type) {
-                        case "SpotLight":
-                        metaData.lightData.spotLights.push({
-                                "position": {
-                                    "x": object.position.x,
-                                    "y": object.position.y,
-                                    "z": object.position.z
-                                },
-                                "targetPosition": {
-                                    "x": object.target.position.x,
-                                    "y": object.target.position.y,
-                                    "z": object.target.position.z
-                                },
-                                "color": {
-                                    "r": object.color.r,
-                                    "g": object.color.g,
-                                    "b": object.color.b
-                                },
-                                "intensity": object.intensity,
-                                "distance": object.distance,
-                                "angle": object.angle,
-                                "penumbra": object.penumbra,
-                                "decay": object.decay
-                            });
-                            break;
-                        case "PointLight":
-                        metaData.lightData.pointLights.push({
-                                "position": {
-                                    "x": object.position.x,
-                                    "y": object.position.y,
-                                    "z": object.position.z
-                                },
-                                "color": {
-                                    "r": object.color.r,
-                                    "g": object.color.g,
-                                    "b": object.color.b
-                                },
-                                "intensity": object.intensity,
-                                "distance": object.distance,
-                                "decay": object.decay
-                            });
-                            break;
-                        case "HemisphereLight":
-                        metaData.lightData.hemiLights.push({
-                                "position": {
-                                    "x": object.position.x,
-                                    "y": object.position.y,
-                                    "z": object.position.z
-                                },
-                                "color": {
-                                    "r": object.color.r,
-                                    "g": object.color.g,
-                                    "b": object.color.b
-                                },
-                                "groundColor": {
-                                    "r": object.groundColor.r,
-                                    "g": object.groundColor.g,
-                                    "b": object.groundColor.b
-                                },
-                                "intensity": object.intensity
-                            });
-                            break;
-                        case "AmbientLight":
-                        metaData.lightData.ambientLights.push({
-                                "color": {
-                                    "r": object.color.r,
-                                    "g": object.color.g,
-                                    "b": object.color.b
-                                },
-                                "intensity": object.intensity
-                            });
-                            break;
-                    }
-                }
-                // MESHES
-                if (object.isMesh) {
-                    const color = object.material.color;
-                    const r = Math.round(color.r * 255);
-                    const g = Math.round(color.g * 255);
-                    const b = Math.round(color.b * 255);
-                    // if it's not an instanceMesh
-                    if (!object.isInstanceMesh) {
-                        const size = object.scale.clone();
-                        // absolute value
-                        size.x = Math.abs(size.x);
-                        size.y = Math.abs(size.y);
-                        size.z = Math.abs(size.z);
-                        const position = object.position.clone();
-                        position.x -= size.x / 2;
-                        position.y -= size.y / 2;
-                        position.z -= size.z / 2;
+            var saveData = { voxels: [] }
 
-                        for (let x = 0; x < size.x; x++) {
-                            for (let y = 0; y < size.y; y++) {
-                                for (let z = 0; z < size.z; z++) {
-                                    saveData[chunkIndex].voxels.push(
-                                        position.x + x,
-                                        position.y + y,
-                                        position.z + z,
-                                        r,
-                                        g,
-                                        b
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        // for each voxel in the instanceMesh
-                        for (let i = 0; i < object.count; i++) {
-                            // get the voxel's position in the instanceMesh
-                            const voxelPosition = new THREE.Vector3();
-                            object.getMatrixAt(i, voxelPosition);
 
-                            // get the voxel's color
-                            const voxelColor = new THREE.Color();
-                            object.getColorAt(i, voxelColor);
-
-                            // save the voxel
-                            saveData[chunkIndex].voxels.push({
-                                "x": voxelPosition.x,
-                                "y": voxelPosition.y,
-                                "z": voxelPosition.z,
-                                "r": voxelColor.r,
-                                "g": voxelColor.g,
-                                "b": voxelColor.b
-                            });
-                        }
-                    }
-                }
-                if (saveData[chunkIndex].voxels.length >=  (2090000 / 60)) { // max JSON string length / avg. length of voxeldata JSON string (~35000 with len of 60)
-                    chunkIndex++;
-                    saveData[chunkIndex] = { voxels: [] }
-                }
-            });
-
-            console.log("Construction Complete, sending to filewriter...")
 
             var ipc = require('electron').ipcRenderer;
             ipc.send('refresh-save', {
                 saveName: 'savedata'
             });
 
-            var saveIndex = 0;
             ipc.on('ready-to-save', (event, arg) => {
                 ipc.send('init-new-savefile');
-
                 // SEND CAMERA DATA
                 ipc.send('savefile-add-custom-data', {
                     dataName: "cameraData",
-                    data: JSON.stringify(saveData.cameraData)
+                    data: JSON.stringify(metaData.cameraData)
                 });
                 // SEND LIGHTING DATA
                 ipc.send('savefile-add-custom-data', {
                     dataName: "lightData",
-                    data: JSON.stringify(saveData.lightData)
+                    data: JSON.stringify(metaData.lightData)
                 });
                 // SEND GROUND DATA
                 if (mapHasGround) {
                     ipc.send('savefile-add-custom-data', {
                         dataName: "groundData",
-                        data: JSON.stringify(saveData.groundData)
+                        data: JSON.stringify(metaData.groundData)
                     });
                 }
                 // SAVE MAPMAKERSAVE
                 ipc.send('savefile-add-custom-data', {
                     dataName: "mapMakerSave",
-                    data: JSON.stringify(saveData.mapMakerSave)
+                    data: JSON.stringify(metaData.mapMakerSave)
                 });
                 // END CUSTOM DATA
                 ipc.send('savefile-end-custom-data');
-
-
-                const length = saveData[saveIndex].voxels.length;
-                const numOfChunks = saveData.length;
                 ipc.send('init-new-savefile');
 
-                let i = 0;
-                const shipChunk = function() {
-                    const chunk = JSON.stringify(saveData[saveIndex].voxels);
-                    const JSONSaveData = { voxels: chunk };
-                    ipc.send('savefile-add-voxel-chunk', JSONSaveData);
-                    i++;
-                    // wait for "ready-to-save-voxelchunk" event
-                    ipc.on('ready-to-save-voxelchunk', (event, arg) => {
-                        if (i < numOfChunks) shipChunk();
-                    });
-                }
-                shipChunk();
-                saveIndex++;
 
-                console.log("Written Successfully: " + length + " voxels written within " + numOfChunks + " chunks.");
+                var mapObjectsIndex = 0;
+                const voxelizeMapObject = function(mapObject) {
+                    if (mapObject.userData.doNotVoxelize == true) return;
+                    // LIGHTS
+                    if (mapObject.isLight) {
+                        switch (mapObject.type) {
+                            case "SpotLight":
+                            metaData.lightData.spotLights.push({
+                                    "position": {
+                                        "x": mapObject.position.x,
+                                        "y": mapObject.position.y,
+                                        "z": mapObject.position.z
+                                    },
+                                    "targetPosition": {
+                                        "x": mapObject.target.position.x,
+                                        "y": mapObject.target.position.y,
+                                        "z": mapObject.target.position.z
+                                    },
+                                    "color": {
+                                        "r": mapObject.color.r,
+                                        "g": mapObject.color.g,
+                                        "b": mapObject.color.b
+                                    },
+                                    "intensity": mapObject.intensity,
+                                    "distance": mapObject.distance,
+                                    "angle": mapObject.angle,
+                                    "penumbra": mapObject.penumbra,
+                                    "decay": mapObject.decay
+                                });
+                                break;
+                            case "PointLight":
+                            metaData.lightData.pointLights.push({
+                                    "position": {
+                                        "x": mapObject.position.x,
+                                        "y": mapObject.position.y,
+                                        "z": mapObject.position.z
+                                    },
+                                    "color": {
+                                        "r": mapObject.color.r,
+                                        "g": mapObject.color.g,
+                                        "b": mapObject.color.b
+                                    },
+                                    "intensity": mapObject.intensity,
+                                    "distance": mapObject.distance,
+                                    "decay": mapObject.decay
+                                });
+                                break;
+                            case "HemisphereLight":
+                            metaData.lightData.hemiLights.push({
+                                    "position": {
+                                        "x": mapObject.position.x,
+                                        "y": mapObject.position.y,
+                                        "z": mapObject.position.z
+                                    },
+                                    "color": {
+                                        "r": mapObject.color.r,
+                                        "g": mapObject.color.g,
+                                        "b": mapObject.color.b
+                                    },
+                                    "groundColor": {
+                                        "r": mapObject.groundColor.r,
+                                        "g": mapObject.groundColor.g,
+                                        "b": mapObject.groundColor.b
+                                    },
+                                    "intensity": mapObject.intensity
+                                });
+                                break;
+                            case "AmbientLight":
+                            metaData.lightData.ambientLights.push({
+                                    "color": {
+                                        "r": mapObject.color.r,
+                                        "g": mapObject.color.g,
+                                        "b": mapObject.color.b
+                                    },
+                                    "intensity": mapObject.intensity
+                                });
+                                break;
+                        }
+                    }
+                    // MESHES
+                    if (mapObject.isMesh) {
+                        const color = mapObject.material.color;
+                        const r = parseInt(Math.round(color.r * 255));
+                        const g = parseInt(Math.round(color.g * 255));
+                        const b = parseInt(Math.round(color.b * 255));
+                        // if it's not an instanceMesh
+                        if (!mapObject.isInstanceMesh) {
+                            const size = mapObject.scale.clone();
+                            // absolute value
+                            size.x = Math.abs(size.x);
+                            size.y = Math.abs(size.y);
+                            size.z = Math.abs(size.z);
+                            const position = mapObject.position.clone();
+                            position.x -= size.x / 2;
+                            position.y -= size.y / 2;
+                            position.z -= size.z / 2;
+
+                            const uploadChunk = function() {
+                                const chunk = JSON.stringify(saveData.voxels);
+                                const JSONSaveData = { voxels: chunk };
+                                ipc.send('savefile-add-voxel-chunk', JSONSaveData);
+                            }
+
+                            const voxelCount = size.x * size.y * size.z;
+                            const intervalSize = 2090000;
+                            var counter = 0;
+
+                            for (let x = 0; x < size.x; x++) {
+                                for (let y = 0; y < size.y; y++) {
+                                    for (let z = 0; z < size.z; z++) {
+                                        saveData.voxels.push(
+                                            position.x + x,
+                                            position.y + y,
+                                            position.z + z,
+                                            r,
+                                            g,
+                                            b
+                                        );
+                                        counter++;
+                                        if (counter >= intervalSize) {
+                                            counter = 0;
+
+                                            uploadChunk();
+
+                                            saveData.voxels = [];
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (saveData.voxels.length > 0) uploadChunk();
+                        }
+                        else {
+                            for (let i = 0; i < mapObject.count; i++) {
+                                // get the voxel's position in the instanceMesh
+                                const voxelPosition = new THREE.Vector3();
+                                mapObject.getMatrixAt(i, voxelPosition);
+
+                                // get the voxel's color
+                                const voxelColor = new THREE.Color();
+                                mapObject.getColorAt(i, voxelColor);
+
+                                // save the voxel
+                                saveData.voxels.push({
+                                    "x": voxelPosition.x,
+                                    "y": voxelPosition.y,
+                                    "z": voxelPosition.z,
+                                    "r": voxelColor.r,
+                                    "g": voxelColor.g,
+                                    "b": voxelColor.b
+                                });
+                            }
+                        }
+                    }
+                }
+
+                voxelizeMapObject(MAPOBJECTS[mapObjectsIndex]);
+
+                console.log("Written Successfully.");
             });
 
         }
