@@ -8,8 +8,10 @@ import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { VoxelInstancedMesh } from './VoxelInstancedMesh.js';
 var ipcRenderer = require('electron').ipcRenderer;
 
-// (Requires Reload) builds the world with random chunk colors, among other changes
-var debugMode = true;
+const USERSETTINGS = {
+    debugMode: false,
+    useSpriteParticles: true
+}
 
 // Sets the help text on the bottom center of the player's screen
 const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text } 
@@ -27,11 +29,12 @@ document.body.appendChild(renderer.domElement);
 
 // LIGHTING
 // Initializes the THREE.js lighting
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
-hemiLight.color.setHSL(0.6, 1, 0.6);
-hemiLight.groundColor.setHSL(0.095, 1, 0.75);
-hemiLight.position.set(0, 50, 0);
-scene.add(hemiLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const directionalLight = new THREE.HemisphereLight(0xffffff, 0x000000, 0.5);
+directionalLight.position.set(0, 1, 0);
+scene.add(directionalLight);
+
 const path = 'skyboxes/SwedishRoyalCastle/';
 const format = '.jpg';
 const urls = [
@@ -121,7 +124,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
 const modelURL = 'maps/' + 'savedata.json';
-const weaponURL = 'weapons/' + 'weapon_smg.json';
+const weaponURL = 'weapons/' + 'weapon_ar.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
@@ -150,8 +153,31 @@ let destroyedVoxels = [];
 class DiscreteVectorField {
     constructor() {
         this.field = [];
+        this.chunkIndexes = {};
     }
 
+    setChunkMinIndex(chunkName, index) {
+        if (!this.chunkIndexes[chunkName]) {
+            this.chunkIndexes[chunkName] = {};
+        }
+        this.chunkIndexes[chunkName].minIndex = index;
+    }
+
+    setChunkMaxIndex(chunkName, index) {
+        if (!this.chunkIndexes[chunkName]) {
+            this.chunkIndexes[chunkName] = {};
+        }
+        this.chunkIndexes[chunkName].maxIndex = index;
+    }
+
+    getChunkMinIndex(chunkName) {
+        return this.chunkIndexes[chunkName].minIndex || 0;
+    }
+
+    getChunkMaxIndex(chunkName) {
+        return this.chunkIndexes[chunkName].maxIndex || 0;
+    }
+    
     // Sets the value of the vector field at the given position
     set(x, y, z, value, indexInChunk, chunk) {
         x = Math.round(x);
@@ -168,6 +194,43 @@ class DiscreteVectorField {
             indexInChunk: indexInChunk,
             chunk: chunk
         };
+    }
+
+    remove(x, y, z)
+    {
+        x = Math.round(x);
+        y = Math.round(y);
+        z = Math.round(z);
+        this.field[x][y][z] = 0;
+    }
+
+    getAdjacentVoxels(x, y, z) {
+        let adjacentVoxels = [];
+        
+        // get all voxels ADJACENT to this one within a range of 1. This includes direct and diagonally positioned voxels There are a total possible of 26 voxels.
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                for (let k = -1; k <= 1; k++) {
+                    if (i == 0 && j == 0 && k == 0) continue;
+                    let voxel = this.get(x + i, y + j, z + k);
+                    // if its not undefined
+                    if (voxel != 0)
+                    {
+                        if (voxel.value != 0) {
+                            adjacentVoxels.push({
+                                x: x + i,
+                                y: y + j,
+                                z: z + k,
+    
+                                voxelData: voxel
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return adjacentVoxels;
     }
 
     // Retrieves the value of the vector field at the given position
@@ -307,6 +370,9 @@ class DiscreteVectorFieldPhysicsObject {
 // (Only one map can be loaded at once... unless?)
 // TODO - origin offsets for multiple map loading?
 //  ^ this is very unncessary but could be useful for features like streaming
+
+var totalMapChunksToLoad = 0;
+var totalMapChunksLoaded = 0;
 const generateWorldModel = function (modelURL) {
 
     // send IPC message 'list-maps' and wait for response (sends eventResponse)
@@ -323,35 +389,32 @@ const generateWorldModel = function (modelURL) {
 
         // THIS GETS METADATA (PRELOAD)
         ipcRenderer.on('get-map-metadata-reply', (event, arg) => {
-            const metadata = arg.metadata
-            
-            const totalChunks = arg.totalChunks;
+            console.log("RECEIVED METADATA [ONLY SEE ONCE]");
+            const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
 
-            let loader = new THREE.FileLoader();
-            const loadMapChunk = function(counter) {
-                ipcRenderer.send('get-map-chunk', {
-                    mapName: 'savedata',
-                    chunkIndex: counter
-                });
+            mapObjects.forEach(mapObject => {
+                if (mapObject.type == "box")
+                {
+                    const mod = 1;
+                    const scale = mapObject.size;
+                    scale.x /= mod;
+                    scale.y /= mod;
+                    scale.z /= mod;
+                    scale.x = Math.round(scale.x);
+                    scale.y = Math.round(scale.y);
+                    scale.z = Math.round(scale.z);
+                    const position = mapObject.position;
+                    position.x /= mod;
+                    position.y /= mod;
+                    position.z /= mod;
+                    position.x = Math.round(position.x);
+                    position.y = Math.round(position.y);
+                    position.z = Math.round(position.z);
+                    const color = mapObject.color;
 
-                ipcRenderer.on('get-map-chunk-reply', (event, arg) => {
-                    console.log('received chunk ' + counter + ' of ' + totalChunks);
-                    loader.load(
-                        arg.modelURL,
-                        function (JSONData) {
-                            buildWorldModel(JSONData);
-                        },
-                        function (err) {
-                            // console.log(err);
-                        }
-                    );
-                });
-            }
-
-            for (var i = 0; i < totalChunks; i++) {
-                loadMapChunk(i);
-            }
-            
+                    buildWorldModelFromBox(scale, position, color);
+                }
+            });
         });
 
     });
@@ -369,11 +432,151 @@ const voxelMaterial = new THREE.MeshStandardMaterial({
 // Lower size = fewer chunks
 // It is best to alter this dynamically between maps for performance
 // TODO implement some algorithm to determine this value on the fly
-let maxChunkSize = 150;
+let maxChunkSize = 120;
 maxChunkSize = Math.pow(maxChunkSize, 2); // squares it cuz why not? :3
 
 let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
 let voxelPositions = []; // same as above, but contains voxels, for later physics simulations
+var chunkCounter = 0;
+const buildWorldModelFromBox = function(scale, position, color)
+{
+    // SCALE: X,Y,Z int
+    // POSITION: X,Y,Z int
+    // COLOR: R,G,B float
+
+    const numberOfVoxels = (scale.x * 2) + (scale.y * 2) + (scale.z * 2);
+    const numberOfChunks = Math.ceil(numberOfVoxels / maxChunkSize);
+    const chunkSize = Math.ceil(numberOfVoxels / numberOfChunks);
+    
+    console.log("Building Box with " + numberOfVoxels + " voxels, " + numberOfChunks + " chunks, and chunk size " + chunkSize);
+
+    var chunkMinPosition, chunkMaxPosition;
+    const resetChunkBounds = function() {
+        // For every chunk ...
+        chunkMinPosition = new THREE.Vector3(
+            Number.MAX_SAFE_INTEGER,
+            Number.MAX_SAFE_INTEGER,
+            Number.MAX_SAFE_INTEGER
+        );
+        chunkMaxPosition = new THREE.Vector3(
+            Number.MIN_SAFE_INTEGER,
+            Number.MIN_SAFE_INTEGER,
+            Number.MIN_SAFE_INTEGER
+        );
+    }
+    resetChunkBounds();
+
+    var instancedWorldModel = new THREE.InstancedMesh(
+        voxelGeometry,
+        voxelMaterial,
+        chunkSize
+    );
+
+    var voxelsInChunk = [];
+    var globalVoxelIterator = 0;
+    for (let x = 0; x < scale.x; x++) {
+        for (let y = 0; y < scale.y; y++) {
+            for (let z = 0; z < scale.z; z++) {
+                if (x == 0 || x == scale.x - 1 || y == 0 || y == scale.y - 1 || z == 0 || z == scale.z - 1) {
+                    const thisVoxelPosition = new THREE.Vector3(
+                        // offset for center
+                        Math.round((x - (scale.x / 2)) + position.x),
+                        Math.round((y - (scale.y / 2)) + position.y),
+                        Math.round((z - (scale.z / 2)) + position.z)
+                    );
+
+                    // NEW CHUNK
+                    if (globalVoxelIterator % chunkSize == 0 || (z == scale.z - 1 && y == scale.y - 1 && x == scale.x - 1)) {
+                        console.log(globalVoxelIterator + " / " + chunkSize);
+                        // ADD TO SCENE
+                        const sceneInstancedModel = instancedWorldModel.clone();
+                        sceneInstancedModel.instanceMatrix.needsUpdate = true;
+                        sceneInstancedModel.name = chunkCounter;
+                        // const allVoxelsInChunk = voxelPositions[currentModel.name].voxels;
+                        voxelPositions.push({
+                            chunkID: sceneInstancedModel.name,
+                            voxels: voxelsInChunk
+                        });
+                        // DEBUG BOX (CULLING)
+                        sceneInstancedModel.frustumBox = new THREE.Box3();
+                        sceneInstancedModel.frustumBox.setFromCenterAndSize(
+                            new THREE.Vector3(
+                                (chunkMinPosition.x + chunkMaxPosition.x) / 2,
+                                (chunkMinPosition.y + chunkMaxPosition.y) / 2,
+                                (chunkMinPosition.z + chunkMaxPosition.z) / 2
+                            ),
+                            new THREE.Vector3(
+                                (chunkMaxPosition.x - chunkMinPosition.x),
+                                (chunkMaxPosition.y - chunkMinPosition.y),
+                                (chunkMaxPosition.z - chunkMinPosition.z)
+                            )
+                        );
+                        if (USERSETTINGS.debugMode) 
+                        {
+                            const box = new THREE.Box3Helper(sceneInstancedModel.frustumBox, 0x00ff00);
+                            box.material.transparent = true;
+                            box.material.opacity = 0.1;
+                            scene.add(box);
+                        }
+                        // set position to the first voxel in the chunk
+                        scene.add(sceneInstancedModel);
+                        instancedModelIndex.push(sceneInstancedModel);
+
+                        for (let x = 0; x < voxelsInChunk.length; x++) {
+                            const voxel = voxelsInChunk[x];
+                            if (x == 0) voxelField.setChunkMinIndex(sceneInstancedModel.name, x);
+                            if (x == voxelsInChunk.length - 1) voxelField.setChunkMaxIndex(sceneInstancedModel.name, x);
+                            voxelField.set(voxel.x, voxel.y, voxel.z, 1, x, sceneInstancedModel);
+                        }
+
+                        voxelsInChunk = [];
+                        
+                        // RESET EDITING CHUNK
+                        instancedWorldModel = new THREE.InstancedMesh(
+                            voxelGeometry,
+                            voxelMaterial,
+                            chunkSize
+                        );
+                        globalVoxelIterator = 0;
+                        resetChunkBounds();
+                        chunkCounter++;
+                    }
+
+                    instancedWorldModel.setMatrixAt(globalVoxelIterator, new THREE.Matrix4().makeTranslation(
+                        thisVoxelPosition.x,
+                        thisVoxelPosition.y,
+                        thisVoxelPosition.z
+                    ));
+
+                    const amp = Math.random() * 0.1;
+                    instancedWorldModel.setColorAt(globalVoxelIterator, new THREE.Color(color.r + amp, color.g + amp, color.b + amp));
+
+                    voxelsInChunk.push({
+                        x: thisVoxelPosition.x,
+                        y: thisVoxelPosition.y,
+                        z: thisVoxelPosition.z,
+
+                        r: color.r,
+                        g: color.g,
+                        b: color.b,
+
+                        index: globalVoxelIterator
+                    });
+                    
+                    // calculate chunk bounds
+                    if (thisVoxelPosition.x < chunkMinPosition.x) chunkMinPosition.x = thisVoxelPosition.x;
+                    if (thisVoxelPosition.y < chunkMinPosition.y) chunkMinPosition.y = thisVoxelPosition.y;
+                    if (thisVoxelPosition.z < chunkMinPosition.z) chunkMinPosition.z = thisVoxelPosition.z;
+                    if (thisVoxelPosition.x > chunkMaxPosition.x) chunkMaxPosition.x = thisVoxelPosition.x;
+                    if (thisVoxelPosition.y > chunkMaxPosition.y) chunkMaxPosition.y = thisVoxelPosition.y;
+                    if (thisVoxelPosition.z > chunkMaxPosition.z) chunkMaxPosition.z = thisVoxelPosition.z;
+                    globalVoxelIterator++;
+                }
+            }
+        }
+    }
+}
+
 const buildWorldModel = function (JSONData) {
     const startTime = Date.now();
     const parsedData = JSON.parse(JSONData);
@@ -400,7 +603,7 @@ const buildWorldModel = function (JSONData) {
     }
     else
     {
-        console.log("Map has no ground floor, skipping...");
+        // console.log("Map has no ground floor, skipping...");
     }
     if (parsedData.lightData) {
         const lightData = parsedData.lightData;
@@ -460,10 +663,9 @@ const buildWorldModel = function (JSONData) {
     const numberOfChunks = Math.ceil(voxelPositionsFromFile.length / maxChunkSize);
     const chunkSize = Math.ceil(voxelPositionsFromFile.length / numberOfChunks);
     let globalVoxelIterator = 0;
-    console.log("Number of chunks: " + numberOfChunks);
+    totalMapChunksLoaded++;
+    console.log("Building chunk " + totalMapChunksLoaded + " / " + totalMapChunksToLoad);
     for (let i = 0; i < numberOfChunks; i++) {
-        globalVoxelIterator+= chunkSize;
-        console.log("Building chunk #" + i + " of " + numberOfChunks + " from position " + globalVoxelIterator + " to " + (globalVoxelIterator + chunkSize) + " of " + voxelPositionsFromFile.length + " total voxels.");
         // For every chunk ...
         const chunkMinPosition = new THREE.Vector3(
             Number.MAX_SAFE_INTEGER,
@@ -498,7 +700,7 @@ const buildWorldModel = function (JSONData) {
                 }
                 if (thisVoxelData != undefined) {
                     var thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
-                    if (debugMode) thisVoxelColor = thisChunkDebugColor;
+                    if (USERSETTINGS.debugMode) thisVoxelColor = thisChunkDebugColor;
                     const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
                     // if the color is BLACK, set its position to the origin (TRANSPARENCY FIX for OLD [DEV] MAPS)
                     // if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
@@ -526,7 +728,7 @@ const buildWorldModel = function (JSONData) {
                 }
             }
         }
-        console.log("LVI " + localVoxelIterator + " GVI " + globalVoxelIterator);
+        globalVoxelIterator += chunkSize;
         voxelPositions.push({
             chunkID: instancedWorldModel.name,
             voxels: voxelsInChunk
@@ -550,7 +752,7 @@ const buildWorldModel = function (JSONData) {
         );
 
         // add a 0.1 opacity box to visualize it
-        if (debugMode) 
+        if (USERSETTINGS.debugMode) 
         {
             const box = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0x00ff00);
             box.material.transparent = true;
@@ -692,59 +894,6 @@ class trackedVoxel {
     }
 }
 
-// create an array of random numbers
-const bankLength = 10;
-const randomBank = [];
-for (let i = 0; i < bankLength; i++) {
-    randomBank.push(Math.random());
-}
-var bankIterator = 0;
-const rapidFloat = () => {return randomBank[bankIterator++ % bankLength];}
-const shootRay = function () {
-    // RAYCAST INTO THE VOXEL FIELD
-    // STEP 1: GET THE CAMERA POSITION
-    // STEP 2: GET THE CAMERA DIRECTION
-    // STEP 3: CALL voxelField.raycast() WITH THE CAMERA POSITION AND DIRECTION, and a step range of weaponRange
-    // STEP 4: IF THE RAYCAST RETURNS A HIT, DESTROY THE VOXEL AT THAT POSITION
-    // CAMERA POSITION
-    const cameraPosition = new THREE.Vector3();
-    camera.getWorldPosition(cameraPosition);
-    cameraPosition.x = Math.round(cameraPosition.x);
-    cameraPosition.y = Math.round(cameraPosition.y);
-    cameraPosition.z = Math.round(cameraPosition.z);
-    const cameraDirection = new THREE.Vector3();
-    camera.getWorldDirection(cameraDirection);
-    const intersection = voxelField.raycast(cameraPosition, cameraDirection, weaponRange);
-    // Determine which voxels in chunk are to be destroyed
-    if (intersection != null) {
-        const color = new THREE.Color(0, 0, 0);
-        const currentModel = intersection.chunk;
-        const allVoxelsInChunk = voxelPositions[currentModel.name].voxels;
-        let destroyedVoxelsInChunk = [];
-        for (let i = 0; i < allVoxelsInChunk.length; i++) {
-            const voxelPosition = new THREE.Vector3(
-                allVoxelsInChunk[i].x,
-                allVoxelsInChunk[i].y,
-                allVoxelsInChunk[i].z
-            );
-            let currentRange = destroyedChunkRange * clamp(rapidFloat() + normalizedGuaranteeRate, 0, 1);
-            const distance = voxelPosition.distanceTo(intersection);
-            if (distance < currentRange) {
-                if (destroyedVoxelsInChunk.length % 10 == 0) currentRange = Math.floor(rapidFloat() * currentRange) + 10;
-                destroyedVoxels.push(voxelPosition);
-                const newCube = new THREE.BoxGeometry(1, 1, 1);
-                currentModel.getColorAt(i, color);
-                const newCubeMaterial = new THREE.MeshStandardMaterial({ color: color });
-                const newCubeMesh = new THREE.Mesh(newCube, newCubeMaterial);
-                newCubeMesh.position.set(voxelPosition.x, voxelPosition.y, voxelPosition.z);
-                const voxel = new trackedVoxel(newCubeMesh, color);
-                destroyedVoxelsInChunk.push(voxel);
-            }
-        }
-        generateDestroyedChunkAt(currentModel.name, allVoxelsInChunk, destroyedVoxelsInChunk, currentModel);
-    }
-}
-
 // TODO: for future physics engine enhancements, this could be useful for volumetric smoke/explosions
 const convexMeshes = [];
 const convertInstancedMeshtoConvexHull = function (imesh) {
@@ -773,7 +922,40 @@ const convertInstancedMeshtoConvexHull = function (imesh) {
 }
 // Dict of tracked voxels for physics... i think? idrk, wrote this awhile ago
 const triVoxelDroppedPieces = [];
+const createTrivoxelAt = function(x, y, z, color) {
+    const triVoxel = new THREE.Mesh(
+        // cone with minimal segments
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({ color: color })
+    );
+    // for some reason i named the destroyed pieces of a mesh 'trivoxels', prolly cuz they were originally triangular prisms.
+    // that has changed since, but the name still slaps.
+    triVoxel.name = "TRIVOXEL-" + Math.random();
+    scene.add(triVoxel);
+    x = parseInt(x);
+    y = parseInt(y);
+    z = parseInt(z);
+    triVoxel.position.set(x, y, z);
+    
+    // velocity (random)
+    const velocityRange = 0.25;
+    const triVoxelVelocity = new THREE.Vector3(
+        (Math.random() * velocityRange) - (velocityRange / 2),
+        (Math.random() * velocityRange) - (velocityRange / 2),
+        (Math.random() * velocityRange) - (velocityRange / 2)
+    );
+
+    // normalize the velocity
+    triVoxelVelocity.normalize();
+
+    triVoxelDroppedPieces.push({
+        "sceneObject" : triVoxel,
+        "velocity" : triVoxelVelocity
+    });
+}
+
 const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroyedVoxelsInChunk) {
+    const startTime = performance.now();
     const color = new THREE.Color(0, 0, 0);
     const model = scene.getObjectByName(modelName);
     for (let i = 0; i < allVoxelsInChunk.length; i++) {
@@ -786,7 +968,9 @@ const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroye
         // if it exists in destroyedVoxelsInChunk, tset its matrix position to 0,0,0
         let found = false;
         for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
-            const thisDestroyedVoxelPosition = destroyedVoxelsInChunk[x].sceneObject.position;
+            let thisDestroyedVoxelPosition;
+            if (destroyedVoxelsInChunk[x].sceneObject != undefined) thisDestroyedVoxelPosition = destroyedVoxelsInChunk[x].sceneObject.position;
+            else thisDestroyedVoxelPosition = destroyedVoxelsInChunk[x];
             if (voxelPosition.x == thisDestroyedVoxelPosition.x && voxelPosition.y == thisDestroyedVoxelPosition.y && voxelPosition.z == thisDestroyedVoxelPosition.z) {
                 // set its position using setMatrixAt to far away
                 // setTimeOut 10 ms
@@ -801,45 +985,19 @@ const generateDestroyedChunkAt = function (modelName, allVoxelsInChunk, destroye
             }
         }
         model.getColorAt(i, color)
-        if (Math.random() < 1 && found) {
+        if (Math.random() < 0.01 && found) {
             // if (Object.keys(triVoxelDroppedPieces).length < 250)
             {
                 if (Math.random() < 0.1)
                 {
-                    const triVoxel = new THREE.Mesh(
-                        // cone with minimal segments
-                        new THREE.BoxGeometry(1, 1, 1),
-                        new THREE.MeshStandardMaterial({ color: color })
-                    );
-                    // for some reason i named the destroyed pieces of a mesh 'trivoxels', prolly cuz they were originally triangular prisms.
-                    // that has changed since, but the name still slaps.
-                    triVoxel.name = "TRIVOXEL-" + Math.random();
-                    scene.add(triVoxel);
-                    const x = parseInt(voxelPosition.x);
-                    const y = parseInt(voxelPosition.y);
-                    const z = parseInt(voxelPosition.z);
-                    triVoxel.position.set(x, y, z);
-                    
-                    // velocity (random)
-                    const velocityRange = 0.25;
-                    const triVoxelVelocity = new THREE.Vector3(
-                        (Math.random() * velocityRange) - (velocityRange / 2),
-                        (Math.random() * velocityRange) - (velocityRange / 2),
-                        (Math.random() * velocityRange) - (velocityRange / 2)
-                    );
-
-                    // normalize the velocity
-                    triVoxelVelocity.normalize();
-    
-                    triVoxelDroppedPieces.push({
-                        "sceneObject" : triVoxel,
-                        "velocity" : triVoxelVelocity
-                    });
+                    createTrivoxelAt(voxelPosition.x, voxelPosition.y, voxelPosition.z, color);
                 }
             }
         }
     }
-};
+    const endTime = performance.now();
+    // console.log("[REBUILD] took " + String(endTime - startTime).substring(0, 5) + " ms");
+}
 
 // MOUSE BUTTONS
 var isLeftClicking = false;
@@ -890,14 +1048,14 @@ const render = function () {
             case "ranged":
                 muzzleFlash.visible = false;
                 if (isAttackAvailable) {
-                    muzzleFlash.visible = true;
-                    const scaleRange = 0.15;
-                    const rotationRange = 0.6;
-                    muzzleFlash.scale.set(Math.random() * scaleRange + 1, Math.random() * scaleRange + 1, Math.random() * scaleRange + 1);
-                    muzzleFlash.rotation.z = Math.random() * rotationRange - rotationRange / 2;
-                    const baseColor = new THREE.Color(0xffdfbd);
-                    const randomColor = baseColor.offsetHSL(Math.random() * 0.2 - 0.1, Math.random() * 0.2 - 0.1, Math.random() * 0.2 - 0.1);
-                    muzzleFlash.material.color = randomColor;
+                    // muzzleFlash.visible = true;
+                    // const scaleRange = 0.15;
+                    // const rotationRange = 0.6;
+                    // muzzleFlash.scale.set(Math.random() * scaleRange + 1, Math.random() * scaleRange + 1, Math.random() * scaleRange + 1);
+                    // muzzleFlash.rotation.z = Math.random() * rotationRange - rotationRange / 2;
+                    // const baseColor = new THREE.Color(0xffdfbd);
+                    // const randomColor = baseColor.offsetHSL(Math.random() * 0.2 - 0.1, Math.random() * 0.2 - 0.1, Math.random() * 0.2 - 0.1);
+                    // muzzleFlash.material.color = randomColor;
                     shootRay();
                     isAttackAvailable = false;
                     setTimeout(function () {
@@ -972,15 +1130,16 @@ const render = function () {
     requestAnimationFrame(render);
     renderer.render(scene, camera);
 
-    console.log(renderer.info.render.calls);
+    // console.log(renderer.info.render.calls);
 }
 
-// ### PHYSICS LOOP ###
-const timesPerSecond = 60; // physics speed
+// ### PHYSICS LOOPS ###
+const physicsUpdatesPerSecond = 60; // physics speed
+const cubeDestructionParticlesSimulator = []; // index of all cubedestructionparticle
 const physicsUpdate = function () {
-    // for each sceneObject in triVoxelDroppedPieces
+    // UPDATE TRIVOXELS
     triVoxelDroppedPieces.forEach((triVoxel) => {
-        if (Math.random() < 1 / timesPerSecond) {
+        if (Math.random() < 1 / physicsUpdatesPerSecond) {
             scene.remove(triVoxel.sceneObject);
             triVoxelDroppedPieces.splice(triVoxelDroppedPieces.indexOf(triVoxel), 1);
         }
@@ -996,14 +1155,296 @@ const physicsUpdate = function () {
             );
     
             // apply some gravity (-1 y)
-            velocity.y -= 1 / (timesPerSecond / 2);
+            // get the position of the first matrix object
+            const position = newPosition.clone();
+
+            if (position.y > 1) 
+            {
+                velocity.y -= 1 / (physicsUpdatesPerSecond / 2);
+                sceneObject.position.copy(newPosition);
+
+                // add velocity to rotation ( with 50% chance to be negative )
+                sceneObject.rotation.x += velocity.x / 50;
+                sceneObject.rotation.y += velocity.y / 50;
+                sceneObject.rotation.z += velocity.z / 50;
+            }
+        }
+    });
+    if (USERSETTINGS.useSpriteParticles)
+    {
+        // UPDATE CUBEDESTRUCTIONPARTICLES (POINTS MESHES)
+        cubeDestructionParticlesSimulator.forEach(cubeDestructionParticlesObject => {
+            if (Math.random() < 0.0002 / physicsUpdatesPerSecond) {
+                scene.remove(cubeDestructionParticlesObject);
+                cubeDestructionParticlesSimulator.splice(cubeDestructionParticlesSimulator.indexOf(cubeDestructionParticlesObject), 1);
+            }
+            else
+            {
+                // this is a bufferGeometry with a position attribute
+                const cubeDestructionParticles = cubeDestructionParticlesObject.geometry.attributes.position.array;
+                for (let i = 0; i < cubeDestructionParticles.length; i += 3) {
+                    if (Math.random() < 1 / physicsUpdatesPerSecond) {
+                        // remove this vertex
+                        cubeDestructionParticles[i] = 0;
+                        cubeDestructionParticles[i + 1] = 0;
+                        cubeDestructionParticles[i + 2] = 0;
+                    }
+                    else
+                    {
+                        // get the position of the first matrix object
+                        const position = new THREE.Vector3(
+                            cubeDestructionParticles[i],
+                            cubeDestructionParticles[i + 1],
+                            cubeDestructionParticles[i + 2]
+                        );
+                        // apply velocity (they are Vector3s in the cubeDestructionParticlesObject.velocities array)
+                        position.add(cubeDestructionParticlesObject.velocities[i / 3]);
+                        // apply position
+                        // if the world position Y is greater than 0
+                        if (cubeDestructionParticles[i + 1] > 1) {
+                            cubeDestructionParticles[i] = position.x;
+                            cubeDestructionParticles[i + 1] = position.y;
+                            cubeDestructionParticles[i + 2] = position.z;
+                        }
+                    }
+                }
+                cubeDestructionParticlesObject.geometry.attributes.position.needsUpdate = true;
+            }
+        });
+    }
+}
+const createVizSphere = function(x, y, z)
+{
+    const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 2, 2),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+    );
+    sphere.position.set(x, y, z);
+    scene.add(sphere);
+}
+setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond); // calls physics loop
+
+const cubeSprite = new THREE.TextureLoader().load("img/cubesprite.png");
+const conjunctionCheckTimesPerSecond = 1;
+const alreadyDestroyedVoxelPositions = [];
+const voxelIsDestroyed = function(arr)
+{
+    for (let i = 0; i < alreadyDestroyedVoxelPositions.length; i++) {
+        if (alreadyDestroyedVoxelPositions[i][0] == arr[0] && alreadyDestroyedVoxelPositions[i][1] == arr[1] && alreadyDestroyedVoxelPositions[i][2] == arr[2]) {
+            return true;
+        }
+    }
+    return false;
+}
+const recentlyEditedWorldModels = [];
+const maxChunksInPhysicsCache = 15;
+const conjunctionCheck = function() {
+    // CONJUNCTION CHECK
+    recentlyEditedWorldModels.forEach(instancedModel => {
+        const holeBorder = [];
+        const confirmedTouch = [];
+        voxelPositions[instancedModel.name].voxels.forEach(voxel => {
+            const fieldValue = voxelField.get(voxel.x, voxel.y, voxel.z).value;
+            if (!voxelIsDestroyed([voxel.x, voxel.y, voxel.z]))
+            {
+                if (fieldValue == 0) {
+                    holeBorder.push(voxel);
+                }
+            }
+        });
+
+        // if all voxels in the holeSet touch each other, then they are a hole.
+        holeBorder.forEach(holeA => {
+            const holeApos = new THREE.Vector3(holeA.x, holeA.y, holeA.z);
+            holeBorder.forEach(holeB => {
+                const holeBpos = new THREE.Vector3(holeB.x, holeB.y, holeB.z);
+                if (holeApos.distanceTo(holeBpos) < 2) {
+                    // if it isnt in the confirmedTouch array, add it
+                    if (!confirmedTouch.includes(holeA)) {
+                        confirmedTouch.push(holeA);
+                    }
+                }
+            });
+        });
+        
+        const fullHole = [];
+        if (confirmedTouch.length == holeBorder.length)
+        {
+            const midPoint = new THREE.Vector3();
+            holeBorder.forEach(hole => {
+                midPoint.add(new THREE.Vector3(hole.x, hole.y, hole.z));
+            });
+            midPoint.divideScalar(holeBorder.length);
+
+            const minMaxPositions = []; // This array will hold arrays for every Y value in holeBorder, with [minXZ, maxXZ] values
+            for (let i = 0; i < holeBorder.length; i++) {
+                // createVizSphere(holeBorder[i].x, holeBorder[i].y, holeBorder[i].z);
+                let currentPos = new THREE.Vector3(holeBorder[i].x, holeBorder[i].y, holeBorder[i].z);
+                if (minMaxPositions[currentPos.y] == undefined) {
+                    minMaxPositions[currentPos.y] = [new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z), new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z)];
+                }
+                else
+                {
+                    if (currentPos.x < minMaxPositions[currentPos.y][0].x) {
+                        minMaxPositions[currentPos.y][0].x = currentPos.x;
+                    }
+                    if (currentPos.z < minMaxPositions[currentPos.y][0].z) {
+                        minMaxPositions[currentPos.y][0].z = currentPos.z;
+                    }
+                    if (currentPos.x > minMaxPositions[currentPos.y][1].x) {
+                        minMaxPositions[currentPos.y][1].x = currentPos.x;
+                    }
+                    if (currentPos.z > minMaxPositions[currentPos.y][1].z) {
+                        minMaxPositions[currentPos.y][1].z = currentPos.z;
+                    }
+                }
+            }
+            var minMaxLen = minMaxPositions.length;
+            for (let i = 0; i < minMaxLen; i++) {
+                if (minMaxPositions[i] == undefined) continue;
+                const minPos = minMaxPositions[i][0];
+                const maxPos = minMaxPositions[i][1];
+                // PROBLEM: These are the SAME POSITION.
+
+                for (let x = minPos.x; x <= maxPos.x; x++) {
+                    for (let z = minPos.z; z <= maxPos.z; z++) {
+                        const thisVoxel = voxelField.get(x, i, z);
+                        if (thisVoxel != 0 && !voxelIsDestroyed([x, i, z]))
+                        {
+                            alreadyDestroyedVoxelPositions.push([x, i, z]);
+                            voxelField.set(x, i, z, 0, thisVoxel.indexInChunk, thisVoxel.chunk);
+        
+                            // MOVE IT TO 0. -2. 0
+                            instancedModel.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4().makeTranslation(0, -2, 0));
+                            instancedModel.instanceMatrix.needsUpdate = true;
+       
+                            thisVoxel.position = {
+                                x: x,
+                                y: i,
+                                z: z
+                            }
+
+                            const color = new THREE.Color(0xffffff);
+                            instancedModel.getColorAt(thisVoxel.indexInChunk, color);
+                            thisVoxel.color = color;
+
+                            fullHole.push(thisVoxel);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (USERSETTINGS.useSpriteParticles)
+        {
+            const geometry = new THREE.BufferGeometry();
+            const vertexPositions = [];
+            const vertexColors = [];
+            const material = new THREE.PointsMaterial({
+                size: 2.5,
+                map: cubeSprite,
+                sizeAttenuation: true
+            });
+            const cubeDestructionParticles = new THREE.Points(geometry, material);
+            cubeDestructionParticles.velocities = [];
+            for (let i = 0; i < fullHole.length; i++) {
+                const voxelData = fullHole[i];
+                if (voxelData == undefined) break;
+                vertexPositions.push(voxelData.position.x, voxelData.position.y, voxelData.position.z);
+                vertexColors.push(voxelData.color);
+                // random velocity X,Y
+                const velocityStrength = 1 / 5;
+                cubeDestructionParticles.velocities.push(
+                    new THREE.Vector3(
+                        (Math.random() - 0.5) * velocityStrength,
+                        -(Math.random() + 0.5) * velocityStrength,
+                        (Math.random() - 0.5) * velocityStrength
+                    )
+                );
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertexPositions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertexColors, 3));
+            material.color = vertexColors[Math.floor(vertexColors.length / 2)]
     
-            sceneObject.position.copy(newPosition);
+            scene.add(cubeDestructionParticles);
+            cubeDestructionParticlesSimulator.push(cubeDestructionParticles);
         }
     });
 }
 
-setInterval(physicsUpdate, 1000 / timesPerSecond); // calls physics loop
+document.addEventListener('mousedown', function (e) {
+    // if right click
+    if (e.button == 2) {
+        conjunctionCheck();
+    }
+});
+
+// create an array of random numbers
+const bankLength = 10;
+const randomBank = [];
+for (let i = 0; i < bankLength; i++) {
+    randomBank.push(Math.random());
+}
+var bankIterator = 0;
+const rapidFloat = () => {return randomBank[bankIterator++ % bankLength];}
+const shootRay = function () {
+    // RAYCAST INTO THE VOXEL FIELD
+    // STEP 1: GET THE CAMERA POSITION
+    // STEP 2: GET THE CAMERA DIRECTION
+    // STEP 3: CALL voxelField.raycast() WITH THE CAMERA POSITION AND DIRECTION, and a step range of weaponRange
+    // STEP 4: IF THE RAYCAST RETURNS A HIT, DESTROY THE VOXEL AT THAT POSITION
+    // CAMERA POSITION
+    const cameraPosition = new THREE.Vector3();
+    camera.getWorldPosition(cameraPosition);
+    cameraPosition.x = Math.round(cameraPosition.x);
+    cameraPosition.y = Math.round(cameraPosition.y);
+    cameraPosition.z = Math.round(cameraPosition.z);
+    const cameraDirection = new THREE.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    const intersection = voxelField.raycast(cameraPosition, cameraDirection, weaponRange);
+    // Determine which voxels in chunk are to be destroyed
+    if (intersection != null) {
+        const color = new THREE.Color(0, 0, 0);
+        const currentModel = intersection.chunk;
+        const allVoxelsInChunk = voxelPositions[currentModel.name].voxels;
+        let destroyedVoxelsInChunk = [];
+        for (let i = 0; i < allVoxelsInChunk.length; i++) {
+            const voxelPosition = new THREE.Vector3(
+                allVoxelsInChunk[i].x,
+                allVoxelsInChunk[i].y,
+                allVoxelsInChunk[i].z
+            );
+            let currentRange = destroyedChunkRange * clamp(rapidFloat() + normalizedGuaranteeRate, 0, 1);
+            const distance = voxelPosition.distanceTo(intersection);
+            if (distance < currentRange) {
+                if (destroyedVoxelsInChunk.length % 10 == 0) currentRange = Math.floor(rapidFloat() * currentRange) + 10;
+                destroyedVoxels.push(voxelPosition);
+                const newCube = new THREE.BoxGeometry(1, 1, 1);
+                currentModel.getColorAt(i, color);
+                const newCubeMaterial = new THREE.MeshStandardMaterial({ color: color });
+                const newCubeMesh = new THREE.Mesh(newCube, newCubeMaterial);
+                newCubeMesh.position.set(voxelPosition.x, voxelPosition.y, voxelPosition.z);
+                const voxel = new trackedVoxel(newCubeMesh, color);
+                destroyedVoxelsInChunk.push(voxel);
+                // if this position.value is 0
+                const fieldValue = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z).value;
+                if (fieldValue == 2) {
+                    conjunctionCheck();
+                }
+            }
+        }
+        // if recentlyeditedworldmodels DOES NOT HAVE currentmodel
+        if (!recentlyEditedWorldModels.some(model => model.name == currentModel.name)) {
+            recentlyEditedWorldModels.push(currentModel);
+        }
+        if (recentlyEditedWorldModels.length > maxChunksInPhysicsCache) recentlyEditedWorldModels.shift();
+        generateDestroyedChunkAt(currentModel.name, allVoxelsInChunk, destroyedVoxelsInChunk, currentModel);
+    }
+}
+
+// setInterval(conjunctionCheck, conjunctionCheckTimesPerSecond * 1000);
+// run conjunctionceheck after 2s
+// setTimeout(conjunctionCheck, 2000);
 render(); // calls render loop
 
 // window resize handler

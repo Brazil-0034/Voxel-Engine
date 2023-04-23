@@ -54,7 +54,6 @@ function createWindow() {
         fs.readFile(__dirname + '/maps/' + arg.mapName + '/metadata.json', 'utf8', function (err, data) {
             if (err) {
                 console.log(err);
-                event.sender.send('get-map-metadata-reply', null);
                 return;
             }
             // count the number of chunks
@@ -66,9 +65,10 @@ function createWindow() {
                 }
             });
             event.sender.send('get-map-metadata-reply', {
-                metadata: JSON.parse(data),
+                metaData: data,
                 totalChunks: totalChunks
             });
+            console.log("SENT METADATA! [ONLY SEE ONCE]")
         });
     });
 
@@ -78,10 +78,11 @@ function createWindow() {
 
         // send back the URL (absolute path) of the chunk
         // arg is the map name
-        console.log("Get Map Chunk: " + mapDirName + "#" + index);
+        console.log("Get Map Chunk: " + mapDirName + " [chunk" + index + "]");
 
         event.sender.send('get-map-chunk-reply', {
-            modelURL: __dirname + '/maps/' + mapDirName + '/chunk' + index + '.json'
+            modelURL: __dirname + '/maps/' + mapDirName + '/chunk' + index + '.json',
+            index: index
         });
     });
 }

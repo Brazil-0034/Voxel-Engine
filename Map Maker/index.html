@@ -968,7 +968,10 @@
                 case "Create Cube":
                     const cube = new THREE.Mesh(
                         new THREE.BoxGeometry(1, 1, 1),
-                        new THREE.MeshStandardMaterial({ color: randomColor() })
+                        new THREE.MeshStandardMaterial({
+                            color: randomColor(),
+                            side: THREE.DoubleSide
+                        })
                     );
                     cube.userData.existInGame = true;
                     cube.name = "New Cube - " + Math.floor(Math.random() * 1000);
@@ -1315,166 +1318,166 @@
                 });
                 // END CUSTOM DATA
                 ipc.send('savefile-end-custom-data');
-                ipc.send('init-new-savefile');
+                // ipc.send('init-new-savefile');
 
 
-                var mapObjectsIndex = 0;
-                const voxelizeMapObject = function(mapObject) {
-                    if (mapObject.userData.doNotVoxelize == true) return;
-                    // LIGHTS
-                    if (mapObject.isLight) {
-                        switch (mapObject.type) {
-                            case "SpotLight":
-                            metaData.lightData.spotLights.push({
-                                    "position": {
-                                        "x": mapObject.position.x,
-                                        "y": mapObject.position.y,
-                                        "z": mapObject.position.z
-                                    },
-                                    "targetPosition": {
-                                        "x": mapObject.target.position.x,
-                                        "y": mapObject.target.position.y,
-                                        "z": mapObject.target.position.z
-                                    },
-                                    "color": {
-                                        "r": mapObject.color.r,
-                                        "g": mapObject.color.g,
-                                        "b": mapObject.color.b
-                                    },
-                                    "intensity": mapObject.intensity,
-                                    "distance": mapObject.distance,
-                                    "angle": mapObject.angle,
-                                    "penumbra": mapObject.penumbra,
-                                    "decay": mapObject.decay
-                                });
-                                break;
-                            case "PointLight":
-                            metaData.lightData.pointLights.push({
-                                    "position": {
-                                        "x": mapObject.position.x,
-                                        "y": mapObject.position.y,
-                                        "z": mapObject.position.z
-                                    },
-                                    "color": {
-                                        "r": mapObject.color.r,
-                                        "g": mapObject.color.g,
-                                        "b": mapObject.color.b
-                                    },
-                                    "intensity": mapObject.intensity,
-                                    "distance": mapObject.distance,
-                                    "decay": mapObject.decay
-                                });
-                                break;
-                            case "HemisphereLight":
-                            metaData.lightData.hemiLights.push({
-                                    "position": {
-                                        "x": mapObject.position.x,
-                                        "y": mapObject.position.y,
-                                        "z": mapObject.position.z
-                                    },
-                                    "color": {
-                                        "r": mapObject.color.r,
-                                        "g": mapObject.color.g,
-                                        "b": mapObject.color.b
-                                    },
-                                    "groundColor": {
-                                        "r": mapObject.groundColor.r,
-                                        "g": mapObject.groundColor.g,
-                                        "b": mapObject.groundColor.b
-                                    },
-                                    "intensity": mapObject.intensity
-                                });
-                                break;
-                            case "AmbientLight":
-                            metaData.lightData.ambientLights.push({
-                                    "color": {
-                                        "r": mapObject.color.r,
-                                        "g": mapObject.color.g,
-                                        "b": mapObject.color.b
-                                    },
-                                    "intensity": mapObject.intensity
-                                });
-                                break;
-                        }
-                    }
-                    // MESHES
-                    if (mapObject.isMesh) {
-                        const color = mapObject.material.color;
-                        const r = parseInt(Math.round(color.r * 255));
-                        const g = parseInt(Math.round(color.g * 255));
-                        const b = parseInt(Math.round(color.b * 255));
-                        // if it's not an instanceMesh
-                        if (!mapObject.isInstanceMesh) {
-                            const size = mapObject.scale.clone();
-                            // absolute value
-                            size.x = Math.abs(size.x);
-                            size.y = Math.abs(size.y);
-                            size.z = Math.abs(size.z);
-                            const position = mapObject.position.clone();
-                            position.x -= size.x / 2;
-                            position.y -= size.y / 2;
-                            position.z -= size.z / 2;
+                // var mapObjectsIndex = 0;
+                // const voxelizeMapObject = function(mapObject) {
+                //     if (mapObject.userData.doNotVoxelize == true) return;
+                //     // LIGHTS
+                //     if (mapObject.isLight) {
+                //         switch (mapObject.type) {
+                //             case "SpotLight":
+                //             metaData.lightData.spotLights.push({
+                //                     "position": {
+                //                         "x": mapObject.position.x,
+                //                         "y": mapObject.position.y,
+                //                         "z": mapObject.position.z
+                //                     },
+                //                     "targetPosition": {
+                //                         "x": mapObject.target.position.x,
+                //                         "y": mapObject.target.position.y,
+                //                         "z": mapObject.target.position.z
+                //                     },
+                //                     "color": {
+                //                         "r": mapObject.color.r,
+                //                         "g": mapObject.color.g,
+                //                         "b": mapObject.color.b
+                //                     },
+                //                     "intensity": mapObject.intensity,
+                //                     "distance": mapObject.distance,
+                //                     "angle": mapObject.angle,
+                //                     "penumbra": mapObject.penumbra,
+                //                     "decay": mapObject.decay
+                //                 });
+                //                 break;
+                //             case "PointLight":
+                //             metaData.lightData.pointLights.push({
+                //                     "position": {
+                //                         "x": mapObject.position.x,
+                //                         "y": mapObject.position.y,
+                //                         "z": mapObject.position.z
+                //                     },
+                //                     "color": {
+                //                         "r": mapObject.color.r,
+                //                         "g": mapObject.color.g,
+                //                         "b": mapObject.color.b
+                //                     },
+                //                     "intensity": mapObject.intensity,
+                //                     "distance": mapObject.distance,
+                //                     "decay": mapObject.decay
+                //                 });
+                //                 break;
+                //             case "HemisphereLight":
+                //             metaData.lightData.hemiLights.push({
+                //                     "position": {
+                //                         "x": mapObject.position.x,
+                //                         "y": mapObject.position.y,
+                //                         "z": mapObject.position.z
+                //                     },
+                //                     "color": {
+                //                         "r": mapObject.color.r,
+                //                         "g": mapObject.color.g,
+                //                         "b": mapObject.color.b
+                //                     },
+                //                     "groundColor": {
+                //                         "r": mapObject.groundColor.r,
+                //                         "g": mapObject.groundColor.g,
+                //                         "b": mapObject.groundColor.b
+                //                     },
+                //                     "intensity": mapObject.intensity
+                //                 });
+                //                 break;
+                //             case "AmbientLight":
+                //             metaData.lightData.ambientLights.push({
+                //                     "color": {
+                //                         "r": mapObject.color.r,
+                //                         "g": mapObject.color.g,
+                //                         "b": mapObject.color.b
+                //                     },
+                //                     "intensity": mapObject.intensity
+                //                 });
+                //                 break;
+                //         }
+                //     }
+                //     // MESHES
+                //     if (mapObject.isMesh) {
+                //         const color = mapObject.material.color;
+                //         const r = parseInt(Math.round(color.r * 255));
+                //         const g = parseInt(Math.round(color.g * 255));
+                //         const b = parseInt(Math.round(color.b * 255));
+                //         // if it's not an instanceMesh
+                //         if (!mapObject.isInstanceMesh) {
+                //             const size = mapObject.scale.clone();
+                //             // absolute value
+                //             size.x = Math.abs(size.x);
+                //             size.y = Math.abs(size.y);
+                //             size.z = Math.abs(size.z);
+                //             const position = mapObject.position.clone();
+                //             position.x -= size.x / 2;
+                //             position.y -= size.y / 2;
+                //             position.z -= size.z / 2;
 
-                            const uploadChunk = function() {
-                                const chunk = JSON.stringify(saveData.voxels);
-                                const JSONSaveData = { voxels: chunk };
-                                ipc.send('savefile-add-voxel-chunk', JSONSaveData);
-                            }
+                //             const uploadChunk = function() {
+                //                 const chunk = JSON.stringify(saveData.voxels);
+                //                 const JSONSaveData = { voxels: chunk };
+                //                 ipc.send('savefile-add-voxel-chunk', JSONSaveData);
+                //             }
 
-                            const voxelCount = size.x * size.y * size.z;
-                            const intervalSize = 2090000;
-                            var counter = 0;
+                //             const voxelCount = size.x * size.y * size.z;
+                //             const intervalSize = 2090000;
+                //             var counter = 0;
 
-                            for (let x = 0; x < size.x; x++) {
-                                for (let y = 0; y < size.y; y++) {
-                                    for (let z = 0; z < size.z; z++) {
-                                        saveData.voxels.push(
-                                            position.x + x,
-                                            position.y + y,
-                                            position.z + z,
-                                            r,
-                                            g,
-                                            b
-                                        );
-                                        counter++;
-                                        if (counter >= intervalSize) {
-                                            counter = 0;
+                //             for (let x = 0; x < size.x; x++) {
+                //                 for (let y = 0; y < size.y; y++) {
+                //                     for (let z = 0; z < size.z; z++) {
+                //                         saveData.voxels.push(
+                //                             position.x + x,
+                //                             position.y + y,
+                //                             position.z + z,
+                //                             r,
+                //                             g,
+                //                             b
+                //                         );
+                //                         counter++;
+                //                         if (counter >= intervalSize) {
+                //                             counter = 0;
 
-                                            uploadChunk();
+                //                             uploadChunk();
 
-                                            saveData.voxels = [];
-                                        }
-                                    }
-                                }
-                            }
+                //                             saveData.voxels = [];
+                //                         }
+                //                     }
+                //                 }
+                //             }
 
-                            if (saveData.voxels.length > 0) uploadChunk();
-                        }
-                        else {
-                            for (let i = 0; i < mapObject.count; i++) {
-                                // get the voxel's position in the instanceMesh
-                                const voxelPosition = new THREE.Vector3();
-                                mapObject.getMatrixAt(i, voxelPosition);
+                //             if (saveData.voxels.length > 0) uploadChunk();
+                //         }
+                //         else {
+                //             for (let i = 0; i < mapObject.count; i++) {
+                //                 // get the voxel's position in the instanceMesh
+                //                 const voxelPosition = new THREE.Vector3();
+                //                 mapObject.getMatrixAt(i, voxelPosition);
 
-                                // get the voxel's color
-                                const voxelColor = new THREE.Color();
-                                mapObject.getColorAt(i, voxelColor);
+                //                 // get the voxel's color
+                //                 const voxelColor = new THREE.Color();
+                //                 mapObject.getColorAt(i, voxelColor);
 
-                                // save the voxel
-                                saveData.voxels.push({
-                                    "x": voxelPosition.x,
-                                    "y": voxelPosition.y,
-                                    "z": voxelPosition.z,
-                                    "r": voxelColor.r,
-                                    "g": voxelColor.g,
-                                    "b": voxelColor.b
-                                });
-                            }
-                        }
-                    }
-                }
+                //                 // save the voxel
+                //                 saveData.voxels.push({
+                //                     "x": voxelPosition.x,
+                //                     "y": voxelPosition.y,
+                //                     "z": voxelPosition.z,
+                //                     "r": voxelColor.r,
+                //                     "g": voxelColor.g,
+                //                     "b": voxelColor.b
+                //                 });
+                //             }
+                //         }
+                //     }
+                // }
 
-                voxelizeMapObject(MAPOBJECTS[mapObjectsIndex]);
+                // voxelizeMapObject(MAPOBJECTS[mapObjectsIndex]);
 
                 console.log("Written Successfully.");
             });
