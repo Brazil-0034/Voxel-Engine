@@ -4,8 +4,8 @@
         "name": "SMG",
         "helpText": "[Left Click] Shoot",
         "fireRate": 5,
-        "damageRange": 5,
-        "basepotency": 0.05,
+        "damageRange": 10,
+        "basepotency": 0.01,
         "minimumDistance": 250,
         "position": {
             "x": 7,

@@ -365,61 +365,80 @@
             // For each material (if any)
             if (item.material != undefined) {
                 // for each material
-                const analyzeMaterial = function (mat) {
-                    // Color
-                    const color = document.createElement("div");
-                    color.classList.add("inspector-element");
-                    color.innerHTML = "<h3>Color</h3>";
-                    const colorInput = document.createElement("input");
-                    colorInput.type = "color";
-                    colorInput.value = "#" + mat.color.getHexString();
-                    colorInput.addEventListener("input", function () {
-                        mat.color.set(colorInput.value);
+                // Material
+                const material = document.createElement("div");
+                material.classList.add("inspector-element");
+                material.innerHTML = "<h3>Material</h3>";
+                // Materials: Bricks, Plastic, Glass, Wood, Metal, Concrete
+                // Multiple buttons with label and image
+                const materialBricks = document.createElement("button");
+                materialBricks.innerHTML = "Bricks";
+                materialBricks.addEventListener("click", function () {
+                    item.material = new THREE.MeshStandardMaterial({
+                        color: 0x8b4513,
+                        roughness: 0.9,
+                        metalness: 0.1
                     });
-                    color.appendChild(colorInput);
-                    inspector.appendChild(color);
+                    item.userData.materialType = "Bricks";
+                });
+                material.appendChild(materialBricks);
 
-                    // Roughness
-                    const roughness = document.createElement("div");
-                    roughness.classList.add("inspector-element");
-                    roughness.innerHTML = "<h3>Roughness</h3>";
-                    const roughnessInput = document.createElement("input");
-                    roughnessInput.type = "number";
-                    roughnessInput.value = mat.roughness;
-                    roughnessInput.addEventListener("input", function () {
-                        mat.roughness = roughnessInput.value;
+                const materialPlastic = document.createElement("button");
+                materialPlastic.innerHTML = "Plastic";
+                materialPlastic.addEventListener("click", function () {
+                    item.material = new THREE.MeshStandardMaterial({
+                        roughness: 0.9,
+                        metalness: 0.1
                     });
-                    roughness.appendChild(roughnessInput);
-                    inspector.appendChild(roughness);
+                    item.userData.materialType = "Plastic";
+                });
+                material.appendChild(materialPlastic);
 
-                    // Textures
-                    if (mat.hasOwnProperty("map")) {
-                        const textures = document.createElement("div");
-                        textures.classList.add("inspector-element");
-                        textures.innerHTML = "<h3>Textures</h3>";
-                        const texturesInput = document.createElement("input");
-                        texturesInput.type = "file";
-                        texturesInput.addEventListener("input", function () {
-                            const reader = new FileReader();
-                            reader.onload = function () {
-                                const texture = new THREE.TextureLoader().load(reader.result);
-                                mat.map = texture;
-                                mat.needsUpdate = true;
-                            }
-                            reader.readAsDataURL(texturesInput.files[0]);
-                        });
-                        textures.appendChild(texturesInput);
-                        inspector.appendChild(textures);
-                    }
-                }
-                if (!Array.isArray(item.material)) {
-                    analyzeMaterial(item.material);
-                }
-                else if (Array.isArray(item.material)) {
-                    for (let i = 0; i < item.material.length; i++) {
-                        analyzeMaterial(item.material[i]);
-                    }
-                }
+                const materialGlass = document.createElement("button");
+                materialGlass.innerHTML = "Glass";
+                materialGlass.addEventListener("click", function () {
+                    item.material = new THREE.MeshStandardMaterial({
+                        color: 0x0000ff,
+                        roughness: 0.1,
+                        metalness: 0.5,
+                        transparent: true,
+                        opacity: 0.5
+                    });
+                    item.userData.materialType = "Glass";
+                });
+                material.appendChild(materialGlass);
+
+                const materialWood = document.createElement("button");
+                materialWood.innerHTML = "Wood";
+                materialWood.addEventListener("click", function () {
+                    item.material = new THREE.MeshStandardMaterial({
+                        color: 0x856050,
+                        roughness: 1
+                    });
+                    item.userData.materialType = "Wood";
+                });
+                material.appendChild(materialWood);
+
+                const materialConcrete = document.createElement("button");
+                materialConcrete.innerHTML = "Concrete";
+                materialConcrete.addEventListener("click", function () {
+                    item.material = new THREE.MeshStandardMaterial({
+                        color: 0xd9d9d9
+                    });
+                    item.userData.materialType = "Concrete";
+                });
+                material.appendChild(materialConcrete);
+
+                // global color override
+                const materialColor = document.createElement("input");
+                materialColor.type = "color";
+                materialColor.value = item.material.color.getHexString();
+                materialColor.addEventListener("input", function () {
+                    item.material.color.set(materialColor.value);
+                });
+
+                material.appendChild(materialColor);
+                inspector.appendChild(material);
             }
             if (item.userData.isGroundFloor) {
                 const groundFloorEnabled = document.createElement("div");
@@ -974,6 +993,7 @@
                         })
                     );
                     cube.userData.existInGame = true;
+                    cube.userData.materialType = "Plastic";
                     cube.name = "New Cube - " + Math.floor(Math.random() * 1000);
                     addToScene(cube);
                     MAPOBJECTS.push(cube);
@@ -1232,6 +1252,7 @@
                             "y": mapObject.rotation.y,
                             "z": mapObject.rotation.z
                         },
+                        "material": mapObject.userData.materialType,
                         "color": {
                             "r": mapObject.material.color.r,
                             "g": mapObject.material.color.g,
@@ -1731,6 +1752,15 @@
             outline: 2px solid #2e2e2e;
             color: var(--font-color);
             padding-top: 5px;
+        }
+
+        button {
+            /* dark with light text, slim outline and border radius */
+            background: #303030;
+            color: var(--font-color);
+            border: 1px solid #2e2e2e;
+            border-radius: 2px;
+            outline: 2px solid #2e2e2e;
         }
 
         /* number inputs */
