@@ -21,6 +21,8 @@ function createWindow() {
         icon: __dirname + '/icon.ico'
     })
 
+    mainWindow.setMenu(null);
+
     // and load the index.html of the app.
     mainWindow.loadFile('index.html')
 
@@ -50,7 +52,7 @@ function createWindow() {
         // return the metadata.json 
         // arg is the map name
         console.log("Get Map Metadata: " + arg.mapName);
-
+        
         fs.readFile(__dirname + '/maps/' + arg.mapName + '/metadata.json', 'utf8', function (err, data) {
             if (err) {
                 console.log(err);
