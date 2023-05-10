@@ -5,7 +5,7 @@
         "helpText": "[Left Click] Shoot",
         "fireRate": 5,
         "damageRange": 10,
-        "basepotency": 0.01,
+        "basepotency": 0.99,
         "minimumDistance": 250,
         "position": {
             "x": 7,

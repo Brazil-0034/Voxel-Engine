@@ -18,8 +18,8 @@
 
         canvas {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0%;
+            left: 0%;
             display: block;
         }
 
@@ -57,11 +57,38 @@
             transform: translate(-50%, 0);
             opacity: 0.25;
         }
+
+        @keyframes walk-animation {
+            /* shake canvas element as if walking */
+            0% {
+                transform: translate(0, 0);
+            }
+
+            25% {
+                transform: translate(0, 0.5%);
+            }
+
+            50% {
+                transform: translate(0, 0);
+            }
+
+            75% {
+                transform: translate(0, -0.5%);
+            }
+
+            100% {
+                transform: translate(0, 0);
+            }
+        }
+
+        .moving {
+            animation: walk-animation 0.5s infinite;
+        }
     </style>
 </head>
 
 <body>
-    <div id="crosshair-overlay">&#43;</div>
+    <!-- <div id="crosshair-overlay">&#43;</div> -->
     <div id="position-overlay">X, Y, Z</div>
     <div id="help-text">Loading . . .</div>
     <!-- THREE JS via Import Map -->

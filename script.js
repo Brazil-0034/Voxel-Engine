@@ -30,7 +30,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setClearColor(0x00ffff);
+renderer.setClearColor(0x000000);
 document.body.appendChild(renderer.domElement);
 
 const composer = new EffectComposer(renderer);
@@ -52,12 +52,12 @@ const opposingDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
 opposingDirectionalLight.position.set(-1, -1, -1);
 scene.add(opposingDirectionalLight);
 
-const path = 'skyboxes/SwedishRoyalCastle/';
+const path = 'skyboxes/BlueSky/';
 const format = '.jpg';
 const urls = [
-    path + 'px' + format, path + 'nx' + format,
-    path + 'py' + format, path + 'ny' + format,
-    path + 'pz' + format, path + 'nz' + format
+    path + 'bluecloud_ft' + format, path + 'bluecloud_bk' + format,
+    path + 'bluecloud_up' + format, path + 'bluecloud_dn' + format,
+    path + 'bluecloud_rt' + format, path + 'bluecloud_lf' + format
 ];
 const reflectionCube = new THREE.CubeTextureLoader().load(urls);
 reflectionCube.encoding = THREE.sRGBEncoding;
@@ -98,17 +98,17 @@ let weaponLeanDirZ = 0, weaponLeanDirX = 0; //-1 and 1
 document.addEventListener('keydown', function (e) {
     switch (e.code) {
         case 'KeyW':
-            zAxis = -1;
+            if (zAxis == 0) zAxis = -1;
             break;
         case 'KeyA':
-            xAxis = -1;
+            if (xAxis == 0) xAxis = -1;
             weaponLeanDirZ = -1;
             break;
         case 'KeyS':
-            zAxis = 1;
+            if (zAxis == 0) zAxis = 1;
             break;
         case 'KeyD':
-            xAxis = 1;
+            if (xAxis == 0) xAxis = 1;
             weaponLeanDirZ = 1;
             break;
         case 'ShiftLeft':
@@ -416,11 +416,12 @@ class DiscreteVectorFieldPhysicsObject {
 
 const crouchDepth = 15;
 const crouchSpeed = 7.5;
-const standYPosition = 75;
+const standYPosition = 60;
 const crouchYPosition = standYPosition - crouchDepth;
 
 var totalMapChunksToLoad = 0;
 var totalMapChunksLoaded = 0;
+var groundSize;
 const generateWorldModel = function (modelURL) {
 
     // send IPC message 'list-maps' and wait for response (sends eventResponse)
@@ -445,6 +446,19 @@ const generateWorldModel = function (modelURL) {
             };
             camera.position.set(mapCameraData.position.x, standYPosition, mapCameraData.position.z);
             camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
+            
+            const groundData = JSON.parse(arg.metaData).groundData;
+            groundSize = groundData.groundSize;
+            if (groundData) {
+                const groundFloor = new THREE.Mesh(
+                    new THREE.BoxGeometry(groundSize.x, 1, groundSize.y),
+                    new THREE.MeshBasicMaterial({
+                        color: new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b),
+                    })
+                );
+                groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
+                scene.add(groundFloor);
+            }
 
             const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
 
@@ -470,23 +484,6 @@ const generateWorldModel = function (modelURL) {
                     buildWorldModelFromBox(scale, position, mapObject.material, color);
                 }
             });
-            
-            const groundData = JSON.parse(arg.metaData).groundData;
-            if (groundData) {
-                const groundFloor = new THREE.Mesh(
-                    new THREE.BoxGeometry(groundData.groundSize.x, 1, groundData.groundSize.y),
-                    new THREE.MeshStandardMaterial({
-                        // rgb 
-                        color: new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b),
-                        roughness: 0.1
-                    })
-                );
-                groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
-                scene.add(groundFloor);
-            }
-            else {
-                console.log("Map has no ground floor, skipping...");
-            }
         });
 
     });
@@ -496,7 +493,7 @@ const voxelSize = 1; // the relative size of voxels
 let voxelGeometry = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
 const voxelMaterial = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.8,
+    roughness: 1.0,
     envMap: reflectionCube,
     envMapIntensity: 1.0,
 });
@@ -548,6 +545,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
     var voxelsInChunk = [];
     var globalVoxelIterator = 0;
     var brickTicker = 0;
+    var offset = 0;
 
     for (let x = 0; x < scale.x; x++) {
         for (let y = 0; y < scale.y; y++) {
@@ -566,7 +564,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 
                     // NEW CHUNK
                     if (globalVoxelIterator % chunkSize == 0 || (z == scale.z - 1 && y == scale.y - 1 && x == scale.x - 1)) {
-                        console.log(globalVoxelIterator + " / " + chunkSize);
                         // ADD TO SCENE
                         const sceneInstancedModel = instancedWorldModel.clone();
                         sceneInstancedModel.instanceMatrix.needsUpdate = true;
@@ -643,22 +640,32 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
                             }
 
                             // Math
-                            const offset = Math.random() / 10;
+                            offset = Math.random() / 10;
                             blockColor = new THREE.Color(
-                                0.36 + offset,
-                                0.14 + offset,
-                                0.09 + offset
+                                color.r + offset,
+                                color.g + offset,
+                                color.b + offset
                             );
                             if ((y % brickHeight == 0 && y != 0) || (x % brickWidth == 0 && x != 0) || (z % brickWidth == 0 && z != 0)) {
-                                blockColor = new THREE.Color(
-                                    91 / 255 + (offset / 4),
-                                    49 / 255 + (offset / 4),
-                                    38 / 255 + (offset / 4)
-                                );
+                                blockColor = new THREE.Color(0x453737 + (offset / 4))
                             }
                             break;
                         case "Plastic":
-                            break; // flat color
+                            offset = Math.random() / 1000;
+                            blockColor = new THREE.Color(
+                                color.r + offset,
+                                color.g + offset,
+                                color.b + offset
+                            );
+                            break;
+                        case "Concrete":
+                            offset = Math.random() / 100;
+                            blockColor = new THREE.Color(
+                                color.r + offset,
+                                color.g + offset,
+                                color.b + offset
+                            );
+                            break;
                         case "Glass":
                             voxelMaterial.transparent = true;
                             voxelMaterial.opacity = 0.5;
@@ -1101,20 +1108,105 @@ const createTrivoxelAt = function (x, y, z, color) {
     });
 }
 
+class ParticleEffect {
+    constructor(count, lifetime, color, size, spread, direction, filePath, useRandomSprite=false, randomSpriteRange=0, useGravity=true, fadeOut=true) {
+        this.count = count;
+        this.lifetime = lifetime;
+        this.color = color;
+        this.size = size;
+        this.spread = spread;
+        this.direction = direction;
+        this.filePath = filePath;
+        this.useRandomSprite = useRandomSprite;
+        this.randomSpriteRange = randomSpriteRange;
+        this.useGravity = useGravity;
+        this.fadeOut = fadeOut;
+    }
+}
+
+const particleInstances = [];
+const createParticleInstance = function(effect, worldPos) {
+    var path = effect.filePath;
+    if (effect.useRandomSprite) {
+        var num = Math.floor(Math.random() * effect.randomSpriteRange);
+        if (num == 0) num = "";
+        path += num + ".png";
+    }
+    const particleTexture = new THREE.TextureLoader().load(path);
+    const particleMaterial = new THREE.PointsMaterial({
+        map: particleTexture,
+        color: effect.color,
+        size: effect.size
+    });
+
+    // randomize the color a bit
+    const rand = Math.random() / 5;
+    particleMaterial.color.r += rand;
+    particleMaterial.color.g += rand;
+    particleMaterial.color.b += rand;
+
+    const particleGeometry = new THREE.BufferGeometry();
+    const particlePositions = [];
+    const particleVelocities = [];
+    const particleLifetimes = [];
+
+    for (let i = 0; i < effect.count; i++) {
+        particlePositions.push(
+            (Math.random() * effect.spread.x) - (effect.spread.x / 2),
+            (Math.random() * effect.spread.y) - (effect.spread.y / 2),
+            (Math.random() * effect.spread.z) - (effect.spread.z / 2)
+        );
+        particleVelocities.push(
+            effect.direction.x * (Math.random() + 0.5),
+            effect.direction.y * (Math.random() + 0.5),
+            effect.direction.z * (Math.random() + 0.5)
+        );
+        particleLifetimes.push(0);
+    }
+
+    const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+    // no billboarding
+
+    particleSystem.frustumCulled = false;
+
+    particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particlePositions, 3));
+    particleSystem.velocities = particleVelocities;
+    particleSystem.lifetimes = particleLifetimes;
+    particleSystem.lifetime = effect.lifetime;
+
+    particleSystem.position.copy(worldPos);
+    particleInstances.push(particleSystem);
+
+    scene.add(particleSystem);
+}
+
 const generateDestroyedChunkAt = function (destroyedVoxelsInChunk) {
     let found = false;
     for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
         let position = destroyedVoxelsInChunk[x];
+        if (!position) continue;
         const thisVoxel = voxelField.get(position.x, position.y, position.z);
         if (thisVoxel != 0)
         {
             thisVoxel.chunk.setMatrixAt(thisVoxel.index, new THREE.Matrix4().makeTranslation(0, -2, 0));
             thisVoxel.chunk.instanceMatrix.needsUpdate = true;
             voxelField.set(position.x, position.y, position.z, 0, thisVoxel.index, thisVoxel.chunk);
-            if (Math.random() < 0.1) {
+            if (Math.random() < 0.25) {
                 const color = new THREE.Color();
                 thisVoxel.chunk.getColorAt(thisVoxel.index, color);
                 createTrivoxelAt(position.x, position.y, position.z, color);
+
+                // set the next chunk to be gray
+                const rand = Math.floor(Math.random() * 10);
+                if (x != 0 && x < destroyedVoxelsInChunk.length - rand)
+                {
+                    for (let z = -rand/2; z < rand/2; z++)
+                    {
+                        thisVoxel.chunk.setColorAt(thisVoxel.index + z, new THREE.Color(0x888888));
+                        thisVoxel.chunk.instanceColor.needsUpdate = true;
+                    }
+                    x+=rand/2;
+                }
             }
         }
     }
@@ -1179,7 +1271,13 @@ const render = function () {
     }
     else
     {
-        camera.position.y = lerp(camera.position.y, standYPosition, 1-crouchLerp);
+        var headPosition = standYPosition
+        if (zAxis != 0 || xAxis != 0) {
+            const freq = 75;
+            const strength = 2.5;
+            headPosition = standYPosition + (Math.sin(Date.now() / freq) * strength);
+        }
+        camera.position.y = lerp(camera.position.y, headPosition, delta * 10);
         crouchLerp -= crouchSpeed * delta;
         if (crouchLerp < 0) crouchLerp = 0;
     }
@@ -1193,15 +1291,14 @@ const render = function () {
         if (!defaultXrot) defaultXrot = instancedWeaponTarget.rotation.x;
         var newRotZ = 0;
         var newRotX = defaultXrot += (weaponLeanDirX / (100000 * delta));
-        // if weaponLeanDir is zero, move newRotZ toward defaultZrot
         if (weaponLeanDirZ == 0) {
             newRotZ = defaultZrot += (0 - defaultZrot) / (500 * delta);
         }
         if (weaponLeanDirX == 0) {
             newRotX = defaultXrot += (0 - defaultXrot) / (500 * delta);
         }
-        const clampZ = 0.02;
-        const clampX = 0.05;
+        const clampZ = 0.02 / 2;
+        const clampX = 0.05 / 2;
         if (defaultZrot > clampZ) defaultZrot = clampZ;
         if (defaultZrot < -clampZ) defaultZrot = -clampZ;
         if (defaultXrot > clampX) defaultXrot = clampX;
@@ -1236,7 +1333,13 @@ const render = function () {
                     const muzzleFlashYScaleModifierStrength = 1;
                     muzzleFlash.scale.y = Math.random() * muzzleFlashYScaleModifierStrength + muzzleFlashYScaleModifierStrength;
                     
-                    shootRay();
+                    // GOD i HATE javascript
+                    // type annotations? NO.
+                    // parameter delcarations? NO.
+                    // return types? NO.
+                    // why don't i just kill myself now?
+                    shootRay(Math.random() < 0.15 ? true : false);
+
                     isAttackAvailable = false;
                     setTimeout(function () {
                         isAttackAvailable = true;
@@ -1319,9 +1422,46 @@ const physicsUpdatesPerSecond = 60; // physics speed
 const cubeDestructionParticlesSimulator = []; // index of all cubedestructionparticle
 const wreckedMeshes = [];
 const physicsUpdate = function () {
+    // UPDATE PARTICLES
+    particleInstances.forEach(particleInstance => {
+        // for each position in the particle instance, move it by its velocity
+        const positions = particleInstance.geometry.attributes.position.array;
+        const velocities = particleInstance.velocities;
+        const lifetimes = particleInstance.lifetimes;
+
+        let tally = 0;
+        
+        for (let i = 0; i < positions.length; i += 3) {
+            if (lifetimes[i / 3] > particleInstance.lifetime) {
+                // remove from positions (move it to -2 and set velocity to 0)
+                positions[i] = -2;
+                positions[i + 1] = -2;
+                positions[i + 2] = -2;
+                velocities[i] = 0;
+                velocities[i + 1] = 0;
+                velocities[i + 2] = 0;
+                lifetimes[i / 3] = 999;
+                tally += 1;
+                if (tally >= positions.length / 3) {
+                    scene.remove(particleInstance);
+                    particleInstances.splice(particleInstances.indexOf(particleInstance), 1);
+                }
+            }
+            else
+            {
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+                lifetimes[i / 3] += 1 / physicsUpdatesPerSecond;
+                particleInstance.material.opacity = 1 - (lifetimes[i / 3] / particleInstance.lifetime);
+            }
+        }
+
+        particleInstance.geometry.attributes.position.needsUpdate = true;
+    })
     // UPDATE TRIVOXELS
     triVoxelDroppedPieces.forEach((triVoxel) => {
-        if (Math.random() < 1 / physicsUpdatesPerSecond) {
+        if (Math.random() < 0.1 / physicsUpdatesPerSecond) {
             scene.remove(triVoxel.sceneObject);
             triVoxelDroppedPieces.splice(triVoxelDroppedPieces.indexOf(triVoxel), 1);
         }
@@ -1454,8 +1594,8 @@ setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond); // calls physics loo
 const cubeSprite = new THREE.TextureLoader().load("img/cubesprite.png");
 const conjunctionCheckTimesPerSecond = 1;
 const recentlyEditedWorldModels = [];
-const maxChunksInPhysicsCache = 50;
-const conjunctionCheck = async function () {
+const maxChunksInPhysicsCache = 15;
+const conjunctionCheck = function () {
 
     const holeBorder = [];
 
@@ -1467,6 +1607,7 @@ const conjunctionCheck = async function () {
                 holeBorder.push(voxel);
             }
         });
+        // recentlyEditedWorldModels.splice(recentlyEditedWorldModels.indexOf(instancedModel), 1);
     });
 
     // if all voxels in the holeSet touch each other, then they are a hole.
@@ -1489,14 +1630,11 @@ const conjunctionCheck = async function () {
     if (confirmedTouch.length == holeBorder.length) {
         const maxPositions = [];
         const minPositions = [];
-        for (let i = 0; i < holeBorder.length; i++) {
+        const clearedYPositions = []; // store Y positions that have at LEAST two X,Z positions
+        for (let i = 1; i < holeBorder.length; i++) {
             // min positions for EVERY Y LEVEL
             if (minPositions[holeBorder[i].y] == undefined) {
                 minPositions[holeBorder[i].y] = holeBorder[i];
-                // color by height
-                minPositions[holeBorder[i].y].heightMapColor = new THREE.Color(
-                    0x000000 + (holeBorder[i].y / 255) * 0xffffff
-                );
             }
             else {
                 if (holeBorder[i].x < minPositions[holeBorder[i].y].x) {
@@ -1509,10 +1647,6 @@ const conjunctionCheck = async function () {
             // max positions for EVERY Y LEVEL
             if (maxPositions[holeBorder[i].y] == undefined) {
                 maxPositions[holeBorder[i].y] = holeBorder[i];
-                // color by height
-                maxPositions[holeBorder[i].y].heightMapColor = new THREE.Color(
-                    0x000000 + (holeBorder[i].y / 255) * 0xffffff
-                );
             }
             else {
                 if (holeBorder[i].x > maxPositions[holeBorder[i].y].x) {
@@ -1523,14 +1657,24 @@ const conjunctionCheck = async function () {
                 }
             }
         }
-        for (let i = 0; i < minPositions.length; i++) {
+        const hasAYPosition = function(x, z) {
+            let count = 0;
+            for (let i = 0; i < holeBorder.length; i++) {
+                if (holeBorder[i].x == x && holeBorder[i].z == z) count++;
+                if (count >= 2) return true;
+            }
+            return false;
+        }
+        for (let i = 1; i < minPositions.length; i++) {
             const minPos = minPositions[i];
             const maxPos = maxPositions[i];
             if (minPos == undefined || maxPos == undefined) continue;
+            // if clearedYpositions does NOT include this Y position, or its length is less than 2, then skip it
             // for every voxel beween min and max, add it to the fullHole array
             for (let x = minPos.x; x <= maxPos.x; x++) {
                 for (let z = minPos.z; z <= maxPos.z; z++) {
                     const voxel = voxelField.get(x, i, z);
+                    if (!hasAYPosition(x, z)) continue;
                     if (voxel.value == 1) {
                         voxelField.set(x, i, z, 2, voxel.index, voxel.chunk);
                         voxel.chunk.setMatrixAt(voxel.index, new THREE.Matrix4().makeTranslation(0, -2, 0));
@@ -1614,8 +1758,7 @@ const conjunctionCheck = async function () {
     }
 }
 
-conjunctionCheck();
-setInterval(conjunctionCheck, conjunctionCheckTimesPerSecond * 1000);
+// setInterval(conjunctionCheck, conjunctionCheckTimesPerSecond * 1000);
 
 document.addEventListener('mousedown', function (e) {
     // if right click
@@ -1632,7 +1775,7 @@ for (let i = 0; i < bankLength; i++) {
 }
 var bankIterator = 0;
 const rapidFloat = () => { return randomBank[bankIterator++ % bankLength]; }
-const shootRay = function () {
+const shootRay = function (emitParticleEffect) {
     // RAYCAST INTO THE VOXEL FIELD
     // STEP 1: GET THE CAMERA POSITION
     // STEP 2: GET THE CAMERA DIRECTION
@@ -1659,6 +1802,25 @@ const shootRay = function () {
             intersection.y,
             intersection.z
         )
+
+        if (emitParticleEffect)
+        {
+            const color = new THREE.Color(0xffdd8f);
+            voxelField.get(intersectPosition.x, intersectPosition.y, intersectPosition.z).chunk.getColorAt(intersection.index, color);
+            createParticleInstance(new ParticleEffect(
+                /*count:*/Math.floor(Math.random() * 55),
+                /*lifetime:*/2.5,
+                /*color:Math.random() < 0.25 ? new THREE.Color(0xffec82) : */color,
+                /*size:*/1,
+                /*spread:*/new THREE.Vector3(15, 1, 15),
+                /*direction:*/new THREE.Vector3((Math.random() - 0.5)/2.5, -2.5, (Math.random() - 0.5)/2.5),
+                /*filePath:"./img/smoke/smoke"*/"./img/cubesprite.png",
+                /*useRandomSprite:*/false, //true
+                /*randomSpriteRange:*/3,
+                /*useGravity:*/false,
+                /*fadeOut:*/true
+            ), intersectPosition);
+        }
 
         // for every voxel within a destroyedChunkRange of the intersection, destroy it
         for (let x = intersectPosition.x - destroyedChunkRange; x <= intersectPosition.x + destroyedChunkRange; x++) {

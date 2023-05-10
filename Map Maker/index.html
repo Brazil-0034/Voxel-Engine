@@ -43,9 +43,6 @@
                     Open
                 </span>
                 <span class="top-panel-option">
-                    View
-                </span>
-                <span class="top-panel-option">
                     Help
                 </span>
                 <span class="top-panel-option" style="color:#494949; pointer-events: none;">
@@ -235,36 +232,6 @@
                 position.appendChild(positionZ);
                 inspector.appendChild(position);
 
-                // Rotation (X, Y, Z) in a row
-                const rotation = document.createElement("div");
-                rotation.classList.add("inspector-element");
-                rotation.innerHTML = "<h3>Rotation (Deg)</h3>";
-                const rotationX = document.createElement("input");
-                rotationX.type = "number";
-                rotationX.value = item.rotation.x;
-                rotationX.style.width = "75px";
-                rotationX.addEventListener("input", function () {
-                    item.rotation.x = rotationX.value * Math.PI / 180;
-                });
-                const rotationY = document.createElement("input");
-                rotationY.type = "number";
-                rotationY.value = item.rotation.y;
-                rotationY.style.width = "75px";
-                rotationY.addEventListener("input", function () {
-                    item.rotation.y = rotationY.value * Math.PI / 180;
-                });
-                const rotationZ = document.createElement("input");
-                rotationZ.type = "number";
-                rotationZ.value = item.rotation.z;
-                rotationZ.style.width = "75px";
-                rotationZ.addEventListener("input", function () {
-                    item.rotation.z = rotationZ.value * Math.PI / 180;
-                });
-                rotation.appendChild(rotationX);
-                rotation.appendChild(rotationY);
-                rotation.appendChild(rotationZ);
-                inspector.appendChild(rotation);
-
                 // Scale (X, Y, Z) in a row
                 const scale = document.createElement("div");
                 scale.classList.add("inspector-element");
@@ -375,7 +342,7 @@
                 materialBricks.innerHTML = "Bricks";
                 materialBricks.addEventListener("click", function () {
                     item.material = new THREE.MeshStandardMaterial({
-                        color: 0x8b4513,
+                        color: 0x3d2b2a,
                         roughness: 0.9,
                         metalness: 0.1
                     });
@@ -525,27 +492,23 @@
                 // if lastAttachedObject has any part below y=-1, move it up to y=0
                 if (lastAttachedObject != undefined) {
                     if (lastAttachedObject.userData.isGroundFloor != true) {
-                        const boundingBox = new THREE.Box3().setFromObject(lastAttachedObject);
-                        if (boundingBox.min.y < -1) {
-                            objectsUnderground.push(lastAttachedObject);
+                        if (selectedObjects.children.some(child => (new THREE.Box3().setFromObject(child).min.y < -1)))
+                        {
+                            const tempSelObjs = Array.from(selectedObjects.children);
+                            console.log(tempSelObjs);
+                            clearSelectedObjects();
+                            console.log(tempSelObjs);
+                            tempSelObjs.forEach(selectedObject => {
+                                const boundingBox = new THREE.Box3().setFromObject(selectedObject);
+                                if (boundingBox.min.y < -1) {
+                                    const distanceToMoveUp = Math.abs(boundingBox.min.y);
+                                    selectedObject.position.y += distanceToMoveUp;
+                                    attachHandles(selectedObject);
+                                }
+                            });
                         }
                     }
                 }
-
-                objectsUnderground.forEach(sceneObject => {
-                    // set its texture to errorTex
-                    const boundingBox = new THREE.Box3().setFromObject(sceneObject);
-                    if (boundingBox.min.y < -1) {
-                        console.log("It's underground!");
-                        sceneObject.material.map = errorTex;
-                        sceneObject.material.needsUpdate = true;
-                    }
-                    else {
-                        objectsUnderground.splice(objectsUnderground.indexOf(sceneObject), 1);
-                        sceneObject.material.map = null;
-                        sceneObject.material.needsUpdate = true;
-                    }
-                })
 
                 updateRightPanel(lastAttachedObject);
             }
@@ -894,6 +857,14 @@
                     case 't':
                         transformControls.setMode("scale");
                         break;
+                    case 'r':
+                        // rotate selected objects
+                        selectedObjects.children.forEach(object => {
+                            // swap X and Z scale
+                            const temp = object.scale.x;
+                            object.scale.x = object.scale.z;
+                            object.scale.z = temp;
+                        });
                 }
             }
             // CTRL Commands
@@ -1538,6 +1509,7 @@
                             );
                             newBox.scale.set(mapMakerObject.size.x, mapMakerObject.size.y, mapMakerObject.size.z);
                             newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
+                            newBox.userData.materialType = mapMakerObject.material;
                             addToScene(newBox);
                             MAPOBJECTS.push(newBox);
                         }
