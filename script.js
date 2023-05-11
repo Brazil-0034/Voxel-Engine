@@ -112,7 +112,7 @@ document.addEventListener('keydown', function (e) {
             weaponLeanDirZ = 1;
             break;
         case 'ShiftLeft':
-            sprinting = 5;
+            sprinting = 2.5;
             break;
         case 'KeyR':
             controls.getObject().position.set(0, 15, 0);
@@ -169,7 +169,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
 const modelURL = 'maps/' + 'savedata.json';
-const weaponURL = 'weapons/' + 'weapon_m4.json';
+const weaponURL = 'weapons/' + 'weapon_tnt.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
@@ -279,6 +279,9 @@ class DiscreteVectorField {
     // Retrieves the value of the vector field at the given position
     // 0 if none
     get(x, y, z) {
+        if (x.x || x[1]) {
+            console.error("Attempted to call #get() of DiscreteVectorField with a vector instead of 3 numbers. You fucking dumbass. Write better code. Fuck Javascript.")
+        }
         if (this.field[x] && this.field[x][y] && this.field[x][y][z]) {
             return this.field[x][y][z];
         }
@@ -928,12 +931,107 @@ generateWorldModel(modelURL); // finally, we load and generate the model!
 // like there are two wholly unnecessary, single-use function calls here for the same exact thing?
 // maybe in a networked game it may be necessary ... maybe it's not so dumb after all ...
 // ill look into it later.
-const generateModelWeapon = function (modelURL) {
+
+var instancedWeaponModel;
+const weaponModelMaterial = new THREE.MeshStandardMaterial({
+    // highly reflective for funzies / make it contrast
+    envMap: reflectionCube,
+    roughness: 1.0,
+    color: 0x8c8c8c
+});
+
+var instancedWeaponTarget; // target position for instancedWeapon (for lerping :P)
+
+const generateWeaponModel = function (modelURL) {
     let loader = new THREE.FileLoader();
     loader.load(
         modelURL,
-        function (JSONData) {
-            buildJSONWeapon(JSONData);
+        function (jsondata) {
+
+            let jsonModel = JSON.parse(jsondata);
+            let voxelPositionsFromFile = jsonModel.voxels;
+            instancedWeaponModel = new THREE.InstancedMesh(
+                voxelGeometry,
+                weaponModelMaterial,
+                voxelPositionsFromFile.length
+            );
+            // make it render above everything else, cuz FPS!!
+            instancedWeaponModel.onBeforeRender = function (renderer) { renderer.clearDepth(); };
+            instancedWeaponModel.renderOrder = 999999;
+            instancedWeaponModel.name = jsonModel.weaponData.name;
+            instancedWeaponTarget = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshStandardMaterial({ color: 0xff0000 })
+            );
+            instancedWeaponTarget.material.visible = false; // uncomment to position weapon better
+            camera.add(instancedWeaponTarget);
+            for (let i = 0; i < voxelPositionsFromFile.length; i++) {
+                const thisVoxelData = voxelPositionsFromFile[i];
+                const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
+                const thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
+                instancedWeaponModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
+                instancedWeaponModel.setColorAt(i, thisVoxelColor);
+            }
+            instancedWeaponModel.instanceMatrix.needsUpdate = true;
+            // json reads for weapon data
+            weaponType = jsonModel.weaponData.type;
+            percentMissedHits = jsonModel.weaponData.percentMissedHits;
+            destroyedChunkRange = jsonModel.weaponData.damageRange;
+            rateOfFire = jsonModel.weaponData.fireRate;
+            weaponHelpText = jsonModel.weaponData.helpText;
+            // finally, add the weapon to the scene
+            scene.add(instancedWeaponModel);
+            weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
+            if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
+            weaponScale = new THREE.Vector3(jsonModel.dimension.width, jsonModel.dimension.height, jsonModel.dimension.depth);
+            weaponScale.divideScalar(15);
+            weaponRange = jsonModel.weaponData.minimumDistance;
+            if (jsonModel.weaponData.realWorldScaleMultiplier != undefined) weaponRealWorldScaleMultiplier = jsonModel.weaponData.realWorldScaleMultiplier;
+            instancedWeaponTarget.position.copy(weaponPosition);
+            // DEBUG KEYS to move weapon target around, see what looks best :)
+            document.addEventListener('keydown', function (event) {
+                if (event.key == 'ArrowLeft') {
+                    instancedWeaponTarget.position.x -= 1;
+                    console.log(instancedWeaponTarget.position);
+                }
+                if (event.key == 'ArrowRight') {
+                    instancedWeaponTarget.position.x += 1;
+                    console.log(instancedWeaponTarget.position);
+                }
+                if (event.key == 'ArrowUp') {
+                    instancedWeaponTarget.position.y += 1;
+                    console.log(instancedWeaponTarget.position);
+                }
+                if (event.key == 'ArrowDown') {
+                    instancedWeaponTarget.position.y -= 1;
+                    console.log(instancedWeaponTarget.position);
+                }
+                if (event.key == '1') {
+                    instancedWeaponTarget.position.z -= 1;
+                    console.log(instancedWeaponTarget.position);
+                }
+                if (event.key == '2') {
+                    instancedWeaponTarget.position.z += 1;
+                    console.log(instancedWeaponTarget.position);
+                }
+                if (event.key == '3') {
+                    instancedWeaponTarget.rotation.z += Math.PI / 100;
+                }
+                if (event.key == '4') {
+                    instancedWeaponTarget.rotation.z -= Math.PI / 100;
+                    console.log(instancedWeaponTarget.rotation);
+                }
+                if (event.key == '5') {
+                    instancedWeaponTarget.rotation.y += Math.PI / 100;
+                }
+                if (event.key == '6') {
+                    instancedWeaponTarget.rotation.y -= Math.PI / 100;
+                    console.log(instancedWeaponTarget.rotation);
+                }
+            });
+            weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
+            instancedWeaponTarget.rotation.copy(weaponRotation);
+            if (weaponHelpText) setHelpText(weaponHelpText);
         },
         function (err) {
             // console.log(err);
@@ -941,102 +1039,7 @@ const generateModelWeapon = function (modelURL) {
     );
 }
 
-var instancedWeaponModel;
-const weaponModelMaterial = new THREE.MeshStandardMaterial({
-    // highly reflective for funzies / make it contrast
-    envMap: reflectionCube,
-    roughness: 0.75,
-    color: 0x8c8c8c
-});
-var instancedWeaponTarget; // target position for instancedWeapon (for lerping :P)
-const buildJSONWeapon = function (jsondata) {
-    let jsonModel = JSON.parse(jsondata);
-    let voxelPositionsFromFile = jsonModel.voxels;
-    instancedWeaponModel = new THREE.InstancedMesh(
-        voxelGeometry,
-        weaponModelMaterial,
-        voxelPositionsFromFile.length
-    );
-    // make it render above everything else, cuz FPS!!
-    instancedWeaponModel.onBeforeRender = function (renderer) { renderer.clearDepth(); };
-    instancedWeaponModel.renderOrder = 999999;
-    instancedWeaponModel.name = jsonModel.weaponData.name;
-    instancedWeaponTarget = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    );
-    instancedWeaponTarget.material.visible = false; // uncomment to position weapon better
-    camera.add(instancedWeaponTarget);
-    for (let i = 0; i < voxelPositionsFromFile.length; i++) {
-        const thisVoxelData = voxelPositionsFromFile[i];
-        const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
-        const thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
-        instancedWeaponModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
-        instancedWeaponModel.setColorAt(i, thisVoxelColor);
-    }
-    instancedWeaponModel.instanceMatrix.needsUpdate = true;
-    // json reads for weapon data
-    weaponType = jsonModel.weaponData.type;
-    percentMissedHits = jsonModel.weaponData.percentMissedHits;
-    destroyedChunkRange = jsonModel.weaponData.damageRange;
-    rateOfFire = jsonModel.weaponData.fireRate;
-    weaponHelpText = jsonModel.weaponData.helpText;
-    // finally, add the weapon to the scene
-    scene.add(instancedWeaponModel);
-    weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
-    if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
-    weaponScale = new THREE.Vector3(jsonModel.dimension.width, jsonModel.dimension.height, jsonModel.dimension.depth);
-    weaponScale.divideScalar(15);
-    weaponRange = jsonModel.weaponData.minimumDistance;
-    if (jsonModel.weaponData.realWorldScaleMultiplier != undefined) weaponRealWorldScaleMultiplier = jsonModel.weaponData.realWorldScaleMultiplier;
-    instancedWeaponTarget.position.copy(weaponPosition);
-    // DEBUG KEYS to move weapon target around, see what looks best :)
-    document.addEventListener('keydown', function (event) {
-        if (event.key == 'ArrowLeft') {
-            instancedWeaponTarget.position.x -= 1;
-            console.log(instancedWeaponTarget.position);
-        }
-        if (event.key == 'ArrowRight') {
-            instancedWeaponTarget.position.x += 1;
-            console.log(instancedWeaponTarget.position);
-        }
-        if (event.key == 'ArrowUp') {
-            instancedWeaponTarget.position.y += 1;
-            console.log(instancedWeaponTarget.position);
-        }
-        if (event.key == 'ArrowDown') {
-            instancedWeaponTarget.position.y -= 1;
-            console.log(instancedWeaponTarget.position);
-        }
-        if (event.key == '1') {
-            instancedWeaponTarget.position.z -= 1;
-            console.log(instancedWeaponTarget.position);
-        }
-        if (event.key == '2') {
-            instancedWeaponTarget.position.z += 1;
-            console.log(instancedWeaponTarget.position);
-        }
-        if (event.key == '3') {
-            instancedWeaponTarget.rotation.z += Math.PI / 100;
-        }
-        if (event.key == '4') {
-            instancedWeaponTarget.rotation.z -= Math.PI / 100;
-            console.log(instancedWeaponTarget.rotation);
-        }
-        if (event.key == '5') {
-            instancedWeaponTarget.rotation.y += Math.PI / 100;
-        }
-        if (event.key == '6') {
-            instancedWeaponTarget.rotation.y -= Math.PI / 100;
-            console.log(instancedWeaponTarget.rotation);
-        }
-    });
-    weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
-    instancedWeaponTarget.rotation.copy(weaponRotation);
-    if (weaponHelpText) setHelpText(weaponHelpText);
-}
-
-generateModelWeapon(weaponURL); // same as map, but for the weapon!
+generateWeaponModel(weaponURL); // same as map, but for the weapon!
 
 // Represents a physical voxel object to be tracked!
 // ya see, the lil cubes floating (when u break something) around are entirely new objects,
@@ -1095,7 +1098,7 @@ const createTrivoxelAt = function (x, y, z, color) {
     const velocityRange = 0.25;
     const triVoxelVelocity = new THREE.Vector3(
         (Math.random() * velocityRange) - (velocityRange / 2),
-        (Math.random() * velocityRange) - (velocityRange / 2),
+        (Math.random() * velocityRange) - (velocityRange),
         (Math.random() * velocityRange) - (velocityRange / 2)
     );
 
@@ -1184,10 +1187,10 @@ const generateDestroyedChunkAt = function (destroyedVoxelsInChunk) {
     let found = false;
     for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
         let position = destroyedVoxelsInChunk[x];
-        if (!position) continue;
         const thisVoxel = voxelField.get(position.x, position.y, position.z);
         if (thisVoxel != 0)
         {
+            console.log(thisVoxel);
             thisVoxel.chunk.setMatrixAt(thisVoxel.index, new THREE.Matrix4().makeTranslation(0, -2, 0));
             thisVoxel.chunk.instanceMatrix.needsUpdate = true;
             voxelField.set(position.x, position.y, position.z, 0, thisVoxel.index, thisVoxel.chunk);
@@ -1196,17 +1199,17 @@ const generateDestroyedChunkAt = function (destroyedVoxelsInChunk) {
                 thisVoxel.chunk.getColorAt(thisVoxel.index, color);
                 createTrivoxelAt(position.x, position.y, position.z, color);
 
-                // set the next chunk to be gray
-                const rand = Math.floor(Math.random() * 10);
-                if (x != 0 && x < destroyedVoxelsInChunk.length - rand)
-                {
-                    for (let z = -rand/2; z < rand/2; z++)
-                    {
-                        thisVoxel.chunk.setColorAt(thisVoxel.index + z, new THREE.Color(0x888888));
-                        thisVoxel.chunk.instanceColor.needsUpdate = true;
-                    }
-                    x+=rand/2;
-                }
+                // // set the next chunk to be gray
+                // const rand = Math.floor(Math.random() * 10);
+                // if (x != 0 && x < destroyedVoxelsInChunk.length - rand)
+                // {
+                //     for (let z = -rand/2; z < rand/2; z++)
+                //     {
+                //         thisVoxel.chunk.setColorAt(thisVoxel.index + z, new THREE.Color(0x888888));
+                //         thisVoxel.chunk.instanceColor.needsUpdate = true;
+                //     }
+                //     x+=Math.floor(rand/2);
+                // }
             }
         }
     }
@@ -1243,15 +1246,55 @@ const lerp = function(a, b, t)
     return a + (b - a) * t;
 }
 
+/*
+
+public static float Berp(float start, float end, float value)
+{
+    value = Mathf.Clamp01(value);
+    value = (Mathf.Sin(value * Mathf.PI * (0.2f + 2.5f * value * value * value)) * Mathf.Pow(1f - value, 2.2f) + value) * (1f + (1.2f * (1f - value)));
+    return start + (end - start) * value;
+}
+
+*/
+
+const elasticLerp = function(a, b, t)
+{
+    t = Math.min(Math.max(t, 0), 0.25);
+    t = (Math.sin(t * Math.PI * (0.2 + 2.5 * t * t * t)) * Math.pow(1 - t, 0.2) + t) * (1 + (0.1 * (1 - t)));
+    return a + (b - a) * t;
+}
+
+var isMouseMoving = false;
+let timer = 0;
+renderer.domElement.addEventListener('mousemove', (e) => {
+    if (isMouseMoving) {
+        timer = 0;
+        return;
+    }
+    timer = 0;
+    isMouseMoving = true;
+});
+setInterval(() => {
+    if (isMouseMoving) {
+        timer++;
+        if (timer > 10) {
+            isMouseMoving = false;
+        }
+    }
+}, 5);
+
+
 // ### RENDER LOOP ###
 // this renders things. separate from the physics loop.
 const clock = new THREE.Clock();
 var frameRate = 0;
+var frameCounter = 0;
 var weaponStartPosition;
-var defaultZrot, defaultXrot;
+var defaultInstancedWeaponTargetPosition;
 var isCrouching = false;
 var crouchLerp = 0;
 const render = function () {
+    frameCounter = (frameCounter + 1) % 60;
     const delta = clock.getDelta();
     frameRate = Math.round(1 / delta);
     controls.moveRight(playerMoveSpeed * delta * xAxis * sprinting);
@@ -1283,29 +1326,31 @@ const render = function () {
     }
     if (instancedWeaponModel && instancedWeaponTarget && delta > 0) {
         muzzleFlash.renderOrder = instancedWeaponModel.renderOrder - 1;
+
+        if (!defaultInstancedWeaponTargetPosition) defaultInstancedWeaponTargetPosition = instancedWeaponTarget.position.clone();
+
+        // SIN the weapon's position
+        const bounceRange = new THREE.Vector3(0.25, 0.25, 0);
+        let speed = new THREE.Vector3(100, 50, 100);
+        let isMoving = false;
+        if (xAxis != 0 || zAxis != 0) {
+            isMoving = true;
+        } 
+        else if (isMouseMoving == true)
+        {
+            isMoving = true;
+            bounceRange.divideScalar(2.5);
+            speed.multiplyScalar(2.5);
+        }
+        instancedWeaponTarget.position.x += (Math.sin(Date.now() / speed.x) * bounceRange.x) * isMoving;
+        instancedWeaponTarget.position.y += (Math.sin(Date.now() / speed.y) * bounceRange.y) * isMoving;
+
+        // LERP the weapon's position
         const instancedWeaponTargetWorldPosition = new THREE.Vector3();
         instancedWeaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
         instancedWeaponModel.position.set(instancedWeaponTargetWorldPosition.x, instancedWeaponTargetWorldPosition.y, instancedWeaponTargetWorldPosition.z);
         
-        if (!defaultZrot) defaultZrot = instancedWeaponTarget.rotation.z;
-        if (!defaultXrot) defaultXrot = instancedWeaponTarget.rotation.x;
-        var newRotZ = 0;
-        var newRotX = defaultXrot += (weaponLeanDirX / (100000 * delta));
-        if (weaponLeanDirZ == 0) {
-            newRotZ = defaultZrot += (0 - defaultZrot) / (500 * delta);
-        }
-        if (weaponLeanDirX == 0) {
-            newRotX = defaultXrot += (0 - defaultXrot) / (500 * delta);
-        }
-        const clampZ = 0.02 / 2;
-        const clampX = 0.05 / 2;
-        if (defaultZrot > clampZ) defaultZrot = clampZ;
-        if (defaultZrot < -clampZ) defaultZrot = -clampZ;
-        if (defaultXrot > clampX) defaultXrot = clampX;
-        if (defaultXrot < -clampX) defaultXrot = -clampX;
-
-        instancedWeaponTarget.rotation.z = newRotZ;
-        instancedWeaponTarget.rotation.x = newRotX;
+        // always realign the rotation of the weapon to the target
         instancedWeaponModel.rotation.setFromRotationMatrix(instancedWeaponTarget.matrixWorld);
     }
     if (isLeftClicking) {
@@ -1351,24 +1396,9 @@ const render = function () {
                 break;
             case "explosive":
                 if (isAttackAvailable) {
-                    const physicsModel = instancedWeaponModel.clone();
-                    // physicsModel.renderOrder = 0;
-                    physicsModel.scale.set(
-                        instancedWeaponModel.scale.x * (weaponRealWorldScaleMultiplier),
-                        instancedWeaponModel.scale.y * (weaponRealWorldScaleMultiplier),
-                        instancedWeaponModel.scale.z * (weaponRealWorldScaleMultiplier)
-                    );
-                    physicsModel.position.copy(mouseRayFollower.position);
-                    physicsModel.rotation.copy(mouseRayFollower.rotation);
-                    scene.add(physicsModel);
-                    const direction = new THREE.Vector3();
-                    camera.getWorldDirection(direction);
-                    physicsModel.position.addScaledVector(direction, -2);
-                    physicsModel.rotateY(-90 * Math.PI / 180);
-                    physicsModel.rotateX(-90 * Math.PI / 180);
-                    physicsModel.position.addScaledVector(direction, weaponPlacementOffset.z);
-                    physicsModel.position.addScaledVector(camera.up, weaponPlacementOffset.y);
-                    physicsModel.position.addScaledVector(new THREE.Vector3().crossVectors(camera.up, direction), weaponPlacementOffset.x);
+                    
+                    plantExplosive();
+
                     isAttackAvailable = false;
                     setTimeout(function () {
                         isAttackAvailable = true;
@@ -1581,6 +1611,9 @@ const physicsUpdate = function () {
         });
     }
 }
+
+setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond);
+
 const createVizSphere = function (x, y, z, color=0x00ff00, size=1.5) {
     const sphere = new THREE.Mesh(
         new THREE.SphereGeometry(size, 2, 2),
@@ -1589,7 +1622,6 @@ const createVizSphere = function (x, y, z, color=0x00ff00, size=1.5) {
     sphere.position.set(x, y, z);
     scene.add(sphere);
 }
-setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond); // calls physics loop
 
 const cubeSprite = new THREE.TextureLoader().load("img/cubesprite.png");
 const conjunctionCheckTimesPerSecond = 1;
@@ -1717,7 +1749,7 @@ const conjunctionCheck = function () {
                 cubeDestructionParticles.velocities.push(
                     new THREE.Vector3(
                         (Math.random() - 0.5) * velocityStrength,
-                        -(Math.random() + 0.5) * (velocityStrength * 2),
+                        -(Math.random() + 0.5) * (velocityStrength * 5),
                         (Math.random() - 0.5) * velocityStrength
                     )
                 );
@@ -1764,6 +1796,7 @@ document.addEventListener('mousedown', function (e) {
     // if right click
     if (e.button == 2) {
         conjunctionCheck();
+        activateExplosives();
     }
 });
 
@@ -1835,8 +1868,7 @@ const shootRay = function (emitParticleEffect) {
                     const distanceToIntersectPos = voxelPosition.distanceTo(intersectPosition);
                     // further the distance is from center, increase chance of missing
                     // use percentMissedHits (0-1)
-                    if (distanceToIntersectPos * percentMissedHits > rapidFloat()) continue;
-                    destroyedVoxelsInChunk.push(voxelPosition);
+                    if ((distanceToIntersectPos * percentMissedHits) < rapidFloat()) destroyedVoxelsInChunk.push(voxelPosition);
                 }
             }
         }
@@ -1852,6 +1884,85 @@ const shootRay = function (emitParticleEffect) {
         generateDestroyedChunkAt(destroyedVoxelsInChunk);
     }
 }
+
+const explosives = [];
+const plantExplosive = function() {
+
+    const cameraPosition = new THREE.Vector3();
+    camera.getWorldPosition(cameraPosition);
+    cameraPosition.x = Math.round(cameraPosition.x);
+    cameraPosition.y = Math.round(cameraPosition.y);
+    cameraPosition.z = Math.round(cameraPosition.z);
+    const cameraDirection = new THREE.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    const intersection = voxelField.raycast(cameraPosition, cameraDirection, 100);
+    // Determine which voxels in chunk are to be destroyed
+    if (intersection != null) {
+        const weaponModel = instancedWeaponModel.clone();
+        weaponModel.explodeRange = destroyedChunkRange;
+        weaponModel.onBeforeRender = function() {return};
+        weaponModel.renderOrder = 0;
+        weaponModel.scale.multiplyScalar(weaponRealWorldScaleMultiplier);
+        const intersectionPosition = new THREE.Vector3(
+            intersection.x,
+            intersection.y,
+            intersection.z
+        );
+        intersectionPosition.addScaledVector(cameraDirection, -2);
+        weaponModel.position.copy(intersectionPosition);
+        scene.add(weaponModel);
+        explosives.push(weaponModel);
+    }
+}
+
+const activateExplosives = function() {
+    explosives.forEach(explosive => {
+        const position = new THREE.Vector3();
+        explosive.getWorldPosition(position);
+        // round
+        position.x = Math.round(position.x/* + (explosive.scale.x/2) */);
+        position.y = Math.round(position.y/* + (explosive.scale.y/2) */);
+        position.z = Math.round(position.z/* + (explosive.scale.z/2) */);
+
+        const damageRange = explosive.explodeRange;
+        const destroyedVoxelsInChunk = [];
+
+        // const vizSphere = new THREE.Mesh(
+        //     new THREE.SphereGeometry(damageRange/2, 8, 8),
+        //     new THREE.MeshBasicMaterial({color:0xff0000, wireframe:true})
+        // );
+        // vizSphere.position.copy(position);
+        // scene.add(vizSphere);
+
+        for (let x = -(damageRange/2); x <= (damageRange/2); x++) {
+            for (let y = -(damageRange/2); y <= (damageRange/2); y++) {
+                for (let z = -(damageRange/2); z <= (damageRange/2); z++) {
+                    const voxelPosition = new THREE.Vector3(
+                        x + position.x,
+                        y + position.y,
+                        z + position.z
+                    );
+                    const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
+                    if (voxel != 0) {
+                        const distanceToExplosive = voxelPosition.distanceTo(position);
+                        if (distanceToExplosive <= damageRange/2) {
+                            destroyedVoxelsInChunk.push(voxelPosition);
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log(destroyedVoxelsInChunk);
+
+        scene.remove(explosive);
+        explosives.splice(explosives.indexOf(explosive), 1);
+        explosive.geometry.dispose();
+
+        generateDestroyedChunkAt(destroyedVoxelsInChunk);
+    });
+}
+
 render(); // calls render loop
 
 // window resize handler
