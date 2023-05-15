@@ -13,5 +13,17 @@
     "seedrandom": "^3.0.5",
     "three-mesh-bvh": "^0.5.23",
     "tweakpane": "^3.1.9"
-  }
+  },
+  "description": "This is my JavaScript voxel game/physics engine.",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowaythisworks/Voxel-Engine.git"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/nowaythisworks/Voxel-Engine/issues"
+  },
+  "homepage": "https://github.com/nowaythisworks/Voxel-Engine#readme"
 }

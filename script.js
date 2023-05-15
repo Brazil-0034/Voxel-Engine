@@ -169,7 +169,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
 const modelURL = 'maps/' + 'savedata.json';
-const weaponURL = 'weapons/' + 'weapon_tnt.json';
+const weaponURL = 'weapons/' + 'weapon_m4.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
@@ -234,11 +234,18 @@ class DiscreteVectorField {
         if (!this.field[x][y]) {
             this.field[x][y] = [];
         }
-        this.field[x][y][z] = {
-            value: value,
-            index: chunkIndex,
-            chunk: chunk
-        };
+        if (value == 0)
+        {
+            this.field[x][y][z] = 0;
+        }
+        else
+        {
+            this.field[x][y][z] = {
+                value: value,
+                index: chunkIndex,
+                chunk: chunk
+            };
+        }
     }
 
     remove(x, y, z) {
@@ -422,10 +429,8 @@ const crouchSpeed = 7.5;
 const standYPosition = 60;
 const crouchYPosition = standYPosition - crouchDepth;
 
-var totalMapChunksToLoad = 0;
-var totalMapChunksLoaded = 0;
 var groundSize;
-const generateWorldModel = function (modelURL) {
+const generateWorld = function (modelURL) {
 
     // send IPC message 'list-maps' and wait for response (sends eventResponse)
     // TODO - make this a promise
@@ -436,7 +441,7 @@ const generateWorldModel = function (modelURL) {
 
         // THIS CHOOSES THE MAP TO LOAD
         ipcRenderer.send('get-map-metadata', {
-            mapName: 'savedata'
+            mapName: 'fast food'
         });
 
         // THIS GETS METADATA (PRELOAD)
@@ -484,6 +489,11 @@ const generateWorldModel = function (modelURL) {
                     position.z = Math.round(position.z);
                     const color = mapObject.color;
 
+                    // shift position (to center it)
+                    position.x -= scale.x / 2;
+                    position.y -= scale.y / 2;
+                    position.z -= scale.z / 2;
+
                     buildWorldModelFromBox(scale, position, mapObject.material, color);
                 }
             });
@@ -505,23 +515,16 @@ const voxelMaterial = new THREE.MeshStandardMaterial({
 // Lower size = fewer chunks
 // It is best to alter this dynamically between maps for performance
 // TODO implement some algorithm to determine this value on the fly
-let maxChunkSize = 150;
-maxChunkSize = Math.pow(maxChunkSize, 2); // squares it cuz why not? :3
+let maxChunkSize = 5000; // 1d max size
 
 let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
-let voxelPositions = []; // same as above, but contains voxels, for later physics simulations
-var chunkCounter = 0;
 const buildWorldModelFromBox = function (scale, position, material, color) {
-    console.log(material);
-    // SCALE: X,Y,Z int
-    // POSITION: X,Y,Z int
-    // COLOR: R,G,B float
-
-    const numberOfVoxels = (scale.x * 2) + (scale.y * 2) + (scale.z * 2);
-    const numberOfChunks = Math.ceil(numberOfVoxels / maxChunkSize);
-    const chunkSize = Math.ceil(numberOfVoxels / numberOfChunks);
-
-    console.log("Building Box with " + numberOfVoxels + " voxels, " + numberOfChunks + " chunks, and chunk size " + chunkSize);
+    // round the position
+    position.x = Math.round(position.x);
+    position.y = Math.round(position.y);
+    position.z = Math.round(position.z);
+    
+    let chunkCounter = 0;
 
     var chunkMinPosition, chunkMaxPosition;
     const resetChunkBounds = function () {
@@ -538,394 +541,146 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
         );
     }
     resetChunkBounds();
-
-    var instancedWorldModel = new THREE.InstancedMesh(
+    
+    let instancedWorldModel = new THREE.InstancedMesh(
         voxelGeometry,
         voxelMaterial,
-        chunkSize
+        maxChunkSize
     );
+    instancedWorldModel.name = chunkCounter;
+    let localVoxelIterator = 0;
 
-    var voxelsInChunk = [];
-    var globalVoxelIterator = 0;
-    var brickTicker = 0;
-    var offset = 0;
-
-    for (let x = 0; x < scale.x; x++) {
-        for (let y = 0; y < scale.y; y++) {
-            if (y % 15 == 0) brickTicker = 6;
-            for (let z = 0; z < scale.z; z++) {
-                if (x == 0 || x == scale.x - 1 || y == 0 || y == scale.y - 1 || z == 0 || z == scale.z - 1) {
-                    const thisVoxelPosition = new THREE.Vector3(
-                        // offset for center
-                        Math.round((x - (scale.x / 2)) + position.x),
-                        Math.round((y - (scale.y / 2)) + position.y),
-                        Math.round((z - (scale.z / 2)) + position.z)
-                    );
-
-                    // skip voxels on the ground floor
-                    if (thisVoxelPosition.y == -1) continue;
-
-                    // NEW CHUNK
-                    if (globalVoxelIterator % chunkSize == 0 || (z == scale.z - 1 && y == scale.y - 1 && x == scale.x - 1)) {
-                        // ADD TO SCENE
-                        const sceneInstancedModel = instancedWorldModel.clone();
-                        sceneInstancedModel.instanceMatrix.needsUpdate = true;
-                        sceneInstancedModel.name = chunkCounter;
-                        // const allVoxelsInChunk = voxelPositions[currentModel.name].voxels;
-                        voxelPositions.push({
-                            chunkID: sceneInstancedModel.name,
-                            voxels: voxelsInChunk
-                        });
-                        // DEBUG BOX (CULLING)
-                        sceneInstancedModel.frustumBox = new THREE.Box3();
-                        sceneInstancedModel.frustumBox.setFromCenterAndSize(
-                            new THREE.Vector3(
-                                (chunkMinPosition.x + chunkMaxPosition.x) / 2,
-                                (chunkMinPosition.y + chunkMaxPosition.y) / 2,
-                                (chunkMinPosition.z + chunkMaxPosition.z) / 2
-                            ),
-                            new THREE.Vector3(
-                                (chunkMaxPosition.x - chunkMinPosition.x),
-                                (chunkMaxPosition.y - chunkMinPosition.y),
-                                (chunkMaxPosition.z - chunkMinPosition.z)
-                            )
-                        );
-                        if (USERSETTINGS.debugMode) {
-                            const box = new THREE.Box3Helper(sceneInstancedModel.frustumBox, 0x00ff00);
-                            box.material.transparent = true;
-                            box.material.opacity = 0.1;
-                            scene.add(box);
-                        }
-                        // set position to the first voxel in the chunk
-                        scene.add(sceneInstancedModel);
-                        instancedModelIndex.push(sceneInstancedModel);
-
-                        for (let x = 0; x < voxelsInChunk.length; x++) {
-                            const voxel = voxelsInChunk[x];
-                            if (x == 0) voxelField.setChunkMinIndex(sceneInstancedModel.name, x);
-                            if (x == voxelsInChunk.length - 1) voxelField.setChunkMaxIndex(sceneInstancedModel.name, x);
-                            voxelField.set(voxel.x, voxel.y, voxel.z, 1, x, sceneInstancedModel);
-                        }
-
-                        voxelsInChunk = [];
-
-                        // RESET EDITING CHUNK
-                        instancedWorldModel = new THREE.InstancedMesh(
-                            voxelGeometry,
-                            voxelMaterial,
-                            chunkSize
-                        );
-                        globalVoxelIterator = 0;
-                        resetChunkBounds();
-                        chunkCounter++;
-                    }
-
-                    instancedWorldModel.setMatrixAt(globalVoxelIterator, new THREE.Matrix4().makeTranslation(
-                        thisVoxelPosition.x,
-                        thisVoxelPosition.y,
-                        thisVoxelPosition.z
-                    ));
-
-                    var blockColor = new THREE.Color(color.r, color.g, color.b)
-
-                    switch (material) {
-                        default:
-                            // console.log("Illegal Material: <" + material + ">")
-                            break;
-                        case "Bricks":
-                            // Constants
-                            const brickHeight = 6;
-                            var brickWidth;
-                            // we are making bricks, which are slightly offset
-                            brickWidth = 12;
-                            if (brickTicker > 0) {
-                                brickWidth = 5;
-                            }
-
-                            // Math
-                            offset = Math.random() / 10;
-                            blockColor = new THREE.Color(
-                                color.r + offset,
-                                color.g + offset,
-                                color.b + offset
-                            );
-                            if ((y % brickHeight == 0 && y != 0) || (x % brickWidth == 0 && x != 0) || (z % brickWidth == 0 && z != 0)) {
-                                blockColor = new THREE.Color(0x453737 + (offset / 4))
-                            }
-                            break;
-                        case "Plastic":
-                            offset = Math.random() / 1000;
-                            blockColor = new THREE.Color(
-                                color.r + offset,
-                                color.g + offset,
-                                color.b + offset
-                            );
-                            break;
-                        case "Concrete":
-                            offset = Math.random() / 100;
-                            blockColor = new THREE.Color(
-                                color.r + offset,
-                                color.g + offset,
-                                color.b + offset
-                            );
-                            break;
-                        case "Glass":
-                            voxelMaterial.transparent = true;
-                            voxelMaterial.opacity = 0.5;
-                            break;
-                    }
-
-
-                    //  ####
-                    //  BAKED AMBIENT OCCLUSION
-                    //  ####
-                    const applyAO = function(mult) {
-                        mult += (1-intensity)
-                        if (mult < 1) 
-                        {
-                            blockColor.multiplyScalar(mult)
-                        }
-                    }
-                    const AORange = 150
-                    const intensity = 0.25 // 0-1
-                    // X-Axis
-                    if (x < AORange || x > scale.x - AORange)
-                    {
-                        if (x != 0) {
-                            applyAO((1/AORange) * x)
-                        }
-                        if (x != scale.x - 1)
-                        {
-                            applyAO((1/AORange) * (scale.x - x))
-                        }
-                    }
-                    // Y-Axis
-                    if (y < AORange || y > scale.y - AORange)
-                    {
-                        if (y != 0) {
-                            applyAO((1/AORange) * y)
-                        }
-                        if (y != scale.y - 1)
-                        {
-                            applyAO((1/AORange) * (scale.y - y))
-                        }
-                    }
-                    // Z-Axis
-                    if (z < AORange || z > scale.z - AORange)
-                    {
-                        if (z != 0) {
-                            applyAO((1/AORange) * z)
-                        }
-                        if (z != scale.z - 1)
-                        {
-                            applyAO((1/AORange) * (scale.z - z))
-                        }
-                    }
-
-                    instancedWorldModel.setColorAt(globalVoxelIterator, new THREE.Color(blockColor.r, blockColor.g, blockColor.b));
-
-                    voxelsInChunk.push({
-                        x: thisVoxelPosition.x,
-                        y: thisVoxelPosition.y,
-                        z: thisVoxelPosition.z,
-
-                        r: blockColor.r,
-                        g: blockColor.g,
-                        b: blockColor.b,
-
-                        index: globalVoxelIterator
-                    });
-
-                    // calculate chunk bounds
-                    if (thisVoxelPosition.x < chunkMinPosition.x) chunkMinPosition.x = thisVoxelPosition.x;
-                    if (thisVoxelPosition.y < chunkMinPosition.y) chunkMinPosition.y = thisVoxelPosition.y;
-                    if (thisVoxelPosition.z < chunkMinPosition.z) chunkMinPosition.z = thisVoxelPosition.z;
-                    if (thisVoxelPosition.x > chunkMaxPosition.x) chunkMaxPosition.x = thisVoxelPosition.x;
-                    if (thisVoxelPosition.y > chunkMaxPosition.y) chunkMaxPosition.y = thisVoxelPosition.y;
-                    if (thisVoxelPosition.z > chunkMaxPosition.z) chunkMaxPosition.z = thisVoxelPosition.z;
-                    globalVoxelIterator++;
-                }
-            }
-            if (brickTicker > 0) brickTicker--;
-        }
-    }
-}
-
-const buildWorldModel = function (JSONData) {
-    const startTime = Date.now();
-    const parsedData = JSON.parse(JSONData);
-    let voxelPositionsFromFile = parsedData.voxels;
-    let tempVoxelPositions = [];
-    // group every sixth value in an array brackets []
-    // this is because the JSON file stores the data in a flat array, and we need to group them into 6s
-    for (var i = 0; i < voxelPositionsFromFile.length; i += 6) {
-        tempVoxelPositions.push(voxelPositionsFromFile.slice(i, i + 6));
-    }
-    voxelPositionsFromFile = tempVoxelPositions;
-    // gc tempVoxelPositions - dunno if this is necessary and may be platform dependent, but jesus christ thats a ton of memory wasted
-    tempVoxelPositions = null;
-    if (parsedData.lightData) {
-        const lightData = parsedData.lightData;
-        const spotLights = lightData.spotLights;
-        const pointLights = lightData.pointLights;
-        const ambientLights = lightData.ambientLights;
-        const hemiLights = lightData.hemiLights;
-
-        spotLights.forEach(light => {
-            const newLight = new THREE.SpotLight(new THREE.Color(light.color.r, light.color.g, light.color.b), light.intensity);
-            newLight.position.set(light.position.x, light.position.y, light.position.z);
-            newLight.target.position.set(light.targetPosition.x, light.targetPosition.y, light.targetPosition.z);
-            newLight.angle = light.angle;
-            newLight.penumbra = light.penumbra;
-            newLight.decay = light.decay;
-            newLight.distance = light.distance;
-
-            newLight.shadow.mapSize.width = 64;
-            newLight.shadow.mapSize.height = 64;
-            newLight.shadow.camera.near = 0.5;
-            newLight.shadow.camera.far = 500;
-            newLight.shadow.camera.fov = 30;
-            newLight.castShadow = false;
-
-            scene.add(newLight);
-            console.log(newLight);
-        });
-
-        pointLights.forEach(light => {
-            const newLight = new THREE.PointLight(new THREE.Color(light.color.r, light.color.g, light.color.b), light.intensity);
-            newLight.position.set(light.position.x, light.position.y, light.position.z);
-            newLight.decay = light.decay;
-            newLight.distance = light.distance;
-            newLight.shadow.mapSize.width = 64;
-            newLight.shadow.mapSize.height = 64;
-            newLight.shadow.camera.near = 0.5;
-            newLight.shadow.camera.far = 500;
-            newLight.shadow.camera.fov = 30;
-            newLight.castShadow = false;
-
-            scene.add(newLight);
-        });
-
-        ambientLights.forEach(light => {
-            const newLight = new THREE.AmbientLight(new THREE.Color(light.color.r, light.color.g, light.color.b), light.intensity);
-            scene.add(newLight);
-        });
-
-        hemiLights.forEach(light => {
-            const newLight = new THREE.HemisphereLight(new THREE.Color(light.color.r, light.color.g, light.color.b), new THREE.Color(light.groundColor.r, light.groundColor.g, light.groundColor.b), light.intensity);
-            newLight.position.set(light.position.x, light.position.y, light.position.z);
-            scene.add(newLight);
-        });
-    }
-    let foundCount = 0;
-    // create an instancedmesh cube to represent each point
-    const numberOfChunks = Math.ceil(voxelPositionsFromFile.length / maxChunkSize);
-    const chunkSize = Math.ceil(voxelPositionsFromFile.length / numberOfChunks);
-    let globalVoxelIterator = 0;
-    totalMapChunksLoaded++;
-    console.log("Building chunk " + totalMapChunksLoaded + " / " + totalMapChunksToLoad);
-    for (let i = 0; i < numberOfChunks; i++) {
-        // For every chunk ...
-        const chunkMinPosition = new THREE.Vector3(
-            Number.MAX_SAFE_INTEGER,
-            Number.MAX_SAFE_INTEGER,
-            Number.MAX_SAFE_INTEGER
-        );
-        const chunkMaxPosition = new THREE.Vector3(
-            Number.MIN_SAFE_INTEGER,
-            Number.MIN_SAFE_INTEGER,
-            Number.MIN_SAFE_INTEGER
-        );
-
-        let instancedWorldModel = new THREE.InstancedMesh(
-            voxelGeometry,
-            voxelMaterial,
-            chunkSize
-        );
-        instancedWorldModel.name = i;
-        let localVoxelIterator = 0;
-        let voxelsInChunk = [];
-        const thisChunkDebugColor = new THREE.Color(Math.random(), Math.random(), Math.random());
-        for (let x = globalVoxelIterator; x < globalVoxelIterator + chunkSize; x++) {
-            if (voxelPositionsFromFile[x]) {
-                const thisVoxelData = {
-                    x: voxelPositionsFromFile[x][0],
-                    y: voxelPositionsFromFile[x][1],
-                    z: voxelPositionsFromFile[x][2],
-                    r: voxelPositionsFromFile[x][3],
-                    g: voxelPositionsFromFile[x][4],
-                    b: voxelPositionsFromFile[x][5]
-                }
-                if (thisVoxelData != undefined) {
-                    var thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.r + "," + thisVoxelData.g + "," + thisVoxelData.b + ")");
-                    if (USERSETTINGS.debugMode) thisVoxelColor = thisChunkDebugColor;
-                    const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
-                    // if the color is BLACK, set its position to the origin (TRANSPARENCY FIX for OLD [DEV] MAPS)
-                    // if (thisVoxelColor.r == 0 && thisVoxelColor.g == 0 && thisVoxelColor.b == 0) {
-                    //     thisVoxelPosition.set(0, 0, 0);
-                    //     console.log("Voxel Blacked");
-                    // }
-                    // multiply by voxel size to get correct position
-                    thisVoxelPosition.multiplyScalar(voxelSize);
-                    // adjust floor color
-                    instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
-                    instancedWorldModel.setColorAt(localVoxelIterator, thisVoxelColor);
-                    voxelsInChunk.push(thisVoxelData);
-                    voxelField.set(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z, 1, localVoxelIterator, instancedWorldModel);
-
-                    // calculate the min and max positions of the chunk
-                    if (thisVoxelPosition.x < chunkMinPosition.x) chunkMinPosition.x = thisVoxelPosition.x;
-                    if (thisVoxelPosition.y < chunkMinPosition.y) chunkMinPosition.y = thisVoxelPosition.y;
-                    if (thisVoxelPosition.z < chunkMinPosition.z) chunkMinPosition.z = thisVoxelPosition.z;
-                    if (thisVoxelPosition.x > chunkMaxPosition.x) chunkMaxPosition.x = thisVoxelPosition.x;
-                    if (thisVoxelPosition.y > chunkMaxPosition.y) chunkMaxPosition.y = thisVoxelPosition.y;
-                    if (thisVoxelPosition.z > chunkMaxPosition.z) chunkMaxPosition.z = thisVoxelPosition.z;
-
-                    localVoxelIterator++;
-                }
-            }
-        }
-        globalVoxelIterator += chunkSize;
-        voxelPositions.push({
-            chunkID: instancedWorldModel.name,
-            voxels: voxelsInChunk
-        });
-        instancedModelIndex.push(instancedWorldModel);
+    const finalizeChunk = function() {
         instancedWorldModel.instanceMatrix.needsUpdate = true;
-        // frustum culling
+        instancedWorldModel.instanceColor.needsUpdate = true;
+        scene.add(instancedWorldModel);
+        instancedModelIndex.push(instancedWorldModel);
+
+        // For Frustum Culling...
         instancedWorldModel.frustumBox = new THREE.Box3();
-        // determine dimensions of box from chunkMinposition and  chunkMaxPosition
         instancedWorldModel.frustumBox.setFromCenterAndSize(
+            // Determine Center
             new THREE.Vector3(
                 (chunkMinPosition.x + chunkMaxPosition.x) / 2,
                 (chunkMinPosition.y + chunkMaxPosition.y) / 2,
                 (chunkMinPosition.z + chunkMaxPosition.z) / 2
             ),
+            // Determine Size
             new THREE.Vector3(
                 (chunkMaxPosition.x - chunkMinPosition.x),
                 (chunkMaxPosition.y - chunkMinPosition.y),
                 (chunkMaxPosition.z - chunkMinPosition.z)
             )
         );
-
-        // add a 0.1 opacity box to visualize it
+        // A Debug Box (for the bounds for culling)
         if (USERSETTINGS.debugMode) {
             const box = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0x00ff00);
             box.material.transparent = true;
             box.material.opacity = 0.1;
-
             scene.add(box);
         }
 
-        scene.add(instancedWorldModel);
-        convertInstancedMeshtoConvexHull(instancedWorldModel); // leftover code for computing hulls for physics. may return to this later for volumetric explosions.
+        // Reset Everything!!
+        resetChunkBounds();
+        localVoxelIterator = 0;
+        chunkCounter++;
+        instancedWorldModel = new THREE.InstancedMesh(
+            voxelGeometry,
+            voxelMaterial,
+            maxChunkSize
+        );
+        instancedWorldModel.name = chunkCounter;
     }
-    const endTime = Date.now();
-    const totalTime = endTime - startTime;
-    console.log("DONE GENERATING with " + foundCount + " destroyed voxels and " + globalVoxelIterator + " total voxels in " + totalTime + "ms");
+
+    const setVoxel = function(voxelPosition) {
+        // first, check if a voxel already exists here.
+        const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
+        if (voxel != 0)
+        {
+            voxelPosition = new THREE.Vector3(0, -2, 0);
+        }
+        // Push to the global voxel field
+        voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel);
+        // update min/max positions for this chunk
+        chunkMinPosition.min(voxelPosition);
+        chunkMaxPosition.max(voxelPosition);
+        // update the instancedWorldModel
+        instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(voxelPosition));
+        instancedWorldModel.setColorAt(localVoxelIterator, new THREE.Color(color.r, color.g, color.b));
+        localVoxelIterator++;
+        // check if we need to create a new chunk
+        if (localVoxelIterator == maxChunkSize) {
+            finalizeChunk();
+        }
+    }
+    
+    // Create the FLOOR (bottom) of the box:
+    for (let x = 0; x < scale.x; x++)
+    {
+        for (let z = 0; z < scale.z; z++)
+        {
+            setVoxel(new THREE.Vector3(
+                position.x + x,
+                position.y,
+                position.z + z
+            ));
+        }
+    }
+    finalizeChunk();
+
+    // Create the CEILING (top) of the box:
+    for (let x = 0; x < scale.x; x++)
+    {
+        for (let z = 0; z < scale.z; z++)
+        {
+            setVoxel(new THREE.Vector3(
+                position.x + x,
+                position.y + scale.y,
+                position.z + z
+            ));
+        }
+    }
+    finalizeChunk();
+
+    // Create the WALLS of the box:
+    for (let y = 0; y < scale.y; y++)
+    {
+        for (let z = 0; z < scale.z; z++)
+        {
+            setVoxel(new THREE.Vector3(
+                position.x,
+                position.y + y,
+                position.z + z
+            ));
+            setVoxel(new THREE.Vector3(
+                position.x + scale.x,
+                position.y + y,
+                position.z + z
+            ));
+        }
+    }
+    finalizeChunk();
+
+    for (let y = 0; y < scale.y; y++)
+    {
+        for (let x = 0; x < scale.x; x++)
+        {
+            setVoxel(new THREE.Vector3(
+                position.x + x,
+                position.y + y,
+                position.z
+            ));
+            setVoxel(new THREE.Vector3(
+                position.x + x,
+                position.y + y,
+                position.z + scale.z
+            ));
+        }
+    }
+    finalizeChunk();
 }
 
-generateWorldModel(modelURL); // finally, we load and generate the model!
+generateWorld(modelURL); // finally, we load and generate the model!
 
 // TODO i realize i wrote most of this while high out of my mind but this function chain might be the worst piece of code i've ever written
 // like there are two wholly unnecessary, single-use function calls here for the same exact thing?
@@ -1096,10 +851,12 @@ const createTrivoxelAt = function (x, y, z, color) {
 
     // velocity (random)
     const velocityRange = 0.25;
+    const dropAngleModifier = 50;
+    const dropAngle = Math.floor(Math.random() * dropAngleModifier) - (dropAngleModifier / 2);
     const triVoxelVelocity = new THREE.Vector3(
-        (Math.random() * velocityRange) - (velocityRange / 2),
-        (Math.random() * velocityRange) - (velocityRange),
-        (Math.random() * velocityRange) - (velocityRange / 2)
+        (Math.random() * velocityRange/dropAngle) - (velocityRange/dropAngle),
+        (Math.random() * velocityRange/(dropAngle/5)) - (velocityRange/(dropAngle/5)),
+        (Math.random() * velocityRange/dropAngle) - (velocityRange/dropAngle)
     );
 
     // normalize the velocity
@@ -1183,18 +940,17 @@ const createParticleInstance = function(effect, worldPos) {
     scene.add(particleSystem);
 }
 
-const generateDestroyedChunkAt = function (destroyedVoxelsInChunk) {
+const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, trivoxelChance=0.25) {
     let found = false;
     for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
         let position = destroyedVoxelsInChunk[x];
         const thisVoxel = voxelField.get(position.x, position.y, position.z);
         if (thisVoxel != 0)
         {
-            console.log(thisVoxel);
             thisVoxel.chunk.setMatrixAt(thisVoxel.index, new THREE.Matrix4().makeTranslation(0, -2, 0));
             thisVoxel.chunk.instanceMatrix.needsUpdate = true;
             voxelField.set(position.x, position.y, position.z, 0, thisVoxel.index, thisVoxel.chunk);
-            if (Math.random() < 0.25) {
+            if (Math.random() < trivoxelChance) {
                 const color = new THREE.Color();
                 thisVoxel.chunk.getColorAt(thisVoxel.index, color);
                 createTrivoxelAt(position.x, position.y, position.z, color);
@@ -1336,7 +1092,7 @@ const render = function () {
         if (xAxis != 0 || zAxis != 0) {
             isMoving = true;
         } 
-        else if (isMouseMoving == true)
+        else if (isMouseMoving == true && controls.isLocked == true)
         {
             isMoving = true;
             bounceRange.divideScalar(2.5);
@@ -1361,6 +1117,8 @@ const render = function () {
             muzzleFlash.position.x = 5;
         }
         switch (weaponType) {
+            case undefined:
+                break;
             default:
                 console.error("Illegal Weapon Type - \"" + weaponType + "\"");
                 break;
@@ -1383,7 +1141,7 @@ const render = function () {
                     // parameter delcarations? NO.
                     // return types? NO.
                     // why don't i just kill myself now?
-                    shootRay(Math.random() < 0.15 ? true : false);
+                    shootRay(Math.random() < 0.25 ? true : false);
 
                     isAttackAvailable = false;
                     setTimeout(function () {
@@ -1825,9 +1583,7 @@ const shootRay = function (emitParticleEffect) {
     const intersection = voxelField.raycast(cameraPosition, cameraDirection, weaponRange);
     // Determine which voxels in chunk are to be destroyed
     if (intersection != null) {
-        const color = new THREE.Color(0, 0, 0);
         const currentModel = intersection.chunk;
-        const allVoxelsInChunk = voxelPositions[currentModel.name].voxels;
         let destroyedVoxelsInChunk = [];
 
         const intersectPosition = new THREE.Vector3(
@@ -1841,12 +1597,12 @@ const shootRay = function (emitParticleEffect) {
             const color = new THREE.Color(0xffdd8f);
             voxelField.get(intersectPosition.x, intersectPosition.y, intersectPosition.z).chunk.getColorAt(intersection.index, color);
             createParticleInstance(new ParticleEffect(
-                /*count:*/Math.floor(Math.random() * 55),
-                /*lifetime:*/2.5,
+                /*count:*/Math.floor(Math.random() * 20),
+                /*lifetime:*/5,
                 /*color:Math.random() < 0.25 ? new THREE.Color(0xffec82) : */color,
-                /*size:*/1,
-                /*spread:*/new THREE.Vector3(15, 1, 15),
-                /*direction:*/new THREE.Vector3((Math.random() - 0.5)/2.5, -2.5, (Math.random() - 0.5)/2.5),
+                /*size:*/2,
+                /*spread:*/new THREE.Vector3(1, 1, 1),
+                /*direction:*/new THREE.Vector3((Math.random() - 0.5)/2.5, -1, (Math.random() - 0.5)/2.5),
                 /*filePath:"./img/smoke/smoke"*/"./img/cubesprite.png",
                 /*useRandomSprite:*/false, //true
                 /*randomSpriteRange:*/3,
@@ -1885,7 +1641,7 @@ const shootRay = function (emitParticleEffect) {
     }
 }
 
-const explosives = [];
+var explosives = [];
 const plantExplosive = function() {
 
     const cameraPosition = new THREE.Vector3();
@@ -1944,23 +1700,25 @@ const activateExplosives = function() {
                     );
                     const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
                     if (voxel != 0) {
+                        const crumbleRange = 5;
                         const distanceToExplosive = voxelPosition.distanceTo(position);
-                        if (distanceToExplosive <= damageRange/2) {
+                        if (distanceToExplosive < damageRange/2 - crumbleRange) {
                             destroyedVoxelsInChunk.push(voxelPosition);
+                        } else if (distanceToExplosive < damageRange/2) {
+                            if (Math.random() < 0.5) destroyedVoxelsInChunk.push(voxelPosition);
                         }
                     }
                 }
             }
         }
 
-        console.log(destroyedVoxelsInChunk);
-
         scene.remove(explosive);
-        explosives.splice(explosives.indexOf(explosive), 1);
         explosive.geometry.dispose();
 
-        generateDestroyedChunkAt(destroyedVoxelsInChunk);
+        generateDestroyedChunkAt(destroyedVoxelsInChunk, 0.05);
     });
+
+    explosives = [];
 }
 
 render(); // calls render loop
