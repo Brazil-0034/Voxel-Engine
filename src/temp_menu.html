@@ -1,0 +1,293 @@
+<html>
+    <head>
+        <title>WreckMesh</title>
+        <style>
+            @font-face {
+                font-family: "Montserrat";
+                src: url("fonts/Montserrat/Montserrat-VariableFont_wght.ttf") format("truetype");
+                font-weight: 100 200 300 400 500 600 700 800 900;
+            }
+
+            * {
+                margin: 0;
+                font-family: 'Montserrat', sans-serif;
+                color: white;
+                user-select: none;
+            }
+
+            /* create a 3-column grid, full height */
+            #main {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                grid-template-rows: 1fr;
+                height: 100vh;
+            }
+
+            body {
+                background: radial-gradient(ellipse, #272727 0%, #000000 100%);
+                background-blend-mode: normal;
+                overflow: hidden;
+            }
+
+            #left-menu-tray {
+                /* leftmost column of grid */
+                grid-column: 1;
+                grid-row: 1;
+                padding: 100px 60px;
+                /* align elements to bottom */
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+            }
+            .left-menu-divider {
+                color: rgb(125, 125, 125);
+                font-size: 125%;
+                margin-bottom: 5px;
+            }
+            .left-menu-item {
+                cursor: pointer;
+                font-size: 150%;
+                transition: 0.05s;
+            }
+            .left-menu-item:hover {
+                opacity: 0.5;
+            }
+            .menu-space {
+                height: 20px;
+            }
+
+            #map-select-tray {
+                /* center column of grid */
+                grid-column: 2;
+                grid-row: 1;
+                padding: 100px 60px;
+                /* align elements to bottom */
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                border-left: 1px dotted rgba(255,255,255,0.1);
+            }
+
+            ul {
+                list-style-type: none;
+                padding: 0;
+                overflow-y: auto;
+                max-height: 70vh;
+            }
+
+            /* scrollbar */
+            ul::-webkit-scrollbar {
+                width: 10px;
+            }
+
+            ul::-webkit-scrollbar-track {
+                background: rgb(40, 40, 40);
+            }
+
+            ul::-webkit-scrollbar-thumb {
+                background-color: rgb(64, 64, 64);
+                border-radius: 20px;
+                border: 3px solid rgb(40, 40, 40);
+            }
+
+            li {
+                /* alternating backgrounds */
+                background-size: 200% 200%;
+                animation: animate 2s linear infinite;
+                padding: 10px;
+                margin-bottom: 10px;
+                cursor: pointer;
+                transition: 0.05s;
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+
+            li:hover {
+                opacity: 0.75;
+            }
+
+            .subtle-text {
+                font-size: 120%; opacity: 0.35;
+            }
+
+            #start-game-tray {
+                grid-column: 3;
+                padding: 100px 60px;
+                /* align elements to bottom */
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                border-left: 1px dotted rgba(255,255,255,0.1);
+            }
+
+            #settings-tray {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+            }
+            .setting {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+            }
+            .setting-name {
+                font-size: 120%;
+            }
+            input {
+                width: 50px;
+                height: 20px;
+                border: none;
+                background: rgb(40, 40, 40);
+                color: white;
+                font-size: 120%;
+                text-align: center;
+            }
+
+            @keyframes fade-in {
+                0% {
+                    opacity: 0;
+                }
+                100% {
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes fade-out {
+                0% {
+                    opacity: 1;
+                }
+                100% {
+                    opacity: 0;
+                }
+            }
+
+            [type="checkbox"] {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                display: inline-block;
+                position: relative;
+                width: 50px;
+                height: 20px;
+                background: rgb(40, 40, 40);
+                transition: background-color 0.1s;
+                cursor: pointer;
+            }
+            [type="checkbox"]:checked {
+                background: rgb(255, 255, 255);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="main">
+            <div id="left-menu-tray">
+                <div class="left-menu-divider subtle-text">Version 1.42.5</div>
+                <div class="menu-space"></div>
+                <div class="left-menu-divider">Play</div>
+                <div class="left-menu-item" onclick="toggleMapSelect(this)">Singleplayer</div>
+                <div class="left-menu-item" onclick="toggleMapSelect(this)">Multiplayer</div>
+                <div class="menu-space"></div>
+                <div class="left-menu-divider">Configure</div>
+                <div class="left-menu-item">Mods</div>
+                <div class="left-menu-item">Settings</div>
+            </div>
+            <div id="map-select-tray" style="display: none">
+                <h3>Pick Map</h3>
+                <div class="menu-space"></div>
+                <ul>
+                    <li>Map 1</li>
+                    <li>Map 2</li>
+                    <li>Map 3</li>
+                </ul>
+            </div>
+            <div id="start-game-tray" style="display: none">
+                <h3>Game Options</h3>
+                <div id="settings-tray">
+                    <div class="menu-space"></div>
+                    <div class="setting">
+                        <div class="setting-name">Friendly Fire</div>
+                        <input type="checkbox" />
+                    </div>
+                    <div class="setting">
+                        <div class="setting-name">Max Player Health</div>
+                        <input type="text" value="100" min="1" max="1000" step="1" maxlength="4" />
+                    </div>
+                    <div class="menu-space"></div>
+                    <!-- <div class="setting">
+                        <div class="setting-name">Performace Mode</div>
+                        <input type="checkbox" />
+                    </div>
+                    <p class="subtle-text" style="font-size: 70%">
+                        <b>Note:</b> Performance mode significantly reduces the quality of physics (and other game systems) to make the game run faster. Only use this as a <b>last resort</b>.
+                    </p> -->
+                </div>
+            </div>
+        </div>
+        <script>
+            const mapSelectTray = document.querySelector("#map-select-tray");
+            const mapSelectItems = document.querySelectorAll("#map-select-tray li");
+            const startGameTray = document.querySelector("#start-game-tray");
+            const toggleMapSelect = function(el) {
+                if (mapSelectTray.style.display != "flex") {
+                    mapSelectTray.style.display = "flex";
+                    mapSelectTray.style.animation = "fade-in 0.15s ease-in-out";
+
+                    el.style.paddingLeft = "10px";
+
+                    for (let i = 0; i < el.parentElement.children.length; i++) {
+                        const thisChild = el.parentElement.children[i];
+                        if (el.parentElement.children[i] != el)
+                        {
+                            thisChild.style.opacity = "0.25";
+                            thisChild.style.pointerEvents = "none";
+                        }
+                    }
+
+                } else {
+                    el.style.paddingLeft = "0px";
+
+                    mapSelectTray.style.animation = "fade-out 0.15s ease-in-out";
+                    mapSelectTray.style.animationFillMode = "forwards";
+                    mapSelectItems.forEach((item) => {
+                        item.style.background = "none";
+                        item.style.color = "white";
+                    });
+                    startGameTray.style.display = "none";
+                    setTimeout(() => {
+                        mapSelectTray.style.display = "none";
+                    }, 150);
+
+                    for (let i = 0; i < el.parentElement.children.length; i++) {
+                        const thisChild = el.parentElement.children[i];
+                        thisChild.style.opacity = "1";
+                        thisChild.style.pointerEvents = "auto";
+                        // reinstate hover effect
+                        if (thisChild.classList.contains("left-menu-item")) {
+                            thisChild.onmouseover = function() {
+                                this.style.opacity = "0.5";
+                            }
+                            thisChild.onmouseout = function() {
+                                this.style.opacity = "1";
+                            }
+                        }
+                    }
+                }
+            }
+            var selectedMapName;
+            mapSelectItems.forEach((item) => {
+                item.onclick = function() {
+                    selectedMapName = this.innerText;
+                    console.log(selectedMapName);
+                    item.style.background = "white";
+                    item.style.color = "black";
+                    mapSelectItems.forEach((otherItem) => {
+                        if (otherItem != item) {
+                            otherItem.style.background = "none";
+                            otherItem.style.color = "white";
+                        }
+                    });
+                    startGameTray.style.display = "flex";
+                }
+            });
+        </script>
+    </body>
+</html>
