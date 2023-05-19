@@ -1,36 +1,31 @@
 {
-  "name": "wreckmesh",
-  "version": "0.1.42",
-  "main": "app/main.js",
+  "name": "vanilla",
+  "version": "1.0.0",
+  "description": "A minimal Electron application",
+  "main": "./src/main.js",
+  "author": "example.com",
+  "homepage": "https://www.electronjs.org",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsc && electron .",
-    "build": "tsc"
+    "format": "prettier --write .",
+    "lint": "eslint --ext .js .",
+    "dev": "electron . --enable-unsafe-webgpu",
+    "postinstall": "electron-builder install-app-deps",
+    "build:win": "electron-builder --win --config",
+    "build:mac": "electron-builder --mac --config",
+    "build:linux": "electron-builder --linux --config"
   },
   "dependencies": {
-    "@types/three": "^0.152.0",
-    "cannon-es": "^0.20.0",
-    "fastnoise-lite": "0.0.1",
-    "postprocessing": "^6.30.2",
-    "seedrandom": "^3.0.5",
-    "three-mesh-bvh": "^0.5.23",
+    "@electron-toolkit/preload": "^1.0.3",
+    "@electron-toolkit/utils": "^1.0.2",
     "tweakpane": "^3.1.9"
   },
-  "description": "This is my JavaScript voxel game/physics engine.",
   "devDependencies": {
-    "@types/electron": "^1.6.10",
-    "@types/node": "^20.1.4",
-    "esm": "^3.2.25",
-    "typescript": "^5.0.4"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nowaythisworks/Voxel-Engine.git"
-  },
-  "author": "",
-  "license": "UNLICENSED",
-  "bugs": {
-    "url": "https://github.com/nowaythisworks/Voxel-Engine/issues"
-  },
-  "homepage": "https://github.com/nowaythisworks/Voxel-Engine#readme"
+    "@electron/notarize": "^1.2.3",
+    "electron": "^22.3.4",
+    "electron-builder": "^23.6.0",
+    "eslint": "^8.36.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.8.7"
+  }
 }

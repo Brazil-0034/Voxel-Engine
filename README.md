@@ -1,31 +1,34 @@
-# Voxel-Engine
-This is my JavaScript voxel game/physics engine.
+# vanilla
 
-It can render a few million voxels at a solid framerate (on my ancient PC), and compute physics and realtime destruction.<br>My goal is to have it be as large-scale as [Teardown](https://store.steampowered.com/app/1167630/Teardown/), but much more efficient in both rendering and physics calculations.
+A minimal Electron application
 
-## Features
-### Automatic Chunk Calculator
-The chunk calculator can take a voxel map (in this case, of around 700,000 voxels) and split it into even chunks to optimize raycasting and physics sim.
+## Recommended IDE Setup
 
-![image](https://user-images.githubusercontent.com/66288732/189592329-0c6d080f-314a-48fa-928c-08e790abf4e3.png)
+- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 
-### Realtime Physics
+## Project Setup
 
-The physics sim creates a box mesh for each destroyed piece of the voxel map. (Very WIP)
+### Install
 
-![Debug Mode Screenshot](https://user-images.githubusercontent.com/66288732/189521938-1b4f1a0a-ed2e-4046-86fa-b19eb5f5939a.png)
+```bash
+$ npm install
+```
 
-Currently, custom models can be imported using the [Voxelizer](https://drububu.com/miscellaneous/voxelizer/?out=avo_cubes), exporting as JSON.
-The loader does not support transparency (yet) but it shouldn't be very difficult to implement.
+### Development
 
-The engine will divide the model into chunks (of gpu-instanced cubes) and will save the same chunks in memory for physics calculations. The rendering uses Three.js (WebGL), with a separate raycasting system.
+```bash
+$ npm run dev
+```
 
-**TODO:**
+### Build
 
-The physics implemented are cannones-based and are quite poor. Using something that can support convex hulls would be much preferred, but I can't find a JavaScript-compaible engine that has support for that in 3D yet, so maybe I'll build my own. For now, a square mesh is created (see the colorful lines in the screenshot above) that acts as a box collider.
+```bash
+# For windows
+$ npm run build:win
 
-Alternatively, particle physics could work (rounded to one world unit), with interpolation to make it look smooth.
+# For macOS
+$ npm run build:mac
 
-**Approach & Design**
-- keep as few objects in memory as possible (emphasis on streaming and disk reads on-the-fly)
-- offload as much as possible to the GPU (WebGL)
+# For Linux
+$ npm run build:linux
+```
