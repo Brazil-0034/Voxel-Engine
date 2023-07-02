@@ -1,11 +1,12 @@
+/* eslint-disable no-unused-vars */
 // Modules to control application life and create native browser window
 const { app, BrowserWindow } = require('electron')
-const fs = require('fs');
-var ipc = require('electron').ipcMain;
+const fs = require('fs')
+var ipc = require('electron').ipcMain
 
-const ignore_modules = /node_modules|[/\\]\./;
-const ignore_saves = /saves|[/\\]\./;
-require('electron-reload')(__dirname, {ignored: [ignore_modules, ignore_saves]});   
+const ignore_modules = /node_modules|[/\\]\./
+const ignore_saves = /saves|[/\\]\./
+require('electron-reload')(__dirname, { ignored: [ignore_modules, ignore_saves] })
 
 const path = require('path')
 
@@ -20,84 +21,84 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js')
         },
         autoHideMenuBar: true,
-        icon: __dirname + "/icon.ico"
+        icon: __dirname + '/icon.ico'
     })
 
     // and load the index.html of the app.
     mainWindow.loadFile('index.html')
 
     // Open the DevTools.
-    mainWindow.webContents.openDevTools()
+    // mainWindow.webContents.openDevTools()
 
-    var thisSaveName = "savedata";
-    var saveFileData = "{";
-    var chunkCounter = 0;
+    var thisSaveName = 'savedata'
+    var saveFileData = '{'
+    var chunkCounter = 0
     var metadata = `{"error": "no metadata"}`
 
-    ipc.on('refresh-save', function(event, arg) {
-        thisSaveName = arg.saveName;
-        chunkCounter = 0;
+    ipc.on('refresh-save', function (event, arg) {
+        thisSaveName = arg.saveName
+        chunkCounter = 0
         // if a directory in ../maps/ doesnt exist, create it
-        if (!fs.existsSync("../maps/" + thisSaveName)) {
-            fs.mkdirSync("../maps/" + thisSaveName);
-        } 
+        if (!fs.existsSync('../maps/' + thisSaveName)) {
+            fs.mkdirSync('../maps/' + thisSaveName)
+        }
 
         // DELETE ALL FILES IN THIS DIRECTORY
-        fs.readdir("../maps/" + thisSaveName, (err, files) => {
-            if (err) throw err;
+        fs.readdir('../maps/' + thisSaveName, (err, files) => {
+            if (err) throw err
             for (const file of files) {
-              fs.unlinkSync(path.join("../maps/" + thisSaveName, file), err => {
-                if (err) throw err;
-              });
+                fs.unlinkSync(path.join('../maps/' + thisSaveName, file), (err) => {
+                    if (err) throw err
+                })
             }
 
             // send "ready-to-save"
-            mainWindow.webContents.send('ready-to-save');
-        });
-    });
+            mainWindow.webContents.send('ready-to-save')
+        })
+    })
 
     ipc.on('init-new-savefile', function (event, arg) {
-        saveFileData = "{";
-    });
+        saveFileData = '{'
+    })
 
     ipc.on('savefile-add-custom-data', function (event, arg) {
-        const dataName = arg.dataName;
-        const stringData = arg.data;
-        saveFileData += `"${dataName}":${stringData},`;
-    });
+        const dataName = arg.dataName
+        const stringData = arg.data
+        saveFileData += `"${dataName}":${stringData},`
+    })
 
     ipc.on('savefile-end-custom-data', function (event, arg) {
-        saveFileData = saveFileData.slice(0, -1);
-        saveFileData += `}`;
-        metadata = saveFileData;
-        writeFile("metadata", metadata);
-    });
+        saveFileData = saveFileData.slice(0, -1)
+        saveFileData += `}`
+        metadata = saveFileData
+        writeFile('metadata', metadata)
+    })
 
     ipc.on('savefile-add-voxel-chunk', function (event, arg) {
         // arg format:
         // [chunkNumber, totalChunks, chunkData]
-        const data = arg.voxels; // string as json chunk
+        const data = arg.voxels // string as json chunk
 
-        var voxelSaveData = `{"voxels":`;
+        var voxelSaveData = `{"voxels":`
 
         // add this chunk to the save file
-        voxelSaveData += data;
+        voxelSaveData += data
 
-        voxelSaveData += `}`;
+        voxelSaveData += `}`
 
         // write the file as this chunk #
-        writeFile("chunk" + chunkCounter, voxelSaveData);
-        chunkCounter++;
-    });
+        writeFile('chunk' + chunkCounter, voxelSaveData)
+        chunkCounter++
+    })
 
-    const writeFile = function(fileName, data) {
-        fs.writeFile("../maps/" + thisSaveName + "/" + fileName + ".json", data, function (err) {
+    const writeFile = function (fileName, data) {
+        fs.writeFile('../maps/' + thisSaveName + '/' + fileName + '.json', data, function (err) {
             if (err) {
-                return console.log(err);
+                return console.log(err)
             }
-            console.log("The file was saved! - [" + fileName + ".json]");
-            if (fileName.includes("chunk")) mainWindow.webContents.send('ready-to-save-voxelchunk');
-        });
+            console.log('The file was saved! - [' + fileName + '.json]')
+            if (fileName.includes('chunk')) mainWindow.webContents.send('ready-to-save-voxelchunk')
+        })
     }
 }
 
