@@ -7,9 +7,9 @@ const fs = require('fs')
 function createWindow() {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 700,
-        // titleBarStyle: 'hidden',
+        width: 980,
+        height: 560,
+        titleBarStyle: 'hidden',
         // titleBarOverlay: {
         //     color: '#cd373e',
         //     symbolColor: '#ffffff',
@@ -37,10 +37,11 @@ function createWindow() {
     })
 
     // and load the index.html of the app.
-    mainWindow.loadFile(path.join(__dirname, 'index.html'))
+    const indexFile = "index.html";
+    mainWindow.loadFile(path.join(__dirname, indexFile))
 
     // devtools
-    mainWindow.webContents.openDevTools()
+    if (indexFile == "index.html") mainWindow.webContents.openDevTools()
 
     // IPC Event Handler
     var ipc = require('electron').ipcMain

@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-	<title>three.js - WebGPU - Instance Mesh</title>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<link href="./style.css" type="text/css" rel="stylesheet" />
@@ -15,7 +14,7 @@
 		}
 
 		body {
-			background: rgb(34, 34, 34);
+			background: black;
 		}
 
 		canvas {
@@ -59,11 +58,41 @@
 			transform: translate(-50%, 0);
 			opacity: 0.25;
 		}
+
+		#loader {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			max-width: 20%
+		}
+
+		#loader-bg {
+			position: absolute;
+			top: 0; left: 0;
+			width: 100%;
+			height: 100%;
+			background: black;
+			z-index: 1000;
+		}
+
+		@keyframes fade-out {
+			0% {
+				opacity: 1;
+			}
+			100% {
+				opacity: 0;
+			}
+		}
 	</style>
 
 </head>
 
 <body>
+
+	<div id="loader-bg">
+		<img id="loader" src="img/black_dot.png"/>
+	</div>
 
 	<style>
 		* {
@@ -80,9 +109,12 @@
 					"three/nodes": "./threejs/examples/jsm/nodes/Nodes.js"
 				}
 			}
-		</script>
+	</script>
 	<script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script>
 <script type="module">
+
+// choose a loader gif at random
+document.querySelector('#loader').src = 'img/loader-' + (Math.floor(Math.random() * 3) + 1) + '.gif'
 
 import * as THREE from 'three';
 import { mix, range, normalWorld, oscSine, timerLocal } from 'three/nodes';
@@ -132,8 +164,9 @@ const getPixelsFromImage = function(imageURL, x, y) {
 // DEBUG UI
 // ###
 const pane = new Tweakpane.Pane();
-const parent = pane.element.parentElement;
-parent.style.zIndex = "1000";
+const paneParent = pane.element.parentElement;
+paneParent.style.zIndex = "1000";
+paneParent.style.opacity = 0;
 var positionOverlayValue = new THREE.Vector3();
 var frameInfo = { FPS: 0, frameTime: 0, drawCalls: 0 };
 // DEBUG UI: FPS
@@ -198,7 +231,7 @@ const VoxelFace = Object.freeze({
 	BACK: "back"
 });
 
-class SixBoxPiece {
+class LodBoxPiece {
 	face // the direction this piece is facing
 	sceneObject // the scene object of the lod box for this face
 	chunk // the chunk it is concealing
@@ -215,7 +248,7 @@ class SixBoxPiece {
 	}
 }
 
-class SixBox {
+class LodBox {
 	boxPieces
 	concealedChunks
 	
@@ -391,7 +424,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
-const modelURL = 'savedata';
+const modelURL = 'fast food';
 const weaponURL = 'weapons/' + 'weapon_m4.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
@@ -738,94 +771,37 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 	// Evaluate the LOD
 	const lodboxmaterial = voxelMaterial.clone();
 	lodboxmaterial.color = new THREE.Color(color.r, color.g, color.b);
-	lodboxmaterial.side = THREE.DoubleSide;
-	// load in "cc_g.png" from textures/
+	lodboxmaterial.side = THREE.DoubleSide; // So it can be seen from the inside as well [ TODO: This may not be necessary with the multi-box LOD model ... ]
 	const texture = new THREE.TextureLoader().load('textures/cc_g.png');
 	lodboxmaterial.map = texture;
-	lodboxmaterial.map.magFilter = THREE.NearestFilter;
-	lodboxmaterial.map.minFilter = THREE.NearestFilter;
-	lodboxmaterial.map.wrapS = THREE.RepeatWrapping;
-	lodboxmaterial.map.wrapT = THREE.RepeatWrapping;
-
+	lodboxmaterial.map.magFilter = THREE.NearestFilter; // Prevent Blurring
+	lodboxmaterial.map.minFilter = THREE.NearestFilter; // Prevent Blurring
+	lodboxmaterial.map.wrapS = THREE.RepeatWrapping; // Repeat Texture
+	lodboxmaterial.map.wrapT = THREE.RepeatWrapping; // Repeat Texture
+	
 	// 
-	// ASSEMBLE THE SIXBOX
+	// ASSEMBLE THE LODBOX
 	// 
 	const boxPieces = [];
+	// Prevents Z-Fighting with an accuracy of 1/10e10 (0.0000000001)
 	const scaleTolerance = 1/10e10;
 	const scaleAssister = function() {return Math.random() * (1 * scaleTolerance) + 0.999};
-	// BOTTOM:
-	const bottomBoxPiece = new THREE.Mesh(
-		new THREE.BoxGeometry(scale.x, 1, scale.z),
-		lodboxmaterial.clone()
-	);
-	bottomBoxPiece.material.map = lodboxmaterial.map.clone();
-	bottomBoxPiece.scale.multiplyScalar(scaleAssister()); bottomBoxPiece.scale.y = 1;
-	bottomBoxPiece.position.set(position.x + (scale.x / 2) - 0.5, position.y, position.z + (scale.z / 2) - 0.5);
-	boxPieces.push(new SixBoxPiece(bottomBoxPiece, VoxelFace.BOTTOM));
-	scene.add(bottomBoxPiece);
-	bottomBoxPiece.material.map.repeat.set(scale.x / 32, scale.z / 32);
-	// TOP:
-	const topBoxPiece = new THREE.Mesh(
-		new THREE.BoxGeometry(scale.x, 1, scale.z),
-		lodboxmaterial.clone()
-	);
-	topBoxPiece.material.map = lodboxmaterial.map.clone();
-	topBoxPiece.scale.multiplyScalar(scaleAssister()); topBoxPiece.scale.y = 1;
-	topBoxPiece.position.set(position.x + (scale.x / 2) - 0.5, position.y + scale.y - 1, position.z + (scale.z / 2) - 0.5);
-	boxPieces.push(new SixBoxPiece(topBoxPiece, VoxelFace.TOP));
-	scene.add(topBoxPiece);
-	topBoxPiece.material.map.repeat.set(scale.x / 32, scale.z / 32);
-	// topBoxPiece.material.color = new THREE.Color(0, 1, 0);
-	// LEFT:
-	const leftBoxPiece = new THREE.Mesh(
-		new THREE.BoxGeometry(1, scale.y, scale.z),
-		lodboxmaterial.clone()
-	);
-	leftBoxPiece.material.map = lodboxmaterial.map.clone();
-	leftBoxPiece.scale.multiplyScalar(scaleAssister()); leftBoxPiece.scale.y = 1;
-	leftBoxPiece.position.set(position.x, position.y + (scale.y / 2) - 0.5, position.z + (scale.z / 2) - 0.5);
-	boxPieces.push(new SixBoxPiece(leftBoxPiece, VoxelFace.LEFT));
-	scene.add(leftBoxPiece);
-	leftBoxPiece.material.map.repeat.set(scale.z / 32, scale.y / 32);
-	// leftBoxPiece.material.color = new THREE.Color(0, 0, 1);
-	// RIGHT:
-	const rightBoxPiece = new THREE.Mesh(
-		new THREE.BoxGeometry(1, scale.y, scale.z),
-		lodboxmaterial.clone()
-	);
-	rightBoxPiece.material.map = lodboxmaterial.map.clone();
-	rightBoxPiece.scale.multiplyScalar(scaleAssister()); rightBoxPiece.scale.y = 1;
-	rightBoxPiece.position.set(position.x + scale.x - 1, position.y + (scale.y / 2) - 0.5, position.z + (scale.z / 2) - 0.5);
-	boxPieces.push(new SixBoxPiece(rightBoxPiece, VoxelFace.RIGHT));
-	scene.add(rightBoxPiece);
-	rightBoxPiece.material.map.repeat.set(scale.z / 32, scale.y / 32);
-	// rightBoxPiece.material.color = new THREE.Color(1, 1, 0);
-	// FRONT:
-	const frontBoxPiece = new THREE.Mesh(
-		new THREE.BoxGeometry(scale.x, scale.y, 1),
-		lodboxmaterial.clone()
-	);
-	frontBoxPiece.material.map = lodboxmaterial.map.clone();
-	frontBoxPiece.scale.multiplyScalar(scaleAssister()); frontBoxPiece.scale.y = 1;
-	frontBoxPiece.position.set(position.x + (scale.x / 2) - 0.5, position.y + (scale.y / 2) - 0.5, position.z);
-	boxPieces.push(new SixBoxPiece(frontBoxPiece, VoxelFace.FRONT));
-	scene.add(frontBoxPiece);
-	frontBoxPiece.material.map.repeat.set(scale.x / 32, scale.y / 32);
-	// frontBoxPiece.material.color = new THREE.Color(0, 1, 1);
-	// BACK:
-	const backBoxPiece = new THREE.Mesh(
-		new THREE.BoxGeometry(scale.x, scale.y, 1),
-		lodboxmaterial.clone()
-	);
-	backBoxPiece.material.map = lodboxmaterial.map.clone();
-	backBoxPiece.scale.multiplyScalar(scaleAssister()); backBoxPiece.scale.y = 1;
-	backBoxPiece.position.set(position.x + (scale.x / 2) - 0.5, position.y + (scale.y / 2) - 0.5, position.z + scale.z - 1);
-	boxPieces.push(new SixBoxPiece(backBoxPiece, VoxelFace.BACK));
-	scene.add(backBoxPiece);
-	backBoxPiece.material.map.repeat.set(scale.x / 32, scale.y / 32);
-	backBoxPiece.material.color = new THREE.Color(1, 0, 1);
 
-	const LODBOX = new SixBox(
+	// BOTTOM:
+	// const bottomBoxPiece = new THREE.Mesh(
+	// 	new THREE.BoxGeometry(scale.x, 1, scale.z),
+	// 	lodboxmaterial.clone()
+	// );
+	// bottomBoxPiece.material.map = lodboxmaterial.map.clone();
+	// bottomBoxPiece.scale.multiplyScalar(scaleAssister()); bottomBoxPiece.scale.y = 1;
+	// bottomBoxPiece.position.set(position.x + (scale.x / 2) - 0.5,
+	// position.y, position.z + (scale.z / 2) - 0.5);
+	// boxPieces.push(new LodBoxPiece(bottomBoxPiece, VoxelFace.BOTTOM));
+	// scene.add(bottomBoxPiece);
+	// bottomBoxPiece.material.map.repeat.set(scale.x / 32, scale.z / 32);
+	
+
+	const LODBOX = new LodBox(
 		boxPieces,
 		lodboxmaterial
 	);
@@ -861,6 +837,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		// init for LODs
 		// instancedWorldModel.visible = false;
 		// LODBOX.addConcealedChunk(instancedWorldModel);
+		debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
 
 		instancedWorldModel.instanceMatrix.needsUpdate = true;
 		instancedWorldModel.instanceColor.needsUpdate = true;
@@ -933,7 +910,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		// check if we need to create a new chunk
 		if (localVoxelIterator == maxChunkSize) {
 			finalizeChunk();
-			debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
 		}
 		instancedWorldModel.frustumCulled = false;
 	}
@@ -984,6 +960,11 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 							position.z + (chunkZ * chunkDepth)
 						),
 						VoxelFace.FRONT);
+					}
+				}
+				finalizeChunk();
+				for (let x = 0; x < chunkWidth; x++) {
+					for (let y = 0; y < chunkHeight; y++) {
 						setVoxel(new THREE.Vector3(
 							position.x + (chunkX * chunkWidth) + x,
 							position.y + (chunkY * chunkHeight) + y,
@@ -992,6 +973,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 						VoxelFace.BACK);
 					}
 				}
+				finalizeChunk();
 				for (let z = 0; z < chunkDepth; z++) {
 					for (let y = 0; y < chunkHeight; y++) {
 						setVoxel(new THREE.Vector3(
@@ -1000,6 +982,11 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 							position.z + (chunkZ * chunkDepth) + z
 						),
 						VoxelFace.LEFT);
+					}
+				}
+				finalizeChunk();
+				for (let z = 0; z < chunkDepth; z++) {
+					for (let y = 0; y < chunkHeight; y++) {
 						setVoxel(new THREE.Vector3(
 							position.x + (chunkX * chunkWidth) + chunkWidth - 1,
 							position.y + (chunkY * chunkHeight) + y,
@@ -1325,8 +1312,17 @@ var frameCounter = 0;
 var weaponStartPosition;
 var defaultInstancedWeaponTargetPosition;
 var crouchLerp = 0;
+var loaderRemoved = false;
+
 const render = function () {
 	// Frame Calculations
+	if (!loaderRemoved && frameCounter > 10){
+		document.querySelector("#loader-bg").style.animation = "fade-out 0.25s ease";
+		setTimeout(() => {document.querySelector("#loader-bg").remove()}, 250);
+		loaderRemoved = true;
+		setHelpText("[WASD] Move [Mouse] Look");
+		paneParent.style.opacity = 1;
+	}
 	frameCounter = (frameCounter + 1) % 60;
 	const delta = clock.getDelta();
 	frameInfo.FPS = Math.round(1 / delta);
@@ -2089,7 +2085,7 @@ document.addEventListener('keydown', function (e) {
 	}
 });
 
-setHelpText("[WASD] Move [Mouse] Look");
+setHelpText("Loading Map...");
 </script>
 
 	<div id="help-text">Loading . . .</div>

@@ -34,7 +34,7 @@
         #left-menu-tray {
             grid-column: 1;
             grid-row: 1;
-            padding: 100px 60px;
+            padding: 50px 60px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -49,7 +49,6 @@
         .left-menu-item {
             cursor: pointer;
             font-size: 150%;
-            transition: 0.05s;
         }
 
         .left-menu-item:hover {
@@ -64,44 +63,50 @@
             /* center column of grid */
             grid-column: 2;
             grid-row: 1;
-            padding: 20px 10px;
+            padding: 0px 10px;
             /* align elements to bottom */
             display: flex;
             flex-direction: column;
-            justify-content: flex-end;
+            justify-content: center;
             border-left: 1px dotted rgba(255, 255, 255, 0.1);
         }
 
         ul {
             list-style-type: none;
-            padding: 0;
-            overflow-y: auto;
-            max-height: 70vh;
+            overflow-y: scroll;
+            height: 85.5vh;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.241);
+            border-radius: 3px;
+        }
+
+        .list-divider {
+            font-size: 100%;
+            margin: 10px 2.5px;
+            color: rgba(255, 255, 255, 0.796);
+            margin-top: 0px;
         }
 
         /* scrollbar */
         ul::-webkit-scrollbar {
-            width: 10px;
+            width: 2.5px;
         }
 
         ul::-webkit-scrollbar-track {
-            background: rgb(40, 40, 40);
+            opacity: 15%;
         }
 
         ul::-webkit-scrollbar-thumb {
-            background-color: rgb(64, 64, 64);
-            border-radius: 20px;
-            border: 3px solid rgb(40, 40, 40);
+            background-color: rgb(242, 159, 159);
+            border-radius: 3px;
         }
 
         li {
             /* alternating backgrounds */
-            background-size: 200% 200%;
             animation: animate 2s linear infinite;
             padding: 10px;
             margin-bottom: 10px;
             cursor: pointer;
-            transition: 0.05s;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -137,18 +142,27 @@
             justify-content: space-between;
         }
 
+        .settings-subheader {
+            margin-bottom: 10px;
+            opacity: 75%;
+            font-weight: bolder;
+        }
+
         .setting-name {
             font-size: 100%;
+            
         }
 
         input {
             width: 50px;
             height: 20px;
             border: none;
+            border-radius: 3px;
             background: rgb(255, 255, 255);
             color: rgb(0, 0, 0);
             font-size: 120%;
             text-align: center;
+            margin: 2px;
         }
 
         @keyframes fade-in {
@@ -180,30 +194,34 @@
             width: 20px;
             height: 20px;
             background: rgb(255, 138, 138);
-            transition: background-color 0.1s;
             cursor: pointer;
-            transition: 0.25s;
         }
 
         [type="checkbox"]:checked {
             background: rgb(255, 255, 255);
         }
 
+        [type="text"] {
+            /* background: rgb(255, 138, 138);
+            color: white; */
+        }
+
         /* options (multi-select dropdown) */
         select {
             width: 50%;
-            height: 30px;
+            height: 20px;
             background: rgb(248, 110, 110);
             color: white;
             border: none;
-            font-size: 120%;
             cursor: pointer;
+            border-radius: 0;
+            cursor: pointer;
+            margin-bottom: 7px;
         }
 
         select option {
             background: rgb(208, 96, 96);
             border: none;
-            cursor: pointer;
         }
 
         select option:hover {
@@ -211,7 +229,7 @@
         }
 
         select option:checked {
-            background: rgb(151, 61, 61);
+            background: rgb(186, 90, 90);
         }
 
         #big-text-at-the-top {
@@ -257,7 +275,6 @@
             opacity: 0.4;
             transform: rotate(45deg);
             cursor: pointer;
-            transition: 0.25s;
         }
 
         #x:hover {
@@ -273,28 +290,67 @@
             top: 0;
             left: 0;
         }
+
+        #play-btn {
+            background: rgb(216, 84, 84);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 120%;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            height: 40px;
+            transition: 0.15s;
+            border: 0px solid rgb(216, 84, 84);
+        }
+
+        #play-btn:hover {
+            background: none;
+            border: 2px solid rgb(216, 84, 84);
+        }
+
+        #all-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        @keyframes fade-in {
+            0% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 
 <body>
 
+    <div id="all-overlay"></div>
+
     <div id="main">
+        <img src="img/menu_logo.png" id="big-text-at-the-top" />
         <div id="left-menu-tray">
-            <img src="img/menu_logo.png" id="big-text-at-the-top" />
-            <div class="left-menu-divider subtle-text">Version 1.42.5</div>
             <div class="menu-space"></div>
-            <div class="left-menu-divider">Play</div>
-            <div class="left-menu-item" onclick="toggleMapSelect(this)">Singleplayer</div>
-            <div class="left-menu-item" onclick="toggleMapSelect(this)">Multiplayer</div>
-            <div class="menu-space"></div>
-            <div class="left-menu-divider">Configure</div>
+            <div class="left-menu-item" onclick="toggleMapSelect(this)">Play</div>
             <div class="left-menu-item">Mods</div>
             <div class="left-menu-item">Settings</div>
+            <div class="menu-space"></div>
+            <div class="left-menu-divider subtle-text">Version 0.1.0</div>
         </div>
         <div id="map-select-tray" style="display: none">
-            <h3>Story Mode</h3>
             <div class="menu-space"></div>
             <ul>
+                <div class="list-divider" style="margin-top: 5px;"><b>Story</b> Maps</div>
                 <!-- The protagonist takes a psychadelic drug, sees visions and travels through time ... -->
                 <!-- Part 1: An office chaos map, where the protagonist 'breaks free' of their cubicle desk-job and assails their coworkers as if they were demons, then attempts to fight their boss as a 'boss' -->
                 <li>Breakroom Brawl</li>
@@ -306,33 +362,18 @@
                 <li>Subway Showdown</li>
                 <!-- Part 5: The protagonist is now fighting their coworkers in a midieval, magical castle. The magic wand is the only weapon available. -->
                 <li>Mythical Mayhem</li>
-            </ul>
-            <div class="menu-space"></div>
-            <h3>Custom Map</h3>
-            <div class="menu-space"></div>
-            <ul>
+                <div class="list-divider"><b>Custom</b> Maps</div>
                 <li>Map 1</li>
                 <li>Map 2</li>
                 <li>Map 3</li>
+                <li>Map 4</li>
+                <li>Map 5</li>
             </ul>
         </div>
         <div id="start-game-tray" style="display: none">
-            <h3>Game Options</h3>
             <div id="settings-tray">
-                <div class="menu-space"></div>
-                <div class="setting">
-                    <div class="setting-name">Game Mode</div>
-                    <select>
-                        <option value="ffa">Free For All</option>
-                        <option value="tdm">Team Deathmatch</option>
-                        <option value="ctf">Capture the Flag</option>
-                        <option value="koth">King of the Hill</option>
-                        <option value="inf">Infection</option>
-                        <option value="jugg">Juggernaut</option>
-                    </select>
-                </div>
 
-                <div class="menu-space"></div>
+                <div class="settings-subheader">Player Settings</div>
 
                 <div class="setting">
                     <div class="setting-name">Friendly Fire</div>
@@ -346,12 +387,6 @@
                     <div class="setting-name">Damage Multiplier</div>
                     <input type="text" value="1.0" min="0.1" max="1000.0" step="0.1" maxlength="4" />
                 </div>
-
-                <div class="menu-space"></div>
-                <div class="setting">
-                    <div class="setting-name">Allow Map Damage</div>
-                    <input type="checkbox" checked/>
-                </div>
                 <div class="setting">
                     <div class="setting-name">Explosive Carry Limit</div>
                     <input type="text" value="2" min="0" max="1000" step="1" maxlength="4" />
@@ -359,18 +394,51 @@
 
                 <div class="menu-space"></div>
 
+                <div class="settings-subheader">Game Settings</div>
+                <div class="setting">
+                    <div class="setting-name">Game Mode</div>
+                    <select>
+                        <option value="ffa">Free For All</option>
+                        <option value="tdm">Team Deathmatch</option>
+                        <option value="ctf">Capture the Flag</option>
+                        <option value="koth">King of the Hill</option>
+                        <option value="inf">Infection</option>
+                        <option value="jugg">Juggernaut</option>
+                    </select>
+                </div>
+                <div class="setting">
+                    <div class="setting-name">Disable Destruction</div>
+                    <input type="checkbox"/>
+                </div>
                 <div class="setting">
                     <div class="setting-name">Performace Mode</div>
                     <input type="checkbox" />
                 </div>
-                <p class="subtle-text" style="font-size: 70%">
+                <p class="subtle-text" style="font-size: 65%; ">
                     <b>Note:</b> Performance mode significantly reduces the quality of physics (and other game systems)
                     to make the game run faster. Only use this as a <b>last resort</b>.
                 </p>
+                
+                <div class="menu-space"></div>
+
+                <input type="submit" id="play-btn" value="Start Game" />
             </div>
         </div>
     </div>
     <script>
+        document.querySelector("#play-btn").addEventListener('click', (e) => {
+            const alloverlay = document.querySelector("#all-overlay");
+            // animate opacity 0->1 over 1s
+            alloverlay.style.animation = "fade-in 0.15s ease-in-out";
+            alloverlay.style.animationFillMode = "forwards";
+
+            // wait 1s
+            setTimeout(() => {
+                // redirect to game
+                window.location.href = "index.html";
+            }, 150);
+        });
+
         const mapSelectTray = document.querySelector("#map-select-tray");
         const mapSelectItems = document.querySelectorAll("#map-select-tray li");
         const startGameTray = document.querySelector("#start-game-tray");
