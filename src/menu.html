@@ -425,6 +425,28 @@
             </div>
         </div>
     </div>
+    
+    <div id="backdrop">
+        <div id="overlay"></div>
+        <div id="hollow-circle">
+            <svg width="120%" height="120%" xmlns="http://www.w3.org/2000/svg">
+                <pattern id="Pattern" x="0" y="0" width=".05" height=".05">
+                    <circle cx="5" cy="5" r="2" stroke="white" stroke-opacity="0.4" stroke-width="1" fill="none">
+                        <animate attributeName="cx" values="0;5%" dur="5s" repeatCount="indefinite" />
+                        <animate attributeName="cy" values="0;5%" dur="5s" repeatCount="indefinite" />
+                        <animate attributeName="r" values="0.25;3.5;5;3.5;0.25" dur="5s" repeatCount="indefinite" />
+                        <animate attributeName="stroke-opacity" values="0.25;0.4;0.25" dur="5s"
+                            repeatCount="indefinite" />
+                    </circle>
+                </pattern>
+                <rect fill="url(#Pattern)" stroke="none" width="100%" height="100%" />
+            </svg>
+        </div>
+    </div>
+
+    <div id="drag-region"></div>
+    <div id="x" onclick="window.close()">&#128929;</div>
+
     <script>
         document.querySelector("#play-btn").addEventListener('click', (e) => {
             const alloverlay = document.querySelector("#all-overlay");
@@ -504,26 +526,6 @@
             }
         });
     </script>
-    <div id="backdrop">
-        <div id="overlay"></div>
-        <div id="hollow-circle">
-            <svg width="120%" height="120%" xmlns="http://www.w3.org/2000/svg">
-                <pattern id="Pattern" x="0" y="0" width=".05" height=".05">
-                    <circle cx="5" cy="5" r="2" stroke="white" stroke-opacity="0.4" stroke-width="1" fill="none">
-                        <animate attributeName="cx" values="0;5%" dur="5s" repeatCount="indefinite" />
-                        <animate attributeName="cy" values="0;5%" dur="5s" repeatCount="indefinite" />
-                        <animate attributeName="r" values="0.25;3.5;5;3.5;0.25" dur="5s" repeatCount="indefinite" />
-                        <animate attributeName="stroke-opacity" values="0.25;0.4;0.25" dur="5s"
-                            repeatCount="indefinite" />
-                    </circle>
-                </pattern>
-                <rect fill="url(#Pattern)" stroke="none" width="100%" height="100%" />
-            </svg>
-        </div>
-    </div>
-
-    <div id="drag-region"></div>
-    <div id="x" onclick="window.close()">&#128929;</div>
 </body>
 
 </html>

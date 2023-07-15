@@ -57,6 +57,18 @@ function createWindow() {
         })
     })
 
+    ipc.on('minimize', function(event, arg) {
+        mainWindow.minimize()
+    })
+
+    ipc.on('maximizeToggle', function(event, arg) {
+        if (mainWindow.isMaximized()) {
+            mainWindow.unmaximize()
+        } else {
+            mainWindow.maximize()
+        }
+    })
+
     ipc.on('init-new-savefile', function (event, arg) {
         saveFileData = '{'
     })

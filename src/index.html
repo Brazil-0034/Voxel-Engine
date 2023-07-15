@@ -4,7 +4,6 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-	<link href="./style.css" type="text/css" rel="stylesheet" />
 	<style>
 		* {
 			margin: 0;
@@ -84,11 +83,60 @@
 				opacity: 0;
 			}
 		}
+
+		#topbar {
+			position: absolute;
+			z-index: 1000;
+			top: 0;
+			right: 0;
+			text-align: right;
+			width: 100%;
+			height: 30px;
+			background: #333;
+			z-index: 1000;
+		}
+
+		.topbar-button {
+			display: inline-block;
+			color: white;
+			font-size: 16px;
+			opacity: 0.4;
+			cursor: pointer;
+		}
+
+		.topbar-button:hover {
+			opacity: 1;
+		}
+
+		#quit {
+            transform: rotate(45deg);
+			position: absolute;
+			top: 4.5px;
+			right: 13.5px;
+		}
+
+		#maximize {
+			position: absolute;
+			top: 5px;
+			right: 55px;
+			font-size: 14px;
+		}
+
+		#minimize {
+			position: absolute;
+			top: -1px;
+			right: 100px;
+		}
 	</style>
 
 </head>
 
 <body>
+	<div id="topbar">
+		<span class="topbar-button" id="minimize">&#128469;</span>
+		<span class="topbar-button" id="maximize">&#128470;</span>
+		<span class="topbar-button" id="quit" onclick="window.close()">&#128929;</span>
+	</div>
 
 	<div id="loader-bg">
 		<img id="loader" src="img/black_dot.png"/>
@@ -111,6 +159,7 @@
 			}
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script>
+	<script src="canvasPixelReader.js"></script>
 <script type="module">
 
 // choose a loader gif at random
@@ -134,30 +183,13 @@ import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
 // ipc renderer
 const { ipcRenderer } = require('electron');
 
+document.querySelector("#minimize").addEventListener("click", (e) => ipcRenderer.send('minimize'))
+document.querySelector("#maximize").addEventListener("click", (e) => ipcRenderer.send('maximizeToggle'))
+
 // This is my JavaScript-based Voxel game (engine)
 const USERSETTINGS = {
-	debugMode: true,
+	debugMode: false,
 	useSpriteParticles: true
-}
-
-// Canvas Pixel Reader
-const getPixelsFromImage = function(imageURL, x, y) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    const pixels = [];
-    const image = new Image();
-    image.src = imageURL;
-    image.onload = function() {
-        canvas.width = image.width;
-        canvas.height = image.height;
-        context.drawImage(image, 0, 0);
-        for (let x = 0; x < canvas.width; x++) {
-            pixels[x] = [];
-            for (let y = 0; y < canvas.height; y++) {
-                pixels[x][y] = context.getImageData(x, y, 1, 1).data;
-            }
-        }
-    }
 }
 
 // ###
@@ -166,6 +198,7 @@ const getPixelsFromImage = function(imageURL, x, y) {
 const pane = new Tweakpane.Pane();
 const paneParent = pane.element.parentElement;
 paneParent.style.zIndex = "1000";
+paneParent.style.top = "40px";
 paneParent.style.opacity = 0;
 var positionOverlayValue = new THREE.Vector3();
 var frameInfo = { FPS: 0, frameTime: 0, drawCalls: 0 };
@@ -424,7 +457,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
-const modelURL = 'fast food';
+const modelURL = 'savedata';
 const weaponURL = 'weapons/' + 'weapon_m4.json';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
@@ -768,17 +801,216 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 	position.y = Math.round(position.y);
 	position.z = Math.round(position.z);
 
+
 	// Evaluate the LOD
-	const lodboxmaterial = voxelMaterial.clone();
-	lodboxmaterial.color = new THREE.Color(color.r, color.g, color.b);
-	lodboxmaterial.side = THREE.DoubleSide; // So it can be seen from the inside as well [ TODO: This may not be necessary with the multi-box LOD model ... ]
-	const texture = new THREE.TextureLoader().load('textures/cc_g.png');
-	lodboxmaterial.map = texture;
-	lodboxmaterial.map.magFilter = THREE.NearestFilter; // Prevent Blurring
-	lodboxmaterial.map.minFilter = THREE.NearestFilter; // Prevent Blurring
-	lodboxmaterial.map.wrapS = THREE.RepeatWrapping; // Repeat Texture
-	lodboxmaterial.map.wrapT = THREE.RepeatWrapping; // Repeat Texture
-	
+	const texturePath = 'textures/' + material + '.png';
+	const manager = new THREE.LoadingManager();
+	let pixelData;
+	manager.onLoad = function () {
+		pixelData = getPixelsFromImage(pixelData.image);
+		console.log(pixelData);
+		const getPixelColorAt = function(x, y) {
+			// pixelData is 32 arrays of 32. Each array is a row of pixels
+			// x and y can be beyond 32, but it will wrap around
+			x = x % 32;
+			y = y % 32;
+			const data = pixelData[y][x];
+			return new THREE.Color(data[0] / 255, data[1] / 255, data[2] / 255);
+		}
+
+		// compute the chunk
+		var debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
+		let chunkCounter = 0;
+		var chunkMinPosition, chunkMaxPosition;
+		const resetChunkBounds = function () {
+			// For every chunk ...
+			chunkMinPosition = new THREE.Vector3(
+				Number.MAX_SAFE_INTEGER,
+				Number.MAX_SAFE_INTEGER,
+				Number.MAX_SAFE_INTEGER
+			);
+			chunkMaxPosition = new THREE.Vector3(
+				Number.MIN_SAFE_INTEGER,
+				Number.MIN_SAFE_INTEGER,
+				Number.MIN_SAFE_INTEGER
+			);
+		}
+		resetChunkBounds();
+
+		let instancedWorldModel = new VoxelChunk(
+			voxelGeometry,
+			voxelMaterial.clone(),
+			maxChunkSize
+		);
+		instancedWorldModel.name = chunkCounter.toString();
+		let localVoxelIterator = 0;
+
+		const finalizeChunk = function () {
+			// init for LODs
+			// instancedWorldModel.visible = false;
+			// LODBOX.addConcealedChunk(instancedWorldModel);
+			debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
+
+			instancedWorldModel.instanceMatrix.needsUpdate = true;
+			instancedWorldModel.instanceColor.needsUpdate = true;
+			scene.add(instancedWorldModel);
+			instancedModelIndex.push(instancedWorldModel);
+
+			// // For Frustum Culling...
+			instancedWorldModel.frustumBox = new THREE.Box3();
+			instancedWorldModel.frustumBox.setFromCenterAndSize(
+				// Determine Center
+				new THREE.Vector3(
+					(chunkMinPosition.x + chunkMaxPosition.x) / 2,
+					(chunkMinPosition.y + chunkMaxPosition.y) / 2,
+					(chunkMinPosition.z + chunkMaxPosition.z) / 2
+				),
+				// Determine Size
+				new THREE.Vector3(
+					(chunkMaxPosition.x - chunkMinPosition.x),
+					(chunkMaxPosition.y - chunkMinPosition.y),
+					(chunkMaxPosition.z - chunkMinPosition.z)
+				)
+			);
+			// Reset Everything!!
+			resetChunkBounds();
+			localVoxelIterator = 0;
+			chunkCounter++;
+			instancedWorldModel = new VoxelChunk(
+				voxelGeometry,
+				voxelMaterial.clone(),
+				maxChunkSize
+			);
+			instancedWorldModel.name = chunkCounter.toString();
+		}
+
+		const setVoxel = function (voxelPosition,voxelFace,voxelColor) {
+			// first, check if a voxel already exists here.
+			const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
+			var adjustMinMax = true;
+			if (voxel != null && voxel.value != 0) {
+				// removing  clones ...
+				voxelPosition = new THREE.Vector3(0, -2, 0);
+				adjustMinMax = false;
+			}
+			// Push to the global voxel field
+			voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace);
+			// update min/max positions for this chunk
+			if (adjustMinMax == true) {
+				chunkMinPosition.min(voxelPosition);
+				chunkMaxPosition.max(voxelPosition);
+			}// update the instancedWorldModel
+			instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x, voxelPosition.y, voxelPosition.z)));
+			instancedWorldModel.face = voxelFace;
+			voxelColor.multiply(color);
+			if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
+			instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
+			localVoxelIterator++;
+			// check if we need to create a new chunk
+			if (localVoxelIterator == maxChunkSize) {
+				finalizeChunk();
+			}
+			instancedWorldModel.frustumCulled = false;
+		}
+
+		// Create the FLOOR (bottom) of the box:
+		for (let x = 0; x < scale.x; x++) {
+			for (let z = 0; z < scale.z; z++) {
+				setVoxel(new THREE.Vector3(
+					position.x + x,
+					position.y,
+					position.z + z
+				),
+				VoxelFace.BOTTOM,
+				getPixelColorAt(x, z));
+			}
+		}
+		finalizeChunk();
+
+		// Create the CEILING (top) of the box:
+		for (let x = 0; x < scale.x; x++) {
+			for (let z = 0; z < scale.z; z++) {
+				setVoxel(new THREE.Vector3(
+					position.x + x,
+					position.y + scale.y,
+					position.z + z
+				),
+				VoxelFace.TOP,
+				getPixelColorAt(x, z));
+			}
+		}
+		finalizeChunk();
+
+		// Create the WALLS of the box:
+		// chunks are squares (100 x 100)
+		const numOfChunks = Math.ceil(scale.y / maxChunkSize);
+		const chunkHeight = Math.ceil(scale.y / numOfChunks);
+		const chunkWidth = Math.ceil(scale.x / numOfChunks);
+		const chunkDepth = Math.ceil(scale.z / numOfChunks);
+
+		// Create the walls
+		for (let chunkY = 0; chunkY < numOfChunks; chunkY++) {
+			for (let chunkX = 0; chunkX < numOfChunks; chunkX++) {
+				for (let chunkZ = 0; chunkZ < numOfChunks; chunkZ++) {
+					// Create the walls
+					for (let x = 0; x < chunkWidth; x++) {
+						for (let y = 0; y < chunkHeight; y++) {
+							setVoxel(new THREE.Vector3(
+								position.x + (chunkX * chunkWidth) + x,
+								position.y + (chunkY * chunkHeight) + y,
+								position.z + (chunkZ * chunkDepth)
+							),
+							VoxelFace.FRONT,
+							getPixelColorAt(x, y));
+						}
+					}
+					finalizeChunk();
+					for (let x = 0; x < chunkWidth; x++) {
+						for (let y = 0; y < chunkHeight; y++) {
+							setVoxel(new THREE.Vector3(
+								position.x + (chunkX * chunkWidth) + x,
+								position.y + (chunkY * chunkHeight) + y,
+								position.z + (chunkZ * chunkDepth) + chunkDepth - 1
+							),
+							VoxelFace.BACK,
+							getPixelColorAt(x, y));
+						}
+					}
+					finalizeChunk();
+					for (let z = 0; z < chunkDepth; z++) {
+						for (let y = 0; y < chunkHeight; y++) {
+							setVoxel(new THREE.Vector3(
+								position.x + (chunkX * chunkWidth),
+								position.y + (chunkY * chunkHeight) + y,
+								position.z + (chunkZ * chunkDepth) + z
+							),
+							VoxelFace.LEFT,
+							getPixelColorAt(z, y));
+						}
+					}
+					finalizeChunk();
+					for (let z = 0; z < chunkDepth; z++) {
+						for (let y = 0; y < chunkHeight; y++) {
+							setVoxel(new THREE.Vector3(
+								position.x + (chunkX * chunkWidth) + chunkWidth - 1,
+								position.y + (chunkY * chunkHeight) + y,
+								position.z + (chunkZ * chunkDepth) + z
+							),
+							VoxelFace.RIGHT,
+							getPixelColorAt(z, y));
+						}
+					}
+					finalizeChunk();
+				}
+			}
+		}
+
+	};
+	const loader = new THREE.TextureLoader(manager);
+	const texture = loader.load(texturePath, (texture) => {
+		pixelData = texture;
+	});
+
 	// 
 	// ASSEMBLE THE LODBOX
 	// 
@@ -799,206 +1031,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 	// boxPieces.push(new LodBoxPiece(bottomBoxPiece, VoxelFace.BOTTOM));
 	// scene.add(bottomBoxPiece);
 	// bottomBoxPiece.material.map.repeat.set(scale.x / 32, scale.z / 32);
-	
-
-	const LODBOX = new LodBox(
-		boxPieces,
-		lodboxmaterial
-	);
-
-	// compute the chunk
-	var debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
-	let chunkCounter = 0;
-	var chunkMinPosition, chunkMaxPosition;
-	const resetChunkBounds = function () {
-		// For every chunk ...
-		chunkMinPosition = new THREE.Vector3(
-			Number.MAX_SAFE_INTEGER,
-			Number.MAX_SAFE_INTEGER,
-			Number.MAX_SAFE_INTEGER
-		);
-		chunkMaxPosition = new THREE.Vector3(
-			Number.MIN_SAFE_INTEGER,
-			Number.MIN_SAFE_INTEGER,
-			Number.MIN_SAFE_INTEGER
-		);
-	}
-	resetChunkBounds();
-
-	let instancedWorldModel = new VoxelChunk(
-		voxelGeometry,
-		voxelMaterial.clone(),
-		maxChunkSize
-	);
-	instancedWorldModel.name = chunkCounter.toString();
-	let localVoxelIterator = 0;
-
-	const finalizeChunk = function () {
-		// init for LODs
-		// instancedWorldModel.visible = false;
-		// LODBOX.addConcealedChunk(instancedWorldModel);
-		debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
-
-		instancedWorldModel.instanceMatrix.needsUpdate = true;
-		instancedWorldModel.instanceColor.needsUpdate = true;
-		scene.add(instancedWorldModel);
-		instancedModelIndex.push(instancedWorldModel);
-
-		// // For Frustum Culling...
-		instancedWorldModel.frustumBox = new THREE.Box3();
-		instancedWorldModel.frustumBox.setFromCenterAndSize(
-			// Determine Center
-			new THREE.Vector3(
-				(chunkMinPosition.x + chunkMaxPosition.x) / 2,
-				(chunkMinPosition.y + chunkMaxPosition.y) / 2,
-				(chunkMinPosition.z + chunkMaxPosition.z) / 2
-			),
-			// Determine Size
-			new THREE.Vector3(
-				(chunkMaxPosition.x - chunkMinPosition.x),
-				(chunkMaxPosition.y - chunkMinPosition.y),
-				(chunkMaxPosition.z - chunkMinPosition.z)
-			)
-		);
-		// Reset Everything!!
-		resetChunkBounds();
-		localVoxelIterator = 0;
-		chunkCounter++;
-		instancedWorldModel = new VoxelChunk(
-			voxelGeometry,
-			voxelMaterial.clone(),
-			maxChunkSize
-		);
-		instancedWorldModel.name = chunkCounter.toString();
-	}
-
-	const setVoxel = function (voxelPosition,voxelFace) {
-		// first, check if a voxel already exists here.
-		const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
-		var adjustMinMax = true;
-		if (voxel != null && voxel.value != 0) {
-			// removing  clones ...
-			voxelPosition = new THREE.Vector3(0, -2, 0);
-			adjustMinMax = false;
-		}
-		// Push to the global voxel field
-		voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace);
-		// update min/max positions for this chunk
-		if (adjustMinMax == true) {
-			chunkMinPosition.min(voxelPosition);
-			chunkMaxPosition.max(voxelPosition);
-		}// update the instancedWorldModel
-		instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x, voxelPosition.y, voxelPosition.z)));
-		instancedWorldModel.face = voxelFace;
-		let voxelColor = new THREE.Color(color.r, color.g, color.b);
-		switch (material) {
-			default:
-				break;
-			case "Plastic":
-				break;
-			case "Glass":
-				instancedWorldModel.material.transparent = true;
-				instancedWorldModel.material.opacity = 0.25;
-				break;
-			case "Concrete":
-				voxelColor.multiplyScalar(1 - (Math.random() / 12))
-				break;
-		}
-		if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
-		instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
-		localVoxelIterator++;
-		// check if we need to create a new chunk
-		if (localVoxelIterator == maxChunkSize) {
-			finalizeChunk();
-		}
-		instancedWorldModel.frustumCulled = false;
-	}
-
-	// Create the FLOOR (bottom) of the box:
-	for (let x = 0; x < scale.x; x++) {
-		for (let z = 0; z < scale.z; z++) {
-			setVoxel(new THREE.Vector3(
-				position.x + x,
-				position.y,
-				position.z + z
-			),
-			VoxelFace.BOTTOM);
-		}
-	}
-	finalizeChunk();
-
-	// Create the CEILING (top) of the box:
-	for (let x = 0; x < scale.x; x++) {
-		for (let z = 0; z < scale.z; z++) {
-			setVoxel(new THREE.Vector3(
-				position.x + x,
-				position.y + scale.y,
-				position.z + z
-			),
-			VoxelFace.TOP);
-		}
-	}
-	finalizeChunk();
-
-	// Create the WALLS of the box:
-	// chunks are squares (100 x 100)
-	const numOfChunks = Math.ceil(scale.y / maxChunkSize);
-	const chunkHeight = Math.ceil(scale.y / numOfChunks);
-	const chunkWidth = Math.ceil(scale.x / numOfChunks);
-	const chunkDepth = Math.ceil(scale.z / numOfChunks);
-
-	// Create the walls
-	for (let chunkY = 0; chunkY < numOfChunks; chunkY++) {
-		for (let chunkX = 0; chunkX < numOfChunks; chunkX++) {
-			for (let chunkZ = 0; chunkZ < numOfChunks; chunkZ++) {
-				// Create the walls
-				for (let x = 0; x < chunkWidth; x++) {
-					for (let y = 0; y < chunkHeight; y++) {
-						setVoxel(new THREE.Vector3(
-							position.x + (chunkX * chunkWidth) + x,
-							position.y + (chunkY * chunkHeight) + y,
-							position.z + (chunkZ * chunkDepth)
-						),
-						VoxelFace.FRONT);
-					}
-				}
-				finalizeChunk();
-				for (let x = 0; x < chunkWidth; x++) {
-					for (let y = 0; y < chunkHeight; y++) {
-						setVoxel(new THREE.Vector3(
-							position.x + (chunkX * chunkWidth) + x,
-							position.y + (chunkY * chunkHeight) + y,
-							position.z + (chunkZ * chunkDepth) + chunkDepth - 1
-						),
-						VoxelFace.BACK);
-					}
-				}
-				finalizeChunk();
-				for (let z = 0; z < chunkDepth; z++) {
-					for (let y = 0; y < chunkHeight; y++) {
-						setVoxel(new THREE.Vector3(
-							position.x + (chunkX * chunkWidth),
-							position.y + (chunkY * chunkHeight) + y,
-							position.z + (chunkZ * chunkDepth) + z
-						),
-						VoxelFace.LEFT);
-					}
-				}
-				finalizeChunk();
-				for (let z = 0; z < chunkDepth; z++) {
-					for (let y = 0; y < chunkHeight; y++) {
-						setVoxel(new THREE.Vector3(
-							position.x + (chunkX * chunkWidth) + chunkWidth - 1,
-							position.y + (chunkY * chunkHeight) + y,
-							position.z + (chunkZ * chunkDepth) + z
-						),
-						VoxelFace.RIGHT);
-					}
-				}
-				finalizeChunk();
-			}
-		}
-	}
 }
 
 const buildWorldModelFromSphere = function (position, scale, color) {
@@ -1061,7 +1093,7 @@ const generateWeaponModel = function (modelURL) {
 			rateOfFire = jsonModel.weaponData.fireRate;
 			weaponHelpText = jsonModel.weaponData.helpText;
 			// finally, add the weapon to the scene
-			// scene.add(instancedWeaponModel);
+			scene.add(instancedWeaponModel);
 			weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
 			if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
 			weaponScale = new THREE.Vector3(jsonModel.dimension.width, jsonModel.dimension.height, jsonModel.dimension.depth);

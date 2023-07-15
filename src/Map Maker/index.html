@@ -140,6 +140,26 @@
         camera.rotation.y = -0.6160013614421702;
         camera.rotation.z = -0.5135108191734854;
         DEFAULTOBJECTS.push(camera);
+        
+        // Human for Scale
+        const human = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({
+                map: new THREE.TextureLoader().load("../img/humanforscale.png"),
+                transparent: true,
+                side: THREE.DoubleSide,
+                
+            })
+        );
+        human.material.map.magFilter = THREE.NearestFilter;
+        human.material.map.minFilter = THREE.NearestFilter;
+        human.scale.set(17.77, 60);
+        human.position.y = human.scale.y/2;
+        const playerSpawn = new THREE.Group();
+        playerSpawn.add(human);
+        scene.add(playerSpawn);
+
+        // Renderer
         const renderer = new THREE.WebGLRenderer({ canvas: canvas });
         renderer.setClearColor(0x1e2021, 1);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -148,7 +168,8 @@
             color: 0xff0000,
             transparent: true,
             opacity: 0.5,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            depthTest: false
         });
         // EFFECTS
         const composer = new EffectComposer(renderer);
@@ -165,12 +186,6 @@
         sao.params.saoIntensity = 0.0007;
         sao.params.saoKernelRadius = 100;
         composer.addPass(sao);
-        const gridHelper = new THREE.GridHelper(512, 512);
-        gridHelper.position.set(0.5, 0, 0.5);
-        gridHelper.name = "GridHelper";
-        gridHelper.userData.existInGame = false;
-        DEFAULTOBJECTS.push(gridHelper);
-        scene.add(gridHelper);
         const controls = new OrbitControls(camera, canvas);
         controls.name = "OrbitControls";
         DEFAULTOBJECTS.push(controls);
@@ -351,65 +366,29 @@
                 const material = document.createElement("div");
                 material.classList.add("inspector-element");
                 material.innerHTML = "<h3>Material</h3>";
-                // Materials: Bricks, Plastic, Glass, Wood, Metal, Concrete
-                // Multiple buttons with label and image
-                const materialBricks = document.createElement("button");
-                materialBricks.innerHTML = "Bricks";
-                materialBricks.addEventListener("click", function () {
-                    item.material = new THREE.MeshStandardMaterial({
-                        color: 0x3d2b2a,
-                        roughness: 0.9,
-                        metalness: 0.1
+                
+                const addMaterial = function(filename) {
+                    const newMaterial = document.createElement("button");
+                    newMaterial.innerHTML = filename;
+                    newMaterial.addEventListener("click", function () {
+                        item.material = new THREE.MeshStandardMaterial({
+                            color: 0xffffff,
+                            roughness: 0.9,
+                            metalness: 0.1,
+                            map: new THREE.TextureLoader().load('../textures/' + filename + '.png')
+                        });
+                        item.material.map.magFilter = THREE.NearestFilter;
+                        item.material.map.wrapS = THREE.RepeatWrapping;
+                        item.material.map.wrapT = THREE.RepeatWrapping;
+                        item.userData.materialType = filename;
                     });
-                    item.userData.materialType = "Bricks";
-                });
-                material.appendChild(materialBricks);
+                    material.appendChild(newMaterial);
+                }
 
-                const materialPlastic = document.createElement("button");
-                materialPlastic.innerHTML = "Plastic";
-                materialPlastic.addEventListener("click", function () {
-                    item.material = new THREE.MeshStandardMaterial({
-                        roughness: 0.9,
-                        metalness: 0.1
-                    });
-                    item.userData.materialType = "Plastic";
-                });
-                material.appendChild(materialPlastic);
-
-                const materialGlass = document.createElement("button");
-                materialGlass.innerHTML = "Glass";
-                materialGlass.addEventListener("click", function () {
-                    item.material = new THREE.MeshStandardMaterial({
-                        color: 0x0000ff,
-                        roughness: 0.1,
-                        metalness: 0.5,
-                        transparent: true,
-                        opacity: 0.5
-                    });
-                    item.userData.materialType = "Glass";
-                });
-                material.appendChild(materialGlass);
-
-                const materialWood = document.createElement("button");
-                materialWood.innerHTML = "Wood";
-                materialWood.addEventListener("click", function () {
-                    item.material = new THREE.MeshStandardMaterial({
-                        color: 0x856050,
-                        roughness: 1
-                    });
-                    item.userData.materialType = "Wood";
-                });
-                material.appendChild(materialWood);
-
-                const materialConcrete = document.createElement("button");
-                materialConcrete.innerHTML = "Concrete";
-                materialConcrete.addEventListener("click", function () {
-                    item.material = new THREE.MeshStandardMaterial({
-                        color: 0xd9d9d9
-                    });
-                    item.userData.materialType = "Concrete";
-                });
-                material.appendChild(materialConcrete);
+                addMaterial('diamond')
+                addMaterial('rough')
+                addMaterial('smooth')
+                addMaterial('tile')
 
                 // global color override
                 const materialColor = document.createElement("input");
@@ -557,6 +536,13 @@
                         selectedObjects.position.x = Math.floor(selectedObjects.position.x);
                         selectedObjects.position.y = Math.floor(selectedObjects.position.y);
                         selectedObjects.position.z = Math.floor(selectedObjects.position.z);
+                        selectedObjects.children.forEach(sceneObject => {
+                            if (!sceneObject.material.map) return;
+                            sceneObject.material.map.repeat.x = selectedObjects.scale.x / 32;
+                            sceneObject.material.map.repeat.y = selectedObjects.scale.y / 32;
+                            console.log(sceneObject.material.map.repeat);
+                            sceneObject.material.map.needsUpdate = true;
+                        });
                     }
                 }
 
@@ -593,6 +579,7 @@
             // if we already have it selected, forget about it!
             if (selectedObjects.children.includes(item)) return;
             // if we are holding shift, add to the selection
+            console.log(item.name, item.scale);
             if (isHoldingShift == false && dontResetSelections == false) {
                 clearSelectedObjects();
             }
@@ -1098,7 +1085,6 @@
                         "TransformControlsGizmo",
                         "TransformControlsPlane",
                         "CameraHelper",
-                        "GridHelper",
                         "LineSegments",
                         "Line",
                     ]
