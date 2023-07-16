@@ -1,6 +1,8 @@
 const getPixelsFromImage = function(image) {
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', {
+        willReadfrequently: true
+    });
     const pixels = [];
     
     canvas.width = image.width;

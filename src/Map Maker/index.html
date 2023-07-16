@@ -91,1382 +91,1394 @@
     </div>
 
     <script type="module">
-        // ### IMPORTANT METADATA
-        const editorVersion = "0.1.0"
-        document.title = "WreckMesh Map Maker v" + editorVersion;
+    // ### IMPORTANT METADATA
+const editorVersion = "0.1.0"
+document.title = "WreckMesh Map Maker v" + editorVersion;
 
-        //  ### IMPORTS
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { TransformControls } from 'three/addons/controls/TransformControls.js';
-        import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
-        import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
-        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-        import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
+//  ### IMPORTS
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
 
-        // ### MOUSE POSITION
-        const globalMousePosition = {
-            clientX: 0,
-            clientY: 0
-        }
+// ### MOUSE POSITION
+const globalMousePosition = {
+    clientX: 0,
+    clientY: 0
+}
 
-        document.addEventListener('mousemove', function (event) {
-            globalMousePosition.clientX = event.clientX;
-            globalMousePosition.clientY = event.clientY;
-        });
+document.addEventListener('mousemove', function (event) {
+    globalMousePosition.clientX = event.clientX;
+    globalMousePosition.clientY = event.clientY;
+});
 
-        // ### CANVAS INITIALIZATION
-        const editorWindow = document.querySelector("#center-panel");
-        editorWindow.innerHTML = "";
-        const canvas = document.createElement("canvas");
-        canvas.id = "editor-canvas";
-        canvas.width = editorWindow.clientWidth;
-        canvas.height = editorWindow.clientHeight;
-        editorWindow.appendChild(canvas);
+// ### CANVAS INITIALIZATION
+const editorWindow = document.querySelector("#center-panel");
+editorWindow.innerHTML = "";
+const canvas = document.createElement("canvas");
+canvas.id = "editor-canvas";
+canvas.width = editorWindow.clientWidth;
+canvas.height = editorWindow.clientHeight;
+editorWindow.appendChild(canvas);
 
 
-        // ### THREE.JS RENDERER INITIALIZATION
-        const DEFAULTOBJECTS = [];
-        const MAPOBJECTS = [];
-        var scene = new THREE.Scene();
-        scene.name = "New Scene"
-        const camera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 15, 5000);
-        camera.position.x = -27.65656251980899;
-        camera.position.y = 22.536512419213917;
-        camera.position.z = 27.428691501840778;
-        camera.rotation.x = -0.7733129332359928;
-        camera.rotation.y = -0.6160013614421702;
-        camera.rotation.z = -0.5135108191734854;
-        DEFAULTOBJECTS.push(camera);
+// ### THREE.JS RENDERER INITIALIZATION
+const DEFAULTOBJECTS = [];
+const MAPOBJECTS = [];
+var scene = new THREE.Scene();
+scene.name = "New Scene"
+const camera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 15, 5000);
+camera.position.x = -27.65656251980899;
+camera.position.y = 22.536512419213917;
+camera.position.z = 27.428691501840778;
+camera.rotation.x = -0.7733129332359928;
+camera.rotation.y = -0.6160013614421702;
+camera.rotation.z = -0.5135108191734854;
+DEFAULTOBJECTS.push(camera);
+
+// Human for Scale
+const human = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+        map: new THREE.TextureLoader().load("../img/humanforscale.png"),
+        transparent: true,
+        side: THREE.DoubleSide,
         
-        // Human for Scale
-        const human = new THREE.Mesh(
-            new THREE.PlaneGeometry(1, 1),
-            new THREE.MeshBasicMaterial({
-                map: new THREE.TextureLoader().load("../img/humanforscale.png"),
-                transparent: true,
-                side: THREE.DoubleSide,
-                
-            })
-        );
-        human.material.map.magFilter = THREE.NearestFilter;
-        human.material.map.minFilter = THREE.NearestFilter;
-        human.scale.set(17.77, 60);
-        human.position.y = human.scale.y/2;
-        const playerSpawn = new THREE.Group();
-        playerSpawn.add(human);
-        scene.add(playerSpawn);
+    })
+);
+human.material.map.magFilter = THREE.NearestFilter;
+human.material.map.minFilter = THREE.NearestFilter;
+human.scale.set(17.77, 60);
+human.position.y = human.scale.y/2;
+const playerSpawn = new THREE.Group();
+playerSpawn.add(human);
+scene.add(playerSpawn);
 
-        // Renderer
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas });
-        renderer.setClearColor(0x1e2021, 1);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        // MATERIALS
-        const cutawayMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            transparent: true,
-            opacity: 0.5,
-            side: THREE.DoubleSide,
-            depthTest: false
+// Renderer
+const renderer = new THREE.WebGLRenderer({ canvas: canvas });
+renderer.setClearColor(0x1e2021, 1);
+renderer.setPixelRatio(window.devicePixelRatio);
+// MATERIALS
+const cutawayMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+    depthTest: false
+});
+// EFFECTS
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const outlinePass = new OutlinePass(new THREE.Vector2(canvas.width, canvas.height), scene, camera);
+outlinePass.edgeStrength = 3;
+composer.addPass(outlinePass);
+const fxaaPass = new ShaderPass(FXAAShader);
+fxaaPass.uniforms['resolution'].value.set(1 / canvas.width, 1 / canvas.height);
+composer.addPass(fxaaPass);
+const sao = new SAOPass(scene, camera, true, true);
+sao.params.saoScale = 9.5;
+sao.params.saoBias = 0.5;
+sao.params.saoIntensity = 0.0007;
+sao.params.saoKernelRadius = 100;
+composer.addPass(sao);
+const controls = new OrbitControls(camera, canvas);
+controls.name = "OrbitControls";
+DEFAULTOBJECTS.push(controls);
+const adjustCanvasSize = function () {
+    canvas.width = editorWindow.clientWidth;
+    canvas.height = editorWindow.clientHeight;
+    camera.aspect = canvas.width / canvas.height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(canvas.width, canvas.height);
+    composer.setSize(canvas.width, canvas.height);
+    fxaaPass.uniforms['resolution'].value.set(1 / canvas.width, 1 / canvas.height);
+};
+
+// ### EVENT LISTENERS
+window.addEventListener('resize', adjustCanvasSize);
+
+// ### ANIMATION LOOP
+const clock = new THREE.Clock();
+const animate = function () {
+    const delta = clock.getDelta();
+    const fps = 1 / delta;
+    document.title = "WreckMesh Map Maker v" + editorVersion + " - [" + fps.toFixed(0) + " FPS]";
+    if (selectedObjects) {
+        outlinePass.selectedObjects = selectedObjects.children;
+    }
+
+    requestAnimationFrame(animate);
+    controls.update();
+    composer.render();
+};
+animate();
+
+
+//  ### SIMPLE FUNCTIONS
+
+const updateRightPanel = function (item) {
+
+    document.querySelector("#selection-name").innerHTML = item.name;
+
+    // for each property in the object, create an input field in #object-inspector-elements
+    const inspector = document.querySelector("#object-inspector-elements");
+    inspector.innerHTML = "";
+
+    if (item.isObject3D == true) {
+        // Position (X, Y, Z) in a row
+        const position = document.createElement("div");
+        const itemPosition = new THREE.Vector3();
+        item.getWorldPosition(itemPosition);
+        position.classList.add("inspector-element");
+        position.innerHTML = "<h3>Position</h3>";
+        const positionX = document.createElement("input");
+        positionX.type = "number";
+        positionX.value = itemPosition.x;
+        positionX.style.width = "75px";
+        positionX.addEventListener("input", function () {
+            itemPosition.x = positionX.value;
         });
-        // EFFECTS
-        const composer = new EffectComposer(renderer);
-        composer.addPass(new RenderPass(scene, camera));
-        const outlinePass = new OutlinePass(new THREE.Vector2(canvas.width, canvas.height), scene, camera);
-        outlinePass.edgeStrength = 3;
-        composer.addPass(outlinePass);
-        const fxaaPass = new ShaderPass(FXAAShader);
-        fxaaPass.uniforms['resolution'].value.set(1 / canvas.width, 1 / canvas.height);
-        composer.addPass(fxaaPass);
-        const sao = new SAOPass(scene, camera, true, true);
-        sao.params.saoScale = 9.5;
-        sao.params.saoBias = 0.5;
-        sao.params.saoIntensity = 0.0007;
-        sao.params.saoKernelRadius = 100;
-        composer.addPass(sao);
-        const controls = new OrbitControls(camera, canvas);
-        controls.name = "OrbitControls";
-        DEFAULTOBJECTS.push(controls);
-        const adjustCanvasSize = function () {
-            canvas.width = editorWindow.clientWidth;
-            canvas.height = editorWindow.clientHeight;
-            camera.aspect = canvas.width / canvas.height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(canvas.width, canvas.height);
-            composer.setSize(canvas.width, canvas.height);
-            fxaaPass.uniforms['resolution'].value.set(1 / canvas.width, 1 / canvas.height);
-        };
-
-        // ### EVENT LISTENERS
-        window.addEventListener('resize', adjustCanvasSize);
-
-        // ### ANIMATION LOOP
-        const clock = new THREE.Clock();
-        const animate = function () {
-            const delta = clock.getDelta();
-            const fps = 1 / delta;
-            document.title = "WreckMesh Map Maker v" + editorVersion + " - [" + fps.toFixed(0) + " FPS]";
-            if (selectedObjects) {
-                outlinePass.selectedObjects = selectedObjects.children;
-            }
-
-            requestAnimationFrame(animate);
-            controls.update();
-            composer.render();
-        };
-        animate();
-
-
-        //  ### SIMPLE FUNCTIONS
-
-        const updateRightPanel = function (item) {
-
-            document.querySelector("#selection-name").innerHTML = item.name;
-
-            // for each property in the object, create an input field in #object-inspector-elements
-            const inspector = document.querySelector("#object-inspector-elements");
-            inspector.innerHTML = "";
-
-            if (item.isObject3D == true) {
-                // Position (X, Y, Z) in a row
-                const position = document.createElement("div");
-                const itemPosition = new THREE.Vector3();
-                item.getWorldPosition(itemPosition);
-                position.classList.add("inspector-element");
-                position.innerHTML = "<h3>Position</h3>";
-                const positionX = document.createElement("input");
-                positionX.type = "number";
-                positionX.value = itemPosition.x;
-                positionX.style.width = "75px";
-                positionX.addEventListener("input", function () {
-                    itemPosition.x = positionX.value;
-                });
-                const positionY = document.createElement("input");
-                positionY.type = "number";
-                positionY.value = itemPosition.y;
-                positionY.style.width = "75px";
-                positionY.addEventListener("input", function () {
-                    itemPosition.y = positionY.value;
-                });
-                const positionZ = document.createElement("input");
-                positionZ.type = "number";
-                positionZ.value = itemPosition.z;
-                positionZ.style.width = "75px";
-                positionZ.addEventListener("input", function () {
-                    itemPosition.z = positionZ.value;
-                });
-                position.appendChild(positionX);
-                position.appendChild(positionY);
-                position.appendChild(positionZ);
-                inspector.appendChild(position);
-
-                // Scale (X, Y, Z) in a row
-                const scale = document.createElement("div");
-                scale.classList.add("inspector-element");
-                scale.innerHTML = "<h3>Scale</h3>";
-                const scaleX = document.createElement("input");
-                scaleX.type = "number";
-                scaleX.value = selectedObjects.scale.x;
-                scaleX.style.width = "75px";
-                scaleX.addEventListener("input", function () {
-                    selectedObjects.scale.x = scaleX.value;
-                });
-                const scaleY = document.createElement("input");
-                scaleY.type = "number";
-                scaleY.value = selectedObjects.scale.y;
-                scaleY.style.width = "75px";
-                scaleY.addEventListener("input", function () {
-                    selectedObjects.scale.y = scaleY.value;
-                });
-                const scaleZ = document.createElement("input");
-                scaleZ.type = "number";
-                scaleZ.value = selectedObjects.scale.z;
-                scaleZ.style.width = "75px";
-                scaleZ.addEventListener("input", function () {
-                    selectedObjects.scale.z = scaleZ.value;
-                });
-                scale.appendChild(scaleX);
-                scale.appendChild(scaleY);
-                scale.appendChild(scaleZ);
-                inspector.appendChild(scale);
-            }
-            // if it's a light
-            if (item.isLight == true) {
-                // Type of Light
-                const type = document.createElement("div");
-                type.classList.add("inspector-element");
-                type.innerHTML = "<h3>Type</h3>";
-                const typeInput = document.createElement("select");
-                typeInput.innerHTML = "<option value='AmbientLight'>Ambient Light</option><option value='DirectionalLight'>Directional Light</option><option value='PointLight'>Point Light</option><option value='SpotLight'>Spot Light</option>";
-                typeInput.value = item.type;
-                typeInput.addEventListener("input", function () {
-                    item.type = typeInput.value;
-                });
-                type.appendChild(typeInput);
-                inspector.appendChild(type);
-
-                // Color
-                const color = document.createElement("div");
-                color.classList.add("inspector-element");
-                color.innerHTML = "<h3>Color</h3>";
-                const colorInput = document.createElement("input");
-                colorInput.type = "color";
-                colorInput.value = "#" + item.color.getHexString();
-                colorInput.addEventListener("input", function () {
-                    item.color.set(colorInput.value);
-                });
-                color.appendChild(colorInput);
-                inspector.appendChild(color);
-
-                // Intensity
-                const intensity = document.createElement("div");
-                intensity.classList.add("inspector-element");
-                intensity.innerHTML = "<h3>Intensity</h3>";
-                const intensityInput = document.createElement("input");
-                intensityInput.type = "number";
-                intensityInput.value = item.intensity;
-                intensityInput.addEventListener("input", function () {
-                    item.intensity = intensityInput.value;
-                });
-                intensity.appendChild(intensityInput);
-                inspector.appendChild(intensity);
-
-                // Range
-                const range = document.createElement("div");
-                range.classList.add("inspector-element");
-                range.innerHTML = "<h3>Range</h3>";
-                const rangeInput = document.createElement("input");
-                rangeInput.type = "number";
-                rangeInput.value = item.distance;
-                rangeInput.addEventListener("input", function () {
-                    item.distance = rangeInput.value;
-                });
-                range.appendChild(rangeInput);
-                inspector.appendChild(range);
-
-                // Shadows
-                const shadows = document.createElement("div");
-                shadows.classList.add("inspector-element");
-                shadows.innerHTML = "<h3>Shadows</h3>";
-                const shadowsInput = document.createElement("input");
-                shadowsInput.type = "checkbox";
-                shadowsInput.checked = item.castShadow;
-                shadowsInput.addEventListener("input", function () {
-                    item.castShadow = shadowsInput.checked;
-                });
-                shadows.appendChild(shadowsInput);
-                inspector.appendChild(shadows);
-            }
-            // For each material (if any) - this only applies to 3D objects in the world, so it can have properties such as cutaway as well
-            if (item.material != undefined) {
-                // for each material
-                // Material
-                const material = document.createElement("div");
-                material.classList.add("inspector-element");
-                material.innerHTML = "<h3>Material</h3>";
-                
-                const addMaterial = function(filename) {
-                    const newMaterial = document.createElement("button");
-                    newMaterial.innerHTML = filename;
-                    newMaterial.addEventListener("click", function () {
-                        item.material = new THREE.MeshStandardMaterial({
-                            color: 0xffffff,
-                            roughness: 0.9,
-                            metalness: 0.1,
-                            map: new THREE.TextureLoader().load('../textures/' + filename + '.png')
-                        });
-                        item.material.map.magFilter = THREE.NearestFilter;
-                        item.material.map.wrapS = THREE.RepeatWrapping;
-                        item.material.map.wrapT = THREE.RepeatWrapping;
-                        item.userData.materialType = filename;
-                    });
-                    material.appendChild(newMaterial);
-                }
-
-                addMaterial('diamond')
-                addMaterial('rough')
-                addMaterial('smooth')
-                addMaterial('tile')
-
-                // global color override
-                const materialColor = document.createElement("input");
-                materialColor.type = "color";
-                materialColor.value = item.material.color.getHexString();
-                materialColor.addEventListener("input", function () {
-                    item.material.color.set(materialColor.value);
-                });
-
-                material.appendChild(materialColor);
-                inspector.appendChild(material);
-
-                // is cutaway (boolean)
-                const cutaway = document.createElement("div");
-                cutaway.classList.add("inspector-element");
-                cutaway.innerHTML = "<h3>Act As Cutaway</h3>";
-                const cutawayInput = document.createElement("input");
-                cutawayInput.type = "checkbox";
-                cutawayInput.checked = item.userData.isCutaway;
-                cutawayInput.addEventListener("input", function () {
-                    item.userData.isCutaway = cutawayInput.checked;
-                    if (item.userData.isCutaway) {
-                        item.material = cutawayMaterial;
-                    }
-                });
-                cutaway.appendChild(cutawayInput);
-                inspector.appendChild(cutaway);
-            }
-            if (item.userData.isGroundFloor) {
-                const groundFloorEnabled = document.createElement("div");
-                groundFloorEnabled.classList.add("inspector-element");
-                groundFloorEnabled.innerHTML = "<h3>Enabled</h3>";
-                const groundFloorEnabledInput = document.createElement("input");
-                groundFloorEnabledInput.type = "checkbox";
-                groundFloorEnabledInput.checked = item.userData.isGroundFloor;
-                groundFloorEnabledInput.addEventListener("input", function () {
-                    mapHasGround = groundFloorEnabledInput.checked;
-                    groundFloor.visible = mapHasGround;
-                });
-            }
-            // Camera (only one in scene)
-            if (item.isCamera == true) {
-                // [USERDATA] Movement Speed
-                // Set the default to 10
-                if (item.userData.movementSpeed == undefined) {
-                    item.userData.movementSpeed = 1;
-                }
-                const movementSpeed = document.createElement("div");
-                movementSpeed.classList.add("inspector-element");
-                movementSpeed.innerHTML = "<h3>Movement Speed</h3>";
-                const movementSpeedInput = document.createElement("input");
-                movementSpeedInput.type = "number";
-                movementSpeedInput.value = item.userData.movementSpeed;
-                movementSpeedInput.addEventListener("input", function () {
-                    item.userData.movementSpeed = movementSpeedInput.value;
-                });
-                movementSpeed.appendChild(movementSpeedInput);
-                inspector.appendChild(movementSpeed);
-            }
-        }
-        const randomColor = function () { return new THREE.Color(0xffffff * Math.random()); }
-        var transformControls = new TransformControls(camera, canvas);
-        transformControls.name = "TransformControls"
-        transformControls.setRotationSnap(THREE.MathUtils.degToRad(90));
-        transformControls.setTranslationSnap(1);
-        // transformControls.setScaleSnap(1);
-        transformControls.userData.existInGame = false;
-        var selectedObjects = new THREE.Group();
-        scene.add(selectedObjects);
-        transformControls.attach(selectedObjects);
-        document.body.addEventListener('keydown', function (event) {
-            if (event.key == "s") {
-                console.log(scene);
-                console.log(selectedObjects.children);
-            }
-            if (event.key == "f")
-            {
-                const newPosition = new THREE.Vector3();
-                newPosition.copy(selectedObjects.children[0].position);
-                newPosition.addScalar(controls.getDistance());
-                console.log(newPosition);
-                camera.position.copy(newPosition);
-                controls.update();
-            }
+        const positionY = document.createElement("input");
+        positionY.type = "number";
+        positionY.value = itemPosition.y;
+        positionY.style.width = "75px";
+        positionY.addEventListener("input", function () {
+            itemPosition.y = positionY.value;
         });
-        var retachAvailable = true;
-        transformControls.size = 1.25;
-        DEFAULTOBJECTS.push(transformControls);
-        scene.add(transformControls);
-        var lastAttachedObject;
-        const objectsUnderground = [];
-        // load ../img/errorTex as errorTex
-        const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
-        transformControls.addEventListener('dragging-changed', function (event) {
-            controls.enabled = !event.value;
-            retachAvailable = !event.value;
+        const positionZ = document.createElement("input");
+        positionZ.type = "number";
+        positionZ.value = itemPosition.z;
+        positionZ.style.width = "75px";
+        positionZ.addEventListener("input", function () {
+            itemPosition.z = positionZ.value;
+        });
+        position.appendChild(positionX);
+        position.appendChild(positionY);
+        position.appendChild(positionZ);
+        inspector.appendChild(position);
 
-            // if the object type includes "LightHelper", then set the light in the helper's userdata's transform to the light helper
-            selectedObjects.children.forEach(selectedObject => {
-                if (selectedObject.type.includes("LightHelper")) {
-                    // Position
-                    selectedObject.light.position.x = selectedObject.position.x;
-                    selectedObject.light.position.y = selectedObject.position.y;
-                    selectedObject.light.position.z = selectedObject.position.z;
+        // Scale (X, Y, Z) in a row
+        const scale = document.createElement("div");
+        scale.classList.add("inspector-element");
+        scale.innerHTML = "<h3>Scale</h3>";
+        const scaleX = document.createElement("input");
+        scaleX.type = "number";
+        scaleX.value = selectedObjects.scale.x;
+        scaleX.style.width = "75px";
+        scaleX.addEventListener("input", function () {
+            selectedObjects.scale.x = scaleX.value;
+        });
+        const scaleY = document.createElement("input");
+        scaleY.type = "number";
+        scaleY.value = selectedObjects.scale.y;
+        scaleY.style.width = "75px";
+        scaleY.addEventListener("input", function () {
+            selectedObjects.scale.y = scaleY.value;
+        });
+        const scaleZ = document.createElement("input");
+        scaleZ.type = "number";
+        scaleZ.value = selectedObjects.scale.z;
+        scaleZ.style.width = "75px";
+        scaleZ.addEventListener("input", function () {
+            selectedObjects.scale.z = scaleZ.value;
+        });
+        scale.appendChild(scaleX);
+        scale.appendChild(scaleY);
+        scale.appendChild(scaleZ);
+        inspector.appendChild(scale);
+    }
+    // if it's a light
+    if (item.isLight == true) {
+        // Type of Light
+        const type = document.createElement("div");
+        type.classList.add("inspector-element");
+        type.innerHTML = "<h3>Type</h3>";
+        const typeInput = document.createElement("select");
+        typeInput.innerHTML = "<option value='AmbientLight'>Ambient Light</option><option value='DirectionalLight'>Directional Light</option><option value='PointLight'>Point Light</option><option value='SpotLight'>Spot Light</option>";
+        typeInput.value = item.type;
+        typeInput.addEventListener("input", function () {
+            item.type = typeInput.value;
+        });
+        type.appendChild(typeInput);
+        inspector.appendChild(type);
 
-                    // Rotation
-                    selectedObject.light.rotation.x = selectedObject.rotation.x;
-                    selectedObject.light.rotation.y = selectedObject.rotation.y;
-                    selectedObject.light.rotation.z = selectedObject.rotation.z;
-                    if (selectedObject.light.target != undefined) {
-                        // Target
-                        selectedObject.light.target.position.x = selectedObject.userData.target.position.x;
-                        selectedObject.light.target.position.y = selectedObject.userData.target.position.y;
-                        selectedObject.light.target.position.z = selectedObject.userData.target.position.z;
-                    }
-                }
+        // Color
+        const color = document.createElement("div");
+        color.classList.add("inspector-element");
+        color.innerHTML = "<h3>Color</h3>";
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = "#" + item.color.getHexString();
+        colorInput.addEventListener("input", function () {
+            item.color.set(colorInput.value);
+        });
+        color.appendChild(colorInput);
+        inspector.appendChild(color);
+
+        // Intensity
+        const intensity = document.createElement("div");
+        intensity.classList.add("inspector-element");
+        intensity.innerHTML = "<h3>Intensity</h3>";
+        const intensityInput = document.createElement("input");
+        intensityInput.type = "number";
+        intensityInput.value = item.intensity;
+        intensityInput.addEventListener("input", function () {
+            item.intensity = intensityInput.value;
+        });
+        intensity.appendChild(intensityInput);
+        inspector.appendChild(intensity);
+
+        // Range
+        const range = document.createElement("div");
+        range.classList.add("inspector-element");
+        range.innerHTML = "<h3>Range</h3>";
+        const rangeInput = document.createElement("input");
+        rangeInput.type = "number";
+        rangeInput.value = item.distance;
+        rangeInput.addEventListener("input", function () {
+            item.distance = rangeInput.value;
+        });
+        range.appendChild(rangeInput);
+        inspector.appendChild(range);
+
+        // Shadows
+        const shadows = document.createElement("div");
+        shadows.classList.add("inspector-element");
+        shadows.innerHTML = "<h3>Shadows</h3>";
+        const shadowsInput = document.createElement("input");
+        shadowsInput.type = "checkbox";
+        shadowsInput.checked = item.castShadow;
+        shadowsInput.addEventListener("input", function () {
+            item.castShadow = shadowsInput.checked;
+        });
+        shadows.appendChild(shadowsInput);
+        inspector.appendChild(shadows);
+    }
+    // For each material (if any) - this only applies to 3D objects in the world, so it can have properties such as cutaway as well
+    if (item.material != undefined) {
+        // for each material
+        // Material
+        const material = document.createElement("div");
+        material.classList.add("inspector-element");
+        material.innerHTML = "<h3>Material</h3>";
+        
+        const addMaterial = function(filename) {
+            const newMaterial = document.createElement("button");
+            newMaterial.innerHTML = filename;
+            newMaterial.addEventListener("click", function () {
+                item.material = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    roughness: 0.9,
+                    metalness: 0.1,
+                    map: new THREE.TextureLoader().load('../textures/' + filename + '.png')
+                });
+                item.material.map.magFilter = THREE.NearestFilter;
+                item.material.map.wrapS = THREE.RepeatWrapping;
+                item.material.map.wrapT = THREE.RepeatWrapping;
+                item.userData.materialType = filename;
             });
+            material.appendChild(newMaterial);
+        }
 
-            if (event.value == false) {
-                // if lastAttachedObject has any part below y=-1, move it up to y=0
-                if (lastAttachedObject != undefined) {
-                    if (lastAttachedObject.userData.isGroundFloor != true) { // bad code explanation: "!= true" also accounts for undefined
-                        if (selectedObjects.children.some(child => (new THREE.Box3().setFromObject(child).min.y < -1)))
-                        {
-                            const tempSelObjs = Array.from(selectedObjects.children);
-                            console.log(tempSelObjs);
-                            clearSelectedObjects();
-                            console.log(tempSelObjs);
-                            tempSelObjs.forEach(selectedObject => {
-                                const boundingBox = new THREE.Box3().setFromObject(selectedObject);
-                                if (boundingBox.min.y < -1) {
-                                    const distanceToMoveUp = Math.abs(boundingBox.min.y);
-                                    selectedObject.position.y += distanceToMoveUp;
-                                    attachHandles(selectedObject);
-                                }
-                            });
-                        }
-                        // round the scale to the nearest EVEN whole number
-                        selectedObjects.scale.x = Math.floor(selectedObjects.scale.x);
-                        selectedObjects.scale.y = Math.floor(selectedObjects.scale.y);
-                        selectedObjects.scale.z = Math.floor(selectedObjects.scale.z);
-                        if (selectedObjects.scale.x % 2 == 0) selectedObjects.scale.x += 1;
-                        if (selectedObjects.scale.y % 2 == 0) selectedObjects.scale.y += 1;
-                        if (selectedObjects.scale.z % 2 == 0) selectedObjects.scale.z += 1;
-                        selectedObjects.position.x = Math.floor(selectedObjects.position.x);
-                        selectedObjects.position.y = Math.floor(selectedObjects.position.y);
-                        selectedObjects.position.z = Math.floor(selectedObjects.position.z);
-                        selectedObjects.children.forEach(sceneObject => {
-                            if (!sceneObject.material.map) return;
-                            sceneObject.material.map.repeat.x = selectedObjects.scale.x / 32;
-                            sceneObject.material.map.repeat.y = selectedObjects.scale.y / 32;
-                            console.log(sceneObject.material.map.repeat);
-                            sceneObject.material.map.needsUpdate = true;
-                        });
-                    }
-                }
+        addMaterial('diamond')
+        addMaterial('rough')
+        addMaterial('smooth')
+        addMaterial('tile')
 
-                updateRightPanel(lastAttachedObject);
-            }
+        // global color override
+        const materialColor = document.createElement("input");
+        materialColor.type = "color";
+        materialColor.value = item.material.color.getHexString();
+        materialColor.addEventListener("input", function () {
+            item.material.color.set(materialColor.value);
         });
 
-        const clearSelectedObjects = function () {
-            transformControls.visible = false;
-            for (let i = 0; i < selectedObjects.children.length; i++) {
-                const child = selectedObjects.children[i];
-                // get world pos
-                const newPos = new THREE.Vector3();
-                newPos.setFromMatrixPosition(child.matrixWorld);
-                // get world scale
-                const newScale = new THREE.Vector3();
-                newScale.setFromMatrixScale(child.matrixWorld);
+        material.appendChild(materialColor);
+        inspector.appendChild(material);
 
-                child.parent.remove(child);
-                scene.add(child);
-                child.position.set(newPos.x, newPos.y, newPos.z);
-                child.scale.set(newScale.x, newScale.y, newScale.z);
-                clearSelectedObjects();
+        // is cutaway (boolean)
+        const cutaway = document.createElement("div");
+        cutaway.classList.add("inspector-element");
+        cutaway.innerHTML = "<h3>Act As Cutaway</h3>";
+        const cutawayInput = document.createElement("input");
+        cutawayInput.type = "checkbox";
+        cutawayInput.checked = item.userData.isCutaway;
+        cutawayInput.addEventListener("input", function () {
+            item.userData.isCutaway = cutawayInput.checked;
+            if (item.userData.isCutaway) {
+                item.material = cutawayMaterial;
+            }
+        });
+        cutaway.appendChild(cutawayInput);
+        inspector.appendChild(cutaway);
+    }
+    if (item.userData.isGroundFloor) {
+        const groundFloorEnabled = document.createElement("div");
+        groundFloorEnabled.classList.add("inspector-element");
+        groundFloorEnabled.innerHTML = "<h3>Enabled</h3>";
+        const groundFloorEnabledInput = document.createElement("input");
+        groundFloorEnabledInput.type = "checkbox";
+        groundFloorEnabledInput.checked = item.userData.isGroundFloor;
+        groundFloorEnabledInput.addEventListener("input", function () {
+            mapHasGround = groundFloorEnabledInput.checked;
+            groundFloor.visible = mapHasGround;
+        });
+    }
+    // Camera (only one in scene)
+    if (item.isCamera == true) {
+        // [USERDATA] Movement Speed
+        // Set the default to 10
+        if (item.userData.movementSpeed == undefined) {
+            item.userData.movementSpeed = 1;
+        }
+        const movementSpeed = document.createElement("div");
+        movementSpeed.classList.add("inspector-element");
+        movementSpeed.innerHTML = "<h3>Movement Speed</h3>";
+        const movementSpeedInput = document.createElement("input");
+        movementSpeedInput.type = "number";
+        movementSpeedInput.value = item.userData.movementSpeed;
+        movementSpeedInput.addEventListener("input", function () {
+            item.userData.movementSpeed = movementSpeedInput.value;
+        });
+        movementSpeed.appendChild(movementSpeedInput);
+        inspector.appendChild(movementSpeed);
+    }
+}
+const randomColor = function () { return new THREE.Color(0xffffff * Math.random()); }
+var transformControls = new TransformControls(camera, canvas);
+transformControls.name = "TransformControls"
+transformControls.setRotationSnap(THREE.MathUtils.degToRad(90));
+transformControls.setTranslationSnap(1);
+// transformControls.setScaleSnap(1);
+transformControls.userData.existInGame = false;
+var selectedObjects = new THREE.Group();
+scene.add(selectedObjects);
+transformControls.attach(selectedObjects);
+document.body.addEventListener('keydown', function (event) {
+    if (event.key == "s") {
+        console.log(scene);
+        console.log(selectedObjects.children);
+    }
+    if (event.key == "f")
+    {
+        const newPosition = new THREE.Vector3();
+        newPosition.copy(selectedObjects.children[0].position);
+        newPosition.addScalar(controls.getDistance());
+        console.log(newPosition);
+        camera.position.copy(newPosition);
+        controls.update();
+    }
+});
+var retachAvailable = true;
+transformControls.size = 1.25;
+DEFAULTOBJECTS.push(transformControls);
+scene.add(transformControls);
+var lastAttachedObject;
+const objectsUnderground = [];
+// load ../img/errorTex as errorTex
+const realignTexture = function(sceneObject) {
+    if (!sceneObject.material.map) return;
+    sceneObject.material.map.repeat.x = selectedObjects.scale.x / 32;
+    sceneObject.material.map.repeat.y = selectedObjects.scale.y / 32;
+    sceneObject.material.map.needsUpdate = true;
+}
+const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
+transformControls.addEventListener('dragging-changed', function (event) {
+    controls.enabled = !event.value;
+    retachAvailable = !event.value;
+
+    // if the object type includes "LightHelper", then set the light in the helper's userdata's transform to the light helper
+    selectedObjects.children.forEach(selectedObject => {
+        if (selectedObject.type.includes("LightHelper")) {
+            // Position
+            selectedObject.light.position.x = selectedObject.position.x;
+            selectedObject.light.position.y = selectedObject.position.y;
+            selectedObject.light.position.z = selectedObject.position.z;
+
+            // Rotation
+            selectedObject.light.rotation.x = selectedObject.rotation.x;
+            selectedObject.light.rotation.y = selectedObject.rotation.y;
+            selectedObject.light.rotation.z = selectedObject.rotation.z;
+            if (selectedObject.light.target != undefined) {
+                // Target
+                selectedObject.light.target.position.x = selectedObject.userData.target.position.x;
+                selectedObject.light.target.position.y = selectedObject.userData.target.position.y;
+                selectedObject.light.target.position.z = selectedObject.userData.target.position.z;
             }
         }
+    });
+
+    if (event.value == false) {
+        // if lastAttachedObject has any part below y=-1, move it up to y=0
+        if (lastAttachedObject != undefined) {
+            if (lastAttachedObject.userData.isGroundFloor != true) { // bad code explanation: "!= true" also accounts for undefined
+                if (selectedObjects.children.some(child => (new THREE.Box3().setFromObject(child).min.y < -1)))
+                {
+                    const tempSelObjs = Array.from(selectedObjects.children);
+                    console.log(tempSelObjs);
+                    clearSelectedObjects();
+                    console.log(tempSelObjs);
+                    tempSelObjs.forEach(selectedObject => {
+                        const boundingBox = new THREE.Box3().setFromObject(selectedObject);
+                        if (boundingBox.min.y < -1) {
+                            const distanceToMoveUp = Math.abs(boundingBox.min.y);
+                            selectedObject.position.y += distanceToMoveUp;
+                            attachHandles(selectedObject);
+                        }
+                    });
+                }
+                // round the scale to the nearest EVEN whole number
+                selectedObjects.scale.x = Math.floor(selectedObjects.scale.x);
+                selectedObjects.scale.y = Math.floor(selectedObjects.scale.y);
+                selectedObjects.scale.z = Math.floor(selectedObjects.scale.z);
+                if (selectedObjects.scale.x % 2 == 0) selectedObjects.scale.x += 1;
+                if (selectedObjects.scale.y % 2 == 0) selectedObjects.scale.y += 1;
+                if (selectedObjects.scale.z % 2 == 0) selectedObjects.scale.z += 1;
+                selectedObjects.position.x = Math.floor(selectedObjects.position.x);
+                selectedObjects.position.y = Math.floor(selectedObjects.position.y);
+                selectedObjects.position.z = Math.floor(selectedObjects.position.z);
+                selectedObjects.children.forEach(sceneObject => {
+                    realignTexture(sceneObject);
+                });
+            }
+        }
+
+        updateRightPanel(lastAttachedObject);
+    }
+});
+
+const clearSelectedObjects = function () {
+    transformControls.visible = false;
+    for (let i = 0; i < selectedObjects.children.length; i++) {
+        const child = selectedObjects.children[i];
+        // get world pos
+        const newPos = new THREE.Vector3();
+        newPos.setFromMatrixPosition(child.matrixWorld);
+        // get world scale
+        const newScale = new THREE.Vector3();
+        newScale.setFromMatrixScale(child.matrixWorld);
+
+        child.parent.remove(child);
+        scene.add(child);
+        child.position.set(newPos.x, newPos.y, newPos.z);
+        child.scale.set(newScale.x, newScale.y, newScale.z);
         clearSelectedObjects();
-        const attachHandles = function (item, dontResetSelections=false) {
-            // if the retach isnt loaded yet, skip
-            if (!retachAvailable) return;
-            if (item.userData.isGroundFloor) return;
-            // if the item is a helper object, select the parent or light instead
-            if (item.userData.selectParentInstead == true) item = item.parent;
-            if (item.type.includes("LightHelper")) item = item.light;
-            // if we already have it selected, forget about it!
-            if (selectedObjects.children.includes(item)) return;
-            // if we are holding shift, add to the selection
-            console.log(item.name, item.scale);
-            if (isHoldingShift == false && dontResetSelections == false) {
-                clearSelectedObjects();
-            }
+    }
+}
+clearSelectedObjects();
+const attachHandles = function (item, dontResetSelections=false) {
+    // if the retach isnt loaded yet, skip
+    if (!retachAvailable) return;
+    if (item.userData.isGroundFloor) return;
+    // if the item is a helper object, select the parent or light instead
+    if (item.userData.selectParentInstead == true) item = item.parent;
+    if (item.type.includes("LightHelper")) item = item.light;
+    // if we already have it selected, forget about it!
+    if (selectedObjects.children.includes(item)) return;
+    // if we are holding shift, add to the selection
+    if (isHoldingShift == false && dontResetSelections == false) {
+        clearSelectedObjects();
+    }
 
-            const itemWorldPos = new THREE.Vector3();
-            item.getWorldPosition(itemWorldPos);
+    const itemWorldPos = new THREE.Vector3();
+    item.getWorldPosition(itemWorldPos);
 
-            const cacheSelectedObjects = [];
-            selectedObjects.children.forEach(child => {
-                cacheSelectedObjects.push(child);
-            });
-            cacheSelectedObjects.push(item);
-            clearSelectedObjects();
-            selectedObjects.position.copy(itemWorldPos);
+    const cacheSelectedObjects = [];
+    selectedObjects.children.forEach(child => {
+        cacheSelectedObjects.push(child);
+    });
+    cacheSelectedObjects.push(item);
+    clearSelectedObjects();
+    selectedObjects.position.copy(itemWorldPos);
 
-            cacheSelectedObjects.forEach(child => {
-                selectedObjects.attach(child);
-            });
+    cacheSelectedObjects.forEach(child => {
+        selectedObjects.attach(child);
+    });
 
-            lastAttachedObject = item;
-            transformControls.visible = true;
+    lastAttachedObject = item;
+    transformControls.visible = true;
 
-            // transformControls.children.forEach(child => {
-            //     child.position.set(itemWorldPos.x, itemWorldPos.y, itemWorldPos.z);
-            // });
+    // transformControls.children.forEach(child => {
+    //     child.position.set(itemWorldPos.x, itemWorldPos.y, itemWorldPos.z);
+    // });
 
-            updateRightPanel(item);
+    updateRightPanel(item);
 
-        }
-        // ### UPDATING HIERARCHY PANEL ###
-        const updateLeftPanel = function () {
-            const list = document.querySelector("#scene-objects-list");
-            list.innerHTML = "";
-            const sceneObjects = [];
-            for (let i = 0; i < scene.children.length; i++) {
-                sceneObjects.push(scene.children[i]);
-            }
-            for (let i = 0; i < sceneObjects.length; i++) {
-                sceneObjects[i].updateMatrixWorld();
-                if (!sceneObjects[i].userData.existInGame) continue;
-                if (sceneObjects[i].userData.existInGame != false) {
-                    const item = document.createElement("li");
-                    item.innerHTML = sceneObjects[i].name;
+}
+// ### UPDATING HIERARCHY PANEL ###
+const updateLeftPanel = function () {
+    const list = document.querySelector("#scene-objects-list");
+    list.innerHTML = "";
+    const sceneObjects = [];
+    for (let i = 0; i < scene.children.length; i++) {
+        sceneObjects.push(scene.children[i]);
+    }
+    for (let i = 0; i < sceneObjects.length; i++) {
+        sceneObjects[i].updateMatrixWorld();
+        if (!sceneObjects[i].userData.existInGame) continue;
+        if (sceneObjects[i].userData.existInGame != false) {
+            const item = document.createElement("li");
+            item.innerHTML = sceneObjects[i].name;
 
-                    list.appendChild(item);
+            list.appendChild(item);
 
-                    item.addEventListener("click", function () {
-                        // add transform controls to the item
-                        var sceneObject;
-                        for (let i = 0; i < sceneObjects.length; i++) {
-                            if (sceneObjects[i].name == item.innerHTML) {
-                                sceneObject = sceneObjects[i];
-                                break;
-                            }
-                        }
-                        attachHandles(sceneObject);
-                        item.classList.add("active");
-                        for (let i = 0; i < list.children.length; i++) {
-                            if (list.children[i] !== item) {
-                                list.children[i].classList.remove("active");
-                            }
-                        }
-                    });
-                }
-            }
-
-            // for each element in the scene ,if it is a lighthelper and has no valid 'light' object assigned, remove it completely and run updateLeftPanel again
-            for (let i = 0; i < scene.children.length; i++) {
-                if (scene.children[i].isLightHelper) {
-                    if (scene.children[i].light == undefined) {
-                        scene.remove(scene.children[i]);
-                        updateLeftPanel();
+            item.addEventListener("click", function () {
+                // add transform controls to the item
+                var sceneObject;
+                for (let i = 0; i < sceneObjects.length; i++) {
+                    if (sceneObjects[i].name == item.innerHTML) {
+                        sceneObject = sceneObjects[i];
+                        break;
                     }
                 }
-            }
-        }
-        const addToScene = function (item) {
-            scene.add(item);
-            document.querySelector("#object-counter").innerHTML = parseInt(document.querySelector("#object-counter").innerHTML) + 1;
-            if (document.querySelector("#object-counter").innerHTML == 1) document.querySelector("#object-counter-label").innerHTML = " total object";
-            else document.querySelector("#object-counter-label").innerHTML = " total objects";
-
-            const list = document.querySelector("#scene-objects-list");
-
-            updateLeftPanel();
-        }
-        var mapHasGround = true;
-        const groundFloor = new THREE.Mesh(
-            new THREE.BoxGeometry(1, 1, 1),
-            new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
-        );
-        document.querySelector("#ground-color").addEventListener("input", function (e) { groundFloor.material.color.set(e.target.value); });
-        document.querySelector("#ground-scale").addEventListener("input", function (e) { groundFloor.scale.set(e.target.value, e.target.value, 1); });
-        groundFloor.scale.set(1000, 1000, 1);
-        groundFloor.name = "Ground Floor";
-        groundFloor.userData.doNotVoxelize = true;
-        groundFloor.userData.cannotBeRemoved = true;
-        groundFloor.userData.isGroundFloor = true;
-        groundFloor.rotation.x = Math.PI / 2;
-        groundFloor.position.y = -1;
-        DEFAULTOBJECTS.push(groundFloor);
-        addToScene(groundFloor);
-        let cameraHelper;
-        const addDefaultCamera = function () {
-            // adds a camerahelper as a placeholder for the camera
-            let defaultCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            defaultCamera.userData.existInGame = true;
-            defaultCamera.userData.cannotBeRemoved = true;
-            defaultCamera.name = "Main Camera";
-            defaultCamera.position.z = 5;
-            defaultCamera.position.y = 1;
-            addToScene(defaultCamera);
-
-            cameraHelper = new THREE.CameraHelper(defaultCamera);
-            cameraHelper.name = "Camera Helper";
-            cameraHelper.userData.existInGame = false;
-            cameraHelper.userData.cannotBeRemoved = true;
-            scene.add(cameraHelper);
-            DEFAULTOBJECTS.push(cameraHelper);
-        }
-        const addDefaultLight = function () {
-            let defaultLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
-            defaultLight.userData.existInGame = true;
-            defaultLight.name = "Hemisphere Light";
-            addToScene(defaultLight);
-            let hemisphereLightHelper = new THREE.HemisphereLightHelper(defaultLight, 1);
-            hemisphereLightHelper.name = "Hemisphere Light Helper";
-            hemisphereLightHelper.userData.existInGame = false;
-            scene.add(hemisphereLightHelper);
-            // DEFAULTOBJECTS.push(defaultLight);
-            // DEFAULTOBJECTS.push(hemisphereLightHelper);
-        }
-        addDefaultLight();
-        addDefaultCamera();
-        const removeFromScene = function (item) {
-            if (item.userData.cannotBeRemoved == true) return;
-            // if the item is of type light, scan the scene for any helpers for it
-            if (item.isLight == true) {
-                for (let i = 0; i < scene.children.length; i++) {
-                    const thisObj = scene.children[i];
-                    if (thisObj.light != undefined && thisObj.light == item) {
-                        thisObj.parent.remove(thisObj);
+                attachHandles(sceneObject);
+                item.classList.add("active");
+                for (let i = 0; i < list.children.length; i++) {
+                    if (list.children[i] !== item) {
+                        list.children[i].classList.remove("active");
                     }
                 }
-            }
-            // if transformControls is on it
-            // remove the item
-            item.parent.remove(item);
-            document.querySelector("#object-counter").innerHTML = parseInt(document.querySelector("#object-counter").innerHTML) - 1;
-            if (document.querySelector("#object-counter").innerHTML == 1) document.querySelector("#object-counter-label").innerHTML = " object";
-            else document.querySelector("#object-counter-label").innerHTML = " total objects";
+            });
+        }
+    }
 
-            updateLeftPanel();
-
-            // if it's in MAPOBJECTS, remove it
-            for (let i = 0; i < MAPOBJECTS.length; i++) {
-                if (MAPOBJECTS[i] == item) {
-                    MAPOBJECTS.splice(i, 1);
-                }
+    // for each element in the scene ,if it is a lighthelper and has no valid 'light' object assigned, remove it completely and run updateLeftPanel again
+    for (let i = 0; i < scene.children.length; i++) {
+        if (scene.children[i].isLightHelper) {
+            if (scene.children[i].light == undefined) {
+                scene.remove(scene.children[i]);
+                updateLeftPanel();
             }
         }
-        var centerPanelIsFullScreen = false;
-        var isHoldingShift = false;
-        document.body.addEventListener("keyup", function (event) {
-            if (event.key == "Shift") {
-                isHoldingShift = false;
+    }
+}
+const addToScene = function (item) {
+    scene.add(item);
+    document.querySelector("#object-counter").innerHTML = parseInt(document.querySelector("#object-counter").innerHTML) + 1;
+    if (document.querySelector("#object-counter").innerHTML == 1) document.querySelector("#object-counter-label").innerHTML = " total object";
+    else document.querySelector("#object-counter-label").innerHTML = " total objects";
+
+    const list = document.querySelector("#scene-objects-list");
+
+    updateLeftPanel();
+}
+var mapHasGround = true;
+const groundFloor = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
+);
+document.querySelector("#ground-color").addEventListener("input", function (e) { groundFloor.material.color.set(e.target.value); });
+document.querySelector("#ground-scale").addEventListener("input", function (e) { groundFloor.scale.set(e.target.value, e.target.value, 1); });
+groundFloor.scale.set(1000, 1000, 1);
+groundFloor.name = "Ground Floor";
+groundFloor.userData.doNotVoxelize = true;
+groundFloor.userData.cannotBeRemoved = true;
+groundFloor.userData.isGroundFloor = true;
+groundFloor.rotation.x = Math.PI / 2;
+groundFloor.position.y = -1;
+DEFAULTOBJECTS.push(groundFloor);
+addToScene(groundFloor);
+let cameraHelper;
+const addDefaultCamera = function () {
+    // adds a camerahelper as a placeholder for the camera
+    let defaultCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    defaultCamera.userData.existInGame = true;
+    defaultCamera.userData.cannotBeRemoved = true;
+    defaultCamera.name = "Main Camera";
+    defaultCamera.position.z = 5;
+    defaultCamera.position.y = 1;
+    addToScene(defaultCamera);
+
+    cameraHelper = new THREE.CameraHelper(defaultCamera);
+    cameraHelper.name = "Camera Helper";
+    cameraHelper.userData.existInGame = false;
+    cameraHelper.userData.cannotBeRemoved = true;
+    scene.add(cameraHelper);
+    DEFAULTOBJECTS.push(cameraHelper);
+}
+const addDefaultLight = function () {
+    let defaultLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
+    defaultLight.userData.existInGame = true;
+    defaultLight.name = "Hemisphere Light";
+    addToScene(defaultLight);
+    let hemisphereLightHelper = new THREE.HemisphereLightHelper(defaultLight, 1);
+    hemisphereLightHelper.name = "Hemisphere Light Helper";
+    hemisphereLightHelper.userData.existInGame = false;
+    scene.add(hemisphereLightHelper);
+    // DEFAULTOBJECTS.push(defaultLight);
+    // DEFAULTOBJECTS.push(hemisphereLightHelper);
+}
+addDefaultLight();
+addDefaultCamera();
+const removeFromScene = function (item) {
+    if (item.userData.cannotBeRemoved == true) return;
+    // if the item is of type light, scan the scene for any helpers for it
+    if (item.isLight == true) {
+        for (let i = 0; i < scene.children.length; i++) {
+            const thisObj = scene.children[i];
+            if (thisObj.light != undefined && thisObj.light == item) {
+                thisObj.parent.remove(thisObj);
             }
+        }
+    }
+    // if transformControls is on it
+    // remove the item
+    item.parent.remove(item);
+    document.querySelector("#object-counter").innerHTML = parseInt(document.querySelector("#object-counter").innerHTML) - 1;
+    if (document.querySelector("#object-counter").innerHTML == 1) document.querySelector("#object-counter-label").innerHTML = " object";
+    else document.querySelector("#object-counter-label").innerHTML = " total objects";
+
+    updateLeftPanel();
+
+    // if it's in MAPOBJECTS, remove it
+    for (let i = 0; i < MAPOBJECTS.length; i++) {
+        if (MAPOBJECTS[i] == item) {
+            MAPOBJECTS.splice(i, 1);
+        }
+    }
+}
+var centerPanelIsFullScreen = false;
+var isHoldingShift = false;
+document.body.addEventListener("keyup", function (event) {
+    if (event.key == "Shift") {
+        isHoldingShift = false;
+    }
+});
+document.body.addEventListener('keydown', function (event) {
+    // if press 'del' and there is an object selected, remove it
+    if (event.key == "Delete" && transformControls.object != undefined) {
+        selectedObjects.children.forEach(object => {
+            removeFromScene(object);
         });
-        document.body.addEventListener('keydown', function (event) {
-            // if press 'del' and there is an object selected, remove it
-            if (event.key == "Delete" && transformControls.object != undefined) {
+        clearSelectedObjects();
+    }
+    if (event.key == "Shift") {
+        isHoldingShift = true;
+    }
+    // if "escape" hide context menu
+    if (event.key == "Escape") {
+        document.querySelector("#right-click-menu").style.display = "none";
+    }
+    if (transformControls.object != undefined) {
+        switch (event.key) {
+            case 'w':
+                transformControls.setMode("translate");
+                break;
+            // case 'e':
+            //     transformControls.setMode("rotate");
+            //     break;
+            case 'r':
+                // set the scale Z -> x, X -> y, Y -> z
+                const scale = selectedObjects.scale;
+                selectedObjects.scale.set(scale.z, scale.x, scale.y);
+                console.log(selectedObjects.scale);
+                break;
+            case 't':
+                transformControls.setMode("scale");
+                break;
+            case 'd':
+                console.log("SO Scale: " + selectedObjects.scale.x, selectedObjects.scale.y, selectedObjects.scale.z);
+                console.log("Individual Scales:");
                 selectedObjects.children.forEach(object => {
-                    removeFromScene(object);
+                    console.log("\t" + object.name + ": " + object.scale.x, object.scale.y, object.scale.z);
                 });
-                clearSelectedObjects();
-            }
-            if (event.key == "Shift") {
-                isHoldingShift = true;
-            }
-            // if "escape" hide context menu
-            if (event.key == "Escape") {
-                document.querySelector("#right-click-menu").style.display = "none";
-            }
-            if (transformControls.object != undefined) {
-                switch (event.key) {
-                    case 'w':
-                        transformControls.setMode("translate");
-                        break;
-                    // case 'e':
-                    //     transformControls.setMode("rotate");
-                    //     break;
-                    case 'r':
-                        // set the scale Z -> x, X -> y, Y -> z
-                        const scale = selectedObjects.scale;
-                        selectedObjects.scale.set(scale.z, scale.x, scale.y);
-                        console.log(selectedObjects.scale);
-                        break;
-                    case 't':
-                        transformControls.setMode("scale");
-                        break;
-                }
-            }
-            // CTRL Commands
-            if (event.ctrlKey) {
-                switch (event.key) {
-                    case 'z':
-                        undo();
-                        break;
-                    case 'y':
-                        redo();
-                        break;
-                    case 'd':
-                        // prevent browser bookmark
-                        event.preventDefault();
-                        // if there is a selected object, duplicate it
-                        if (transformControls.object != undefined) {
-                            const oldSelectedObjects = Array.from(selectedObjects.children);
-                            clearSelectedObjects();
-                            oldSelectedObjects.forEach(old => {
-                                const clone = old.clone();
-                                clone.name += " (clone " + Math.floor(Math.random() * 1000) + ")";
-                                // clone the materials too
-                                if (clone.material != undefined) {
-                                    if (Array.isArray(clone.material)) {
-                                        for (let i = 0; i < clone.material.length; i++) {
-                                            clone.material[i] = clone.material[i].clone();
-                                        }
-                                    }
-                                    else {
-                                        clone.material = clone.material.clone();
-                                    }
-                                }
-                                addToScene(clone);
-                                attachHandles(clone, true);
-                                MAPOBJECTS.push(clone);
-                            });
-                        }
-                        break;
-                    case 'a':
-                        if (transformControls.object != undefined) {
-                            // select all objects
-                            clearSelectedObjects();
-                            for (let i = 0; i < MAPOBJECTS.length; i++) {
-                                const thisObj = MAPOBJECTS[i];
-                                if (thisObj.userData.existInGame == true) {
-                                    attachHandles(thisObj, true);
+        }
+    }
+    // CTRL Commands
+    if (event.ctrlKey) {
+        switch (event.key) {
+            case 'z':
+                undo();
+                break;
+            case 'y':
+                redo();
+                break;
+            case 'd':
+                // prevent browser bookmark
+                event.preventDefault();
+                // if there is a selected object, duplicate it
+                if (transformControls.object != undefined) {
+                    const oldSelectedObjects = Array.from(selectedObjects.children);
+                    clearSelectedObjects();
+                    oldSelectedObjects.forEach(old => {
+                        const clone = old.clone();
+                        clone.name += " (clone " + Math.floor(Math.random() * 1000) + ")";
+                        // clone the materials too
+                        if (clone.material != undefined) {
+                            if (Array.isArray(clone.material)) {
+                                for (let i = 0; i < clone.material.length; i++) {
+                                    clone.material[i] = clone.material[i].clone();
                                 }
                             }
+                            else {
+                                clone.material = clone.material.clone();
+                            }
                         }
-                    case 'w':
-                        // prevent default browser behavior
-                        event.preventDefault();
-                        break;
-                    case 'r':
-                        // prevent default browser behavior
-                        event.preventDefault();
-                        break;
-                    case 's':
-                        // prevent default browser behavior
-                        event.preventDefault();
-                        saveProject();
-                        break;
-                }
-            }
-            // Shift Commands
-            if (event.shiftKey) {
-                switch (event.key) {
-                    default:
-                        break;
-                    case ' ':
-                        console.log(centerPanelIsFullScreen);
-                        // make the center panel fill the entire screen (EXCEPT the top bar paneL)
-                        if (centerPanelIsFullScreen == false) {
-                            // style the center panel to fill
-                            document.querySelector("#center-panel").style.gridRow = "1 / 5";
-                            document.querySelector("#center-panel").style.gridColumn = "1 / 5";
-                            document.querySelector("#center-panel").style.zIndex = "100";
-                            centerPanelIsFullScreen = true;
-                        }
-                        else {
-                            document.querySelector("#center-panel").style.gridRow = "2 / 3";
-                            document.querySelector("#center-panel").style.gridColumn = "2 / 3";
-                            document.querySelector("#center-panel").style.zIndex = "0";
-                            centerPanelIsFullScreen = false;
-                        }
-                        adjustCanvasSize();
-                        break;
-                    case 'A':
-                        // prevent default browser behavior
-                        event.preventDefault();
-                        // invoke context menu
-                        console.log(1);
-                        invokeContextMenu();
-                        break;
-                }
-            }
-        });
-
-
-        // ### CONTEXT MENU
-        const rightClickMenu = document.querySelector("#right-click-menu");
-        const contextMenuClick = function (action) {
-            switch (action) {
-                //  ### Object Creation
-                case "Create Hollow Box":
-                    const cube = new THREE.Mesh(
-                        new THREE.BoxGeometry(1, 1, 1),
-                        new THREE.MeshBasicMaterial({
-                            color: randomColor(),
-                            side: THREE.DoubleSide
-                        })
-                    );
-                    cube.userData.existInGame = true;
-                    cube.userData.materialType = "Plastic";
-                    cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
-                    addToScene(cube);
-                    MAPOBJECTS.push(cube);
-                    break;
-                case "Create Point Light":
-                    const light = new THREE.PointLight(new THREE.Color(0xffffff), 1, 100);
-                    light.userData.existInGame = true;
-                    light.name = "Point Light - " + Math.floor(Math.random() * 1000);
-                    light.position.y = 1.5;
-                    addToScene(light);
-                    const helper = new THREE.PointLightHelper(light, 0.2);
-                    helper.userData.existInGame = false;
-                    scene.add(helper);
-                    MAPOBJECTS.push(light);
-                    break;
-                case "Create Spot Light":
-                    const spotLight = new THREE.SpotLight(randomColor(), 1, 100, Math.PI * 0.1, 0.25, 1);
-                    spotLight.userData.existInGame = true;
-                    spotLight.name = "Spot Light - " + Math.floor(Math.random() * 1000);
-                    spotLight.position.set(0, 2, 0);
-                    spotLight.castShadow = true;
-                    spotLight.shadow.mapSize.width = 1024;
-                    spotLight.shadow.mapSize.height = 1024;
-                    spotLight.shadow.camera.near = 0.5;
-                    spotLight.shadow.camera.far = 500;
-                    spotLight.shadow.camera.fov = 30;
-                    addToScene(spotLight);
-                    const spotLightHelper = new THREE.SpotLightHelper(spotLight);
-                    scene.add(spotLightHelper);
-                    // create a 'target' for the spotLightHelper, that follows the position of the spotlight's 'target', and add it to the userdata
-                    const spotLightHelperTarget = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.05, 16, 16),
-                        new THREE.MeshBasicMaterial({ color: 0xff0000 })
-                    );
-                    spotLightHelperTarget.userData.selectParentInstead = true;
-                    spotLightHelperTarget.userData.existInGame = false;
-                    spotLight.add(spotLightHelperTarget);
-                    spotLightHelperTarget.position.y -= 2;
-                    spotLight.target = spotLightHelperTarget;
-                    MAPOBJECTS.push(spotLight);
-                    break;
-                case "Create Directional Light":
-                    const directionalLight = new THREE.DirectionalLight(randomColor(), 1);
-                    directionalLight.userData.existInGame = true;
-                    directionalLight.name = "Directional Light - " + Math.floor(Math.random() * 1000);
-                    directionalLight.position.set(0, 2, 0);
-                    directionalLight.castShadow = true;
-                    addToScene(directionalLight);
-                    const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 0.2);
-                    scene.add(directionalLightHelper);
-
-                    const directionalLightHelperTarget = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.05, 16, 16),
-                        new THREE.MeshBasicMaterial({ color: 0xff0000 })
-                    );
-                    directionalLightHelperTarget.userData.selectParentInstead = true;
-                    directionalLightHelper.userData.existInGame = false;
-                    directionalLightHelperTarget.userData.existInGame = false;
-                    directionalLight.add(directionalLightHelperTarget);
-                    directionalLightHelperTarget.position.y -= 2;
-                    directionalLight.target = directionalLightHelperTarget;
-                    MAPOBJECTS.push(directionalLight);
-                    break;
-                case "Create Hemisphere Light":
-                    const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
-                    hemisphereLight.userData.existInGame = true;
-                    hemisphereLight.name = "Hemisphere Light - " + Math.floor(Math.random() * 1000);
-                    addToScene(hemisphereLight);
-                    // helper
-                    const hemisphereLightHelper = new THREE.HemisphereLightHelper(hemisphereLight, 0.2);
-                    hemisphereLightHelper.userData.existInGame = false;
-                    scene.add(hemisphereLightHelper);
-                    MAPOBJECTS.push(hemisphereLight);
-                    break;
-                case "Create Ambient Light":
-                    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-                    ambientLight.userData.existInGame = true;
-                    ambientLight.name = "Ambient Light - " + Math.floor(Math.random() * 1000);
-                    addToScene(ambientLight);
-                    MAPOBJECTS.push(ambientLight);
-                    break;
-                //  ### Object Manipulation
-                case "Delete Object":
-                    selectedObjects.forEach(selectedObject => {
-                        removeFromScene(selectedObject);
-                    });
-                    break;
-                case "Clone Object":
-                    selectedObjects.forEach(selectedObject => {
-                        const clone = selectedObject.clone();
-                        clone.name = selectedObject.name + " (Clone " + Math.floor(Math.random() * 1000) + ")";
                         addToScene(clone);
+                        attachHandles(clone, true);
                         MAPOBJECTS.push(clone);
                     });
-                    break;
-                default:
-                    console.log("Unassigned Action! [" + action + "]");
-                    break;
-            }
+                }
+                break;
+            case 'a':
+                if (transformControls.object != undefined) {
+                    // select all objects
+                    clearSelectedObjects();
+                    for (let i = 0; i < MAPOBJECTS.length; i++) {
+                        const thisObj = MAPOBJECTS[i];
+                        if (thisObj.userData.existInGame == true) {
+                            attachHandles(thisObj, true);
+                        }
+                    }
+                }
+            case 'w':
+                // prevent default browser behavior
+                event.preventDefault();
+                break;
+            case 'r':
+                // prevent default browser behavior
+                event.preventDefault();
+                break;
+            case 's':
+                // prevent default browser behavior
+                event.preventDefault();
+                saveProject();
+                break;
         }
-        const mouseDownPosition = new THREE.Vector2();
-        const mouseUpPosition = new THREE.Vector2();
-        document.addEventListener("mousedown", function (e) { mouseDownPosition.set(e.clientX, e.clientY); });
-        document.addEventListener("mouseup", function (e) { mouseUpPosition.set(e.clientX, e.clientY); });
-        const invokeContextMenu = function (e) {
-            const clickedElement = document.elementFromPoint(globalMousePosition.clientX, globalMousePosition.clientY);
-            const options = [];
-            if (clickedElement.id == "left-panel" || clickedElement.id == "editor-canvas") {
-                options.push("[] Add Geometry");
-                options.push("Create Hollow Box");
-                options.push("[] Add Lighting");
-                options.push("Create Point Light");
-                options.push("Create Spot Light");
-                options.push("Create Directional Light");
-                options.push("Create Hemisphere Light");
-                options.push("Create Ambient Light");
-            }
-            if (clickedElement.parentElement.id == "scene-objects-list") {
-                options.push("Delete Object");
-                options.push("Clone Object");
-            }
-            // if options is empty, return;
-            if (options.length == 0) {
-                rightClickMenu.style.display = "none";
-                return;
-            }
-            // empty the menu
-            rightClickMenu.innerHTML = "";
-            for (let i = 0; i < options.length; i++) {
-                // if it starts with [], create a <hr> with legend
-                if (options[i].startsWith("[]")) {
-                    const divider = document.createElement("div");
-                    divider.classList.add("context-menu-divider");
-                    divider.innerHTML = options[i].replace("[]", "");
-                    rightClickMenu.appendChild(divider);
-                    continue;
+    }
+    // Shift Commands
+    if (event.shiftKey) {
+        switch (event.key) {
+            default:
+                break;
+            case ' ':
+                console.log(centerPanelIsFullScreen);
+                // make the center panel fill the entire screen (EXCEPT the top bar paneL)
+                if (centerPanelIsFullScreen == false) {
+                    // style the center panel to fill
+                    document.querySelector("#center-panel").style.gridRow = "1 / 5";
+                    document.querySelector("#center-panel").style.gridColumn = "1 / 5";
+                    document.querySelector("#center-panel").style.zIndex = "100";
+                    centerPanelIsFullScreen = true;
                 }
-                const option = document.createElement("li");
-                option.innerHTML = options[i];
-                rightClickMenu.appendChild(option);
-                // add a click event listener
-                option.addEventListener("click", function () {
-                    // handle contextMenuClick with the innerhtml
-                    contextMenuClick(option.innerHTML);
-                });
-            }
-            rightClickMenu.style.display = "block";
-            rightClickMenu.style.animation = "fade-in 0.1s ease-in-out";
-            rightClickMenu.style.left = globalMousePosition.clientX + "px";
-            rightClickMenu.style.top = globalMousePosition.clientY + "px";
+                else {
+                    document.querySelector("#center-panel").style.gridRow = "2 / 3";
+                    document.querySelector("#center-panel").style.gridColumn = "2 / 3";
+                    document.querySelector("#center-panel").style.zIndex = "0";
+                    centerPanelIsFullScreen = false;
+                }
+                adjustCanvasSize();
+                break;
+            case 'A':
+                // prevent default browser behavior
+                event.preventDefault();
+                // invoke context menu
+                console.log(1);
+                invokeContextMenu();
+                break;
         }
-        document.body.addEventListener("contextmenu", function (e) {
-            e.preventDefault();
-            // if it's on #editor-canvas, return
-            if (e.target.id == "editor-canvas") {
-                return;
-            }
-            invokeContextMenu(e);
-        });
-        // on click out
-        document.body.addEventListener("click", function (e) {
-            rightClickMenu.style.display = "none";
-        });
+    }
+});
 
-        canvas.addEventListener("click", function (e) {
-            if (mouseUpPosition.distanceTo(mouseDownPosition) < 5) {
-                // shoot ray until first target is hit, attach transformControls to it
-                const raycaster = new THREE.Raycaster();
 
-                var mouse = new THREE.Vector2();
+// ### CONTEXT MENU
+const rightClickMenu = document.querySelector("#right-click-menu");
+const contextMenuClick = function (action) {
+    switch (action) {
+        //  ### Object Creation
+        case "Create Hollow Box":
+            const cube = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshBasicMaterial({
+                    color: randomColor(),
+                    side: THREE.DoubleSide
+                })
+            );
+            cube.userData.existInGame = true;
+            cube.userData.materialType = "Plastic";
+            cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
+            addToScene(cube);
+            MAPOBJECTS.push(cube);
+            break;
+        case "Create Point Light":
+            const light = new THREE.PointLight(new THREE.Color(0xffffff), 1, 100);
+            light.userData.existInGame = true;
+            light.name = "Point Light - " + Math.floor(Math.random() * 1000);
+            light.position.y = 1.5;
+            addToScene(light);
+            const helper = new THREE.PointLightHelper(light, 0.2);
+            helper.userData.existInGame = false;
+            scene.add(helper);
+            MAPOBJECTS.push(light);
+            break;
+        case "Create Spot Light":
+            const spotLight = new THREE.SpotLight(randomColor(), 1, 100, Math.PI * 0.1, 0.25, 1);
+            spotLight.userData.existInGame = true;
+            spotLight.name = "Spot Light - " + Math.floor(Math.random() * 1000);
+            spotLight.position.set(0, 2, 0);
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 1024;
+            spotLight.shadow.mapSize.height = 1024;
+            spotLight.shadow.camera.near = 0.5;
+            spotLight.shadow.camera.far = 500;
+            spotLight.shadow.camera.fov = 30;
+            addToScene(spotLight);
+            const spotLightHelper = new THREE.SpotLightHelper(spotLight);
+            scene.add(spotLightHelper);
+            // create a 'target' for the spotLightHelper, that follows the position of the spotlight's 'target', and add it to the userdata
+            const spotLightHelperTarget = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            spotLightHelperTarget.userData.selectParentInstead = true;
+            spotLightHelperTarget.userData.existInGame = false;
+            spotLight.add(spotLightHelperTarget);
+            spotLightHelperTarget.position.y -= 2;
+            spotLight.target = spotLightHelperTarget;
+            MAPOBJECTS.push(spotLight);
+            break;
+        case "Create Directional Light":
+            const directionalLight = new THREE.DirectionalLight(randomColor(), 1);
+            directionalLight.userData.existInGame = true;
+            directionalLight.name = "Directional Light - " + Math.floor(Math.random() * 1000);
+            directionalLight.position.set(0, 2, 0);
+            directionalLight.castShadow = true;
+            addToScene(directionalLight);
+            const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 0.2);
+            scene.add(directionalLightHelper);
 
-                const rect = renderer.domElement.getBoundingClientRect();
-                const x = globalMousePosition.clientX - rect.left;
-                const y = globalMousePosition.clientY - rect.top;
-
-                mouse.x = (x / canvas.clientWidth) * 2 - 1;
-                mouse.y = (y / canvas.clientHeight) * - 2 + 1
-
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(scene.children, true);
-
-                let index = 0;
-                if (intersects.length > 0) {
-                    // organize the interects by distance
-                    intersects.sort(function (a, b) {
-                        return a.distance - b.distance;
-                    });
-                    const disallowedObjects = [
-                        "TransformControlsGizmo",
-                        "TransformControlsPlane",
-                        "CameraHelper",
-                        "LineSegments",
-                        "Line",
-                    ]
-                    // remove any intersects that are, have a parent that is, or have a parent whose parent is, any disallowedObjects type
-                    for (let i = 0; i < intersects.length; i++) {
-                        if (disallowedObjects.includes(intersects[i].object.type)) {
-                            intersects.splice(i, 1);
-                            i--;
-                        }
-                        else if (intersects[i].object.parent != null && disallowedObjects.includes(intersects[i].object.parent.type)) {
-                            intersects.splice(i, 1);
-                            i--;
-                        }
-                        else if (intersects[i].object.parent != null && intersects[i].object.parent.parent != null && disallowedObjects.includes(intersects[i].object.parent.parent.type)) {
-                            intersects.splice(i, 1);
-                            i--;
-                        }
-                    }
-                    if (!intersects[index]) {
-                        clearSelectedObjects();
-                        return;
-                    }
-                    attachHandles(intersects[index].object);
-                    // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
-                    const list = document.querySelector("#scene-objects-list");
-                    for (let i = 0; i < list.children.length; i++) {
-                        if (list.children[i].innerHTML == intersects[index].object.name) {
-                            list.children[i].classList.add("active");
-                        }
-                        else {
-                            list.children[i].classList.remove("active");
-                        }
-                    }
-                }
-            }
-        });
-
-        // ### EXPORTING ###
-        // we will save the scene data into a JSON file, excluding any children we dont want
-
-        const saveProject = function () {
-            console.log("Saving...")
-            clearSelectedObjects(); // this will apply all scales outside of selectedObjects group
-
-            const metaData = {};
-            metaData.mapMakerSave = [];
-            MAPOBJECTS.forEach(mapObject => {
-                if (mapObject.isMesh) {
-                    // save the size, position, color
-                    metaData.mapMakerSave.push({
-                        "type": "box",
-                        "size": {
-                            "x": mapObject.scale.x,
-                            "y": mapObject.scale.y,
-                            "z": mapObject.scale.z
-                        },
-                        "position": {
-                            "x": mapObject.position.x,
-                            "y": mapObject.position.y,
-                            "z": mapObject.position.z
-                        },
-                        "rotation": {
-                            "x": mapObject.rotation.x,
-                            "y": mapObject.rotation.y,
-                            "z": mapObject.rotation.z
-                        },
-                        "material": mapObject.userData.materialType,
-                        "isCutaway": mapObject.userData.isCutaway,
-                        "color": {
-                            "r": mapObject.material.color.r,
-                            "g": mapObject.material.color.g,
-                            "b": mapObject.material.color.b
-                        }
-                    });
-                }
+            const directionalLightHelperTarget = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            directionalLightHelperTarget.userData.selectParentInstead = true;
+            directionalLightHelper.userData.existInGame = false;
+            directionalLightHelperTarget.userData.existInGame = false;
+            directionalLight.add(directionalLightHelperTarget);
+            directionalLightHelperTarget.position.y -= 2;
+            directionalLight.target = directionalLightHelperTarget;
+            MAPOBJECTS.push(directionalLight);
+            break;
+        case "Create Hemisphere Light":
+            const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
+            hemisphereLight.userData.existInGame = true;
+            hemisphereLight.name = "Hemisphere Light - " + Math.floor(Math.random() * 1000);
+            addToScene(hemisphereLight);
+            // helper
+            const hemisphereLightHelper = new THREE.HemisphereLightHelper(hemisphereLight, 0.2);
+            hemisphereLightHelper.userData.existInGame = false;
+            scene.add(hemisphereLightHelper);
+            MAPOBJECTS.push(hemisphereLight);
+            break;
+        case "Create Ambient Light":
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            ambientLight.userData.existInGame = true;
+            ambientLight.name = "Ambient Light - " + Math.floor(Math.random() * 1000);
+            addToScene(ambientLight);
+            MAPOBJECTS.push(ambientLight);
+            break;
+        //  ### Object Manipulation
+        case "Delete Object":
+            selectedObjects.forEach(selectedObject => {
+                removeFromScene(selectedObject);
             });
+            break;
+        case "Clone Object":
+            selectedObjects.forEach(selectedObject => {
+                const clone = selectedObject.clone();
+                clone.name = selectedObject.name + " (Clone " + Math.floor(Math.random() * 1000) + ")";
+                addToScene(clone);
+                MAPOBJECTS.push(clone);
+            });
+            break;
+        default:
+            console.log("Unassigned Action! [" + action + "]");
+            break;
+    }
+}
+const mouseDownPosition = new THREE.Vector2();
+const mouseUpPosition = new THREE.Vector2();
+document.addEventListener("mousedown", function (e) { mouseDownPosition.set(e.clientX, e.clientY); });
+document.addEventListener("mouseup", function (e) { mouseUpPosition.set(e.clientX, e.clientY); });
+const invokeContextMenu = function (e) {
+    const clickedElement = document.elementFromPoint(globalMousePosition.clientX, globalMousePosition.clientY);
+    const options = [];
+    if (clickedElement.id == "left-panel" || clickedElement.id == "editor-canvas") {
+        options.push("[] Add Geometry");
+        options.push("Create Hollow Box");
+        options.push("[] Add Lighting");
+        options.push("Create Point Light");
+        options.push("Create Spot Light");
+        options.push("Create Directional Light");
+        options.push("Create Hemisphere Light");
+        options.push("Create Ambient Light");
+    }
+    if (clickedElement.parentElement.id == "scene-objects-list") {
+        options.push("Delete Object");
+        options.push("Clone Object");
+    }
+    // if options is empty, return;
+    if (options.length == 0) {
+        rightClickMenu.style.display = "none";
+        return;
+    }
+    // empty the menu
+    rightClickMenu.innerHTML = "";
+    for (let i = 0; i < options.length; i++) {
+        // if it starts with [], create a <hr> with legend
+        if (options[i].startsWith("[]")) {
+            const divider = document.createElement("div");
+            divider.classList.add("context-menu-divider");
+            divider.innerHTML = options[i].replace("[]", "");
+            rightClickMenu.appendChild(divider);
+            continue;
+        }
+        const option = document.createElement("li");
+        option.innerHTML = options[i];
+        rightClickMenu.appendChild(option);
+        // add a click event listener
+        option.addEventListener("click", function () {
+            // handle contextMenuClick with the innerhtml
+            contextMenuClick(option.innerHTML);
+        });
+    }
+    rightClickMenu.style.display = "block";
+    rightClickMenu.style.animation = "fade-in 0.1s ease-in-out";
+    rightClickMenu.style.left = globalMousePosition.clientX + "px";
+    rightClickMenu.style.top = globalMousePosition.clientY + "px";
+}
+document.body.addEventListener("contextmenu", function (e) {
+    e.preventDefault();
+    // if it's on #editor-canvas, return
+    if (e.target.id == "editor-canvas") {
+        return;
+    }
+    invokeContextMenu(e);
+});
+// on click out
+document.body.addEventListener("click", function (e) {
+    rightClickMenu.style.display = "none";
+});
 
+canvas.addEventListener("click", function (e) {
+    if (mouseUpPosition.distanceTo(mouseDownPosition) < 5) {
+        // shoot ray until first target is hit, attach transformControls to it
+        const raycaster = new THREE.Raycaster();
 
+        var mouse = new THREE.Vector2();
 
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = globalMousePosition.clientX - rect.left;
+        const y = globalMousePosition.clientY - rect.top;
 
-            metaData.cameraData = {
-                "cameraPosition": {
-                    "x": cameraHelper.position.x,
-                    "y": cameraHelper.position.y,
-                    "z": cameraHelper.position.z
+        mouse.x = (x / canvas.clientWidth) * 2 - 1;
+        mouse.y = (y / canvas.clientHeight) * - 2 + 1
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(scene.children, true);
+
+        let index = 0;
+        if (intersects.length > 0) {
+            // organize the interects by distance
+            intersects.sort(function (a, b) {
+                return a.distance - b.distance;
+            });
+            const disallowedObjects = [
+                "TransformControlsGizmo",
+                "TransformControlsPlane",
+                "CameraHelper",
+                "LineSegments",
+                "Line",
+            ]
+            // remove any intersects that are, have a parent that is, or have a parent whose parent is, any disallowedObjects type
+            for (let i = 0; i < intersects.length; i++) {
+                if (disallowedObjects.includes(intersects[i].object.type)) {
+                    intersects.splice(i, 1);
+                    i--;
+                }
+                else if (intersects[i].object.parent != null && disallowedObjects.includes(intersects[i].object.parent.type)) {
+                    intersects.splice(i, 1);
+                    i--;
+                }
+                else if (intersects[i].object.parent != null && intersects[i].object.parent.parent != null && disallowedObjects.includes(intersects[i].object.parent.parent.type)) {
+                    intersects.splice(i, 1);
+                    i--;
+                }
+            }
+            if (!intersects[index]) {
+                clearSelectedObjects();
+                return;
+            }
+            attachHandles(intersects[index].object);
+            // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
+            const list = document.querySelector("#scene-objects-list");
+            for (let i = 0; i < list.children.length; i++) {
+                if (list.children[i].innerHTML == intersects[index].object.name) {
+                    list.children[i].classList.add("active");
+                }
+                else {
+                    list.children[i].classList.remove("active");
+                }
+            }
+        }
+    }
+});
+
+// ### EXPORTING ###
+// we will save the scene data into a JSON file, excluding any children we dont want
+
+const saveProject = function () {
+    console.log("Saving...")
+    clearSelectedObjects(); // this will apply all scales outside of selectedObjects group
+
+    const metaData = {};
+    metaData.mapMakerSave = [];
+    MAPOBJECTS.forEach(mapObject => {
+        if (mapObject.isMesh) {
+            // save the size, position, color
+            metaData.mapMakerSave.push({
+                "type": "box",
+                "size": {
+                    "x": Math.round(mapObject.scale.x), // We round again in case i ever add anything stupid in the future that would cause a decimal (post-typescript change)
+                    "y": Math.round(mapObject.scale.y),
+                    "z": Math.round(mapObject.scale.z)
                 },
-                "cameraRotation": {
-                    "x": cameraHelper.rotation.x,
-                    "y": cameraHelper.rotation.y,
-                    "z": cameraHelper.rotation.z
+                "position": {
+                    "x": Math.round(mapObject.position.x),
+                    "y": Math.round(mapObject.position.y),
+                    "z": Math.round(mapObject.position.z)
+                },
+                "rotation": {
+                    "x": mapObject.rotation.x,
+                    "y": mapObject.rotation.y,
+                    "z": mapObject.rotation.z
+                },
+                "material": mapObject.userData.materialType,
+                "isCutaway": mapObject.userData.isCutaway,
+                "color": {
+                    "r": mapObject.material.color.r,
+                    "g": mapObject.material.color.g,
+                    "b": mapObject.material.color.b
                 }
-            }
+            });
+        }
+    });
 
-            if (mapHasGround) {
-                metaData.groundData = {
-                    "groundSize": {
-                        "x": groundFloor.scale.x,
-                        "y": groundFloor.scale.y
-                    },
-                    "groundColor": {
-                        "r": groundFloor.material.color.r,
-                        "g": groundFloor.material.color.g,
-                        "b": groundFloor.material.color.b
+
+
+
+    metaData.cameraData = {
+        "cameraPosition": {
+            "x": cameraHelper.position.x,
+            "y": cameraHelper.position.y,
+            "z": cameraHelper.position.z
+        },
+        "cameraRotation": {
+            "x": cameraHelper.rotation.x,
+            "y": cameraHelper.rotation.y,
+            "z": cameraHelper.rotation.z
+        }
+    }
+
+    if (mapHasGround) {
+        metaData.groundData = {
+            "groundSize": {
+                "x": groundFloor.scale.x,
+                "y": groundFloor.scale.y
+            },
+            "groundColor": {
+                "r": groundFloor.material.color.r,
+                "g": groundFloor.material.color.g,
+                "b": groundFloor.material.color.b
+            }
+        }
+    }
+    else {
+        console.log("Skipping Ground [Removed from Scene]");
+    }
+
+    metaData.lightData = {
+        spotLights: [],
+        pointLights: [],
+        ambientLights: [],
+        hemiLights: []
+    }
+
+    // metaData.groundData = [];
+
+    var saveData = { voxels: [] }
+
+
+
+    var ipc = require('electron').ipcRenderer;
+    ipc.send('refresh-save', {
+        saveName: 'savedata'
+    });
+
+    ipc.on('ready-to-save', (event, arg) => {
+        ipc.send('init-new-savefile');
+        // SEND CAMERA DATA
+        ipc.send('savefile-add-custom-data', {
+            dataName: "cameraData",
+            data: JSON.stringify(metaData.cameraData)
+        });
+        // SEND LIGHTING DATA
+        ipc.send('savefile-add-custom-data', {
+            dataName: "lightData",
+            data: JSON.stringify(metaData.lightData)
+        });
+        // SEND GROUND DATA
+        ipc.send('savefile-add-custom-data', {
+            dataName: "groundData",
+            data: JSON.stringify(metaData.groundData)
+        });
+        // SAVE MAPMAKERSAVE
+        ipc.send('savefile-add-custom-data', {
+            dataName: "mapMakerSave",
+            data: JSON.stringify(metaData.mapMakerSave)
+        });
+        // END CUSTOM DATA
+        ipc.send('savefile-end-custom-data');
+        // ipc.send('init-new-savefile');
+
+
+        // var mapObjectsIndex = 0;
+        // const voxelizeMapObject = function(mapObject) {
+        //     if (mapObject.userData.doNotVoxelize == true) return;
+        //     // LIGHTS
+        //     if (mapObject.isLight) {
+        //         switch (mapObject.type) {
+        //             case "SpotLight":
+        //             metaData.lightData.spotLights.push({
+        //                     "position": {
+        //                         "x": mapObject.position.x,
+        //                         "y": mapObject.position.y,
+        //                         "z": mapObject.position.z
+        //                     },
+        //                     "targetPosition": {
+        //                         "x": mapObject.target.position.x,
+        //                         "y": mapObject.target.position.y,
+        //                         "z": mapObject.target.position.z
+        //                     },
+        //                     "color": {
+        //                         "r": mapObject.color.r,
+        //                         "g": mapObject.color.g,
+        //                         "b": mapObject.color.b
+        //                     },
+        //                     "intensity": mapObject.intensity,
+        //                     "distance": mapObject.distance,
+        //                     "angle": mapObject.angle,
+        //                     "penumbra": mapObject.penumbra,
+        //                     "decay": mapObject.decay
+        //                 });
+        //                 break;
+        //             case "PointLight":
+        //             metaData.lightData.pointLights.push({
+        //                     "position": {
+        //                         "x": mapObject.position.x,
+        //                         "y": mapObject.position.y,
+        //                         "z": mapObject.position.z
+        //                     },
+        //                     "color": {
+        //                         "r": mapObject.color.r,
+        //                         "g": mapObject.color.g,
+        //                         "b": mapObject.color.b
+        //                     },
+        //                     "intensity": mapObject.intensity,
+        //                     "distance": mapObject.distance,
+        //                     "decay": mapObject.decay
+        //                 });
+        //                 break;
+        //             case "HemisphereLight":
+        //             metaData.lightData.hemiLights.push({
+        //                     "position": {
+        //                         "x": mapObject.position.x,
+        //                         "y": mapObject.position.y,
+        //                         "z": mapObject.position.z
+        //                     },
+        //                     "color": {
+        //                         "r": mapObject.color.r,
+        //                         "g": mapObject.color.g,
+        //                         "b": mapObject.color.b
+        //                     },
+        //                     "groundColor": {
+        //                         "r": mapObject.groundColor.r,
+        //                         "g": mapObject.groundColor.g,
+        //                         "b": mapObject.groundColor.b
+        //                     },
+        //                     "intensity": mapObject.intensity
+        //                 });
+        //                 break;
+        //             case "AmbientLight":
+        //             metaData.lightData.ambientLights.push({
+        //                     "color": {
+        //                         "r": mapObject.color.r,
+        //                         "g": mapObject.color.g,
+        //                         "b": mapObject.color.b
+        //                     },
+        //                     "intensity": mapObject.intensity
+        //                 });
+        //                 break;
+        //         }
+        //     }
+        //     // MESHES
+        //     if (mapObject.isMesh) {
+        //         const color = mapObject.material.color;
+        //         const r = parseInt(Math.round(color.r * 255));
+        //         const g = parseInt(Math.round(color.g * 255));
+        //         const b = parseInt(Math.round(color.b * 255));
+        //         // if it's not an instanceMesh
+        //         if (!mapObject.isInstanceMesh) {
+        //             const size = mapObject.scale.clone();
+        //             // absolute value
+        //             size.x = Math.abs(size.x);
+        //             size.y = Math.abs(size.y);
+        //             size.z = Math.abs(size.z);
+        //             const position = mapObject.position.clone();
+        //             position.x -= size.x / 2;
+        //             position.y -= size.y / 2;
+        //             position.z -= size.z / 2;
+
+        //             const uploadChunk = function() {
+        //                 const chunk = JSON.stringify(saveData.voxels);
+        //                 const JSONSaveData = { voxels: chunk };
+        //                 ipc.send('savefile-add-voxel-chunk', JSONSaveData);
+        //             }
+
+        //             const voxelCount = size.x * size.y * size.z;
+        //             const intervalSize = 2090000;
+        //             var counter = 0;
+
+        //             for (let x = 0; x < size.x; x++) {
+        //                 for (let y = 0; y < size.y; y++) {
+        //                     for (let z = 0; z < size.z; z++) {
+        //                         saveData.voxels.push(
+        //                             position.x + x,
+        //                             position.y + y,
+        //                             position.z + z,
+        //                             r,
+        //                             g,
+        //                             b
+        //                         );
+        //                         counter++;
+        //                         if (counter >= intervalSize) {
+        //                             counter = 0;
+
+        //                             uploadChunk();
+
+        //                             saveData.voxels = [];
+        //                         }
+        //                     }
+        //                 }
+        //             }
+
+        //             if (saveData.voxels.length > 0) uploadChunk();
+        //         }
+        //         else {
+        //             for (let i = 0; i < mapObject.count; i++) {
+        //                 // get the voxel's position in the instanceMesh
+        //                 const voxelPosition = new THREE.Vector3();
+        //                 mapObject.getMatrixAt(i, voxelPosition);
+
+        //                 // get the voxel's color
+        //                 const voxelColor = new THREE.Color();
+        //                 mapObject.getColorAt(i, voxelColor);
+
+        //                 // save the voxel
+        //                 saveData.voxels.push({
+        //                     "x": voxelPosition.x,
+        //                     "y": voxelPosition.y,
+        //                     "z": voxelPosition.z,
+        //                     "r": voxelColor.r,
+        //                     "g": voxelColor.g,
+        //                     "b": voxelColor.b
+        //                 });
+        //             }
+        //         }
+        //     }
+        // }
+
+        // voxelizeMapObject(MAPOBJECTS[mapObjectsIndex]);
+
+        console.log("Written Successfully.");
+    });
+
+}
+
+document.querySelector("#save-button").addEventListener("click", function () {
+    saveProject();
+});
+
+// ### OPENING ###
+// we will ask the user for a file, and load it into the scene
+const importProject = function () {
+    console.log("Importing...")
+    clearSelectedObjects();
+
+    // ask for a file
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = e => {
+        var file = e.target.files[0];
+        var reader = new FileReader();
+        reader.readAsText(file, 'UTF-8');
+
+        reader.onload = readerEvent => {
+            var content = readerEvent.target.result;
+            const parsedJSON = JSON.parse(content);
+            const mapMakerSaveData = parsedJSON.mapMakerSave;
+            console.log(mapMakerSaveData);
+
+            mapMakerSaveData.forEach(mapMakerObject => {
+                if (mapMakerObject.type == "box") {
+                    const newBox = new THREE.Mesh(
+                        new THREE.BoxGeometry(1, 1, 1),
+                        new THREE.MeshStandardMaterial({
+                            color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
+                            map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
+                        })
+                    );
+                    newBox.material.map.magFilter = THREE.NearestFilter;
+                    newBox.material.map.wrapS = THREE.RepeatWrapping;
+                    newBox.material.map.wrapT = THREE.RepeatWrapping;
+                    realignTexture(newBox);
+                    newBox.name = mapMakerObject.material + " Box " + Math.floor(Math.random() * 100);
+                    newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
+                    newBox.userData.materialType = mapMakerObject.material;
+                    newBox.userData.isCutaway = mapMakerObject.isCutaway;
+                    if (mapMakerObject.isCutaway) {
+                        newBox.material = cutawayMaterial;
                     }
+                    newBox.userData.existInGame = true;
+                    addToScene(newBox);
+                    MAPOBJECTS.push(newBox);
+                    newBox.scale.x = mapMakerObject.size.x;
+                    newBox.scale.y = mapMakerObject.size.y;
+                    newBox.scale.z = mapMakerObject.size.z;
                 }
-            }
-            else {
-                console.log("Skipping Ground [Removed from Scene]");
-            }
+            })
 
-            metaData.lightData = {
-                spotLights: [],
-                pointLights: [],
-                ambientLights: [],
-                hemiLights: []
-            }
+            const mapMakerGroundData = parsedJSON.groundData;
+            groundFloor.scale.set(mapMakerGroundData.groundSize.x, mapMakerGroundData.groundSize.y, mapMakerGroundData.groundSize.z);
+            groundFloor.material.color.r = mapMakerGroundData.groundColor.r;
+            groundFloor.material.color.g = mapMakerGroundData.groundColor.g;
+            groundFloor.material.color.b = mapMakerGroundData.groundColor.b;
 
-            // metaData.groundData = [];
-
-            var saveData = { voxels: [] }
-
-
-
-            var ipc = require('electron').ipcRenderer;
-            ipc.send('refresh-save', {
-                saveName: 'savedata'
-            });
-
-            ipc.on('ready-to-save', (event, arg) => {
-                ipc.send('init-new-savefile');
-                // SEND CAMERA DATA
-                ipc.send('savefile-add-custom-data', {
-                    dataName: "cameraData",
-                    data: JSON.stringify(metaData.cameraData)
-                });
-                // SEND LIGHTING DATA
-                ipc.send('savefile-add-custom-data', {
-                    dataName: "lightData",
-                    data: JSON.stringify(metaData.lightData)
-                });
-                // SEND GROUND DATA
-                ipc.send('savefile-add-custom-data', {
-                    dataName: "groundData",
-                    data: JSON.stringify(metaData.groundData)
-                });
-                // SAVE MAPMAKERSAVE
-                ipc.send('savefile-add-custom-data', {
-                    dataName: "mapMakerSave",
-                    data: JSON.stringify(metaData.mapMakerSave)
-                });
-                // END CUSTOM DATA
-                ipc.send('savefile-end-custom-data');
-                // ipc.send('init-new-savefile');
-
-
-                // var mapObjectsIndex = 0;
-                // const voxelizeMapObject = function(mapObject) {
-                //     if (mapObject.userData.doNotVoxelize == true) return;
-                //     // LIGHTS
-                //     if (mapObject.isLight) {
-                //         switch (mapObject.type) {
-                //             case "SpotLight":
-                //             metaData.lightData.spotLights.push({
-                //                     "position": {
-                //                         "x": mapObject.position.x,
-                //                         "y": mapObject.position.y,
-                //                         "z": mapObject.position.z
-                //                     },
-                //                     "targetPosition": {
-                //                         "x": mapObject.target.position.x,
-                //                         "y": mapObject.target.position.y,
-                //                         "z": mapObject.target.position.z
-                //                     },
-                //                     "color": {
-                //                         "r": mapObject.color.r,
-                //                         "g": mapObject.color.g,
-                //                         "b": mapObject.color.b
-                //                     },
-                //                     "intensity": mapObject.intensity,
-                //                     "distance": mapObject.distance,
-                //                     "angle": mapObject.angle,
-                //                     "penumbra": mapObject.penumbra,
-                //                     "decay": mapObject.decay
-                //                 });
-                //                 break;
-                //             case "PointLight":
-                //             metaData.lightData.pointLights.push({
-                //                     "position": {
-                //                         "x": mapObject.position.x,
-                //                         "y": mapObject.position.y,
-                //                         "z": mapObject.position.z
-                //                     },
-                //                     "color": {
-                //                         "r": mapObject.color.r,
-                //                         "g": mapObject.color.g,
-                //                         "b": mapObject.color.b
-                //                     },
-                //                     "intensity": mapObject.intensity,
-                //                     "distance": mapObject.distance,
-                //                     "decay": mapObject.decay
-                //                 });
-                //                 break;
-                //             case "HemisphereLight":
-                //             metaData.lightData.hemiLights.push({
-                //                     "position": {
-                //                         "x": mapObject.position.x,
-                //                         "y": mapObject.position.y,
-                //                         "z": mapObject.position.z
-                //                     },
-                //                     "color": {
-                //                         "r": mapObject.color.r,
-                //                         "g": mapObject.color.g,
-                //                         "b": mapObject.color.b
-                //                     },
-                //                     "groundColor": {
-                //                         "r": mapObject.groundColor.r,
-                //                         "g": mapObject.groundColor.g,
-                //                         "b": mapObject.groundColor.b
-                //                     },
-                //                     "intensity": mapObject.intensity
-                //                 });
-                //                 break;
-                //             case "AmbientLight":
-                //             metaData.lightData.ambientLights.push({
-                //                     "color": {
-                //                         "r": mapObject.color.r,
-                //                         "g": mapObject.color.g,
-                //                         "b": mapObject.color.b
-                //                     },
-                //                     "intensity": mapObject.intensity
-                //                 });
-                //                 break;
-                //         }
-                //     }
-                //     // MESHES
-                //     if (mapObject.isMesh) {
-                //         const color = mapObject.material.color;
-                //         const r = parseInt(Math.round(color.r * 255));
-                //         const g = parseInt(Math.round(color.g * 255));
-                //         const b = parseInt(Math.round(color.b * 255));
-                //         // if it's not an instanceMesh
-                //         if (!mapObject.isInstanceMesh) {
-                //             const size = mapObject.scale.clone();
-                //             // absolute value
-                //             size.x = Math.abs(size.x);
-                //             size.y = Math.abs(size.y);
-                //             size.z = Math.abs(size.z);
-                //             const position = mapObject.position.clone();
-                //             position.x -= size.x / 2;
-                //             position.y -= size.y / 2;
-                //             position.z -= size.z / 2;
-
-                //             const uploadChunk = function() {
-                //                 const chunk = JSON.stringify(saveData.voxels);
-                //                 const JSONSaveData = { voxels: chunk };
-                //                 ipc.send('savefile-add-voxel-chunk', JSONSaveData);
-                //             }
-
-                //             const voxelCount = size.x * size.y * size.z;
-                //             const intervalSize = 2090000;
-                //             var counter = 0;
-
-                //             for (let x = 0; x < size.x; x++) {
-                //                 for (let y = 0; y < size.y; y++) {
-                //                     for (let z = 0; z < size.z; z++) {
-                //                         saveData.voxels.push(
-                //                             position.x + x,
-                //                             position.y + y,
-                //                             position.z + z,
-                //                             r,
-                //                             g,
-                //                             b
-                //                         );
-                //                         counter++;
-                //                         if (counter >= intervalSize) {
-                //                             counter = 0;
-
-                //                             uploadChunk();
-
-                //                             saveData.voxels = [];
-                //                         }
-                //                     }
-                //                 }
-                //             }
-
-                //             if (saveData.voxels.length > 0) uploadChunk();
-                //         }
-                //         else {
-                //             for (let i = 0; i < mapObject.count; i++) {
-                //                 // get the voxel's position in the instanceMesh
-                //                 const voxelPosition = new THREE.Vector3();
-                //                 mapObject.getMatrixAt(i, voxelPosition);
-
-                //                 // get the voxel's color
-                //                 const voxelColor = new THREE.Color();
-                //                 mapObject.getColorAt(i, voxelColor);
-
-                //                 // save the voxel
-                //                 saveData.voxels.push({
-                //                     "x": voxelPosition.x,
-                //                     "y": voxelPosition.y,
-                //                     "z": voxelPosition.z,
-                //                     "r": voxelColor.r,
-                //                     "g": voxelColor.g,
-                //                     "b": voxelColor.b
-                //                 });
-                //             }
-                //         }
-                //     }
-                // }
-
-                // voxelizeMapObject(MAPOBJECTS[mapObjectsIndex]);
-
-                console.log("Written Successfully.");
-            });
-
+            updateLeftPanel();
+            // scene.add(selectedObjects);
         }
+    }
+    input.click();
+}
 
-        document.querySelector("#save-button").addEventListener("click", function () {
-            saveProject();
-        });
-
-        // ### OPENING ###
-        // we will ask the user for a file, and load it into the scene
-        const importProject = function () {
-            console.log("Importing...")
-            clearSelectedObjects();
-
-            // ask for a file
-            var input = document.createElement('input');
-            input.type = 'file';
-            input.onchange = e => {
-                var file = e.target.files[0];
-                var reader = new FileReader();
-                reader.readAsText(file, 'UTF-8');
-
-                reader.onload = readerEvent => {
-                    var content = readerEvent.target.result;
-                    const parsedJSON = JSON.parse(content);
-                    const mapMakerSaveData = parsedJSON.mapMakerSave;
-                    console.log(mapMakerSaveData);
-
-                    mapMakerSaveData.forEach(mapMakerObject => {
-                        if (mapMakerObject.type == "box") {
-                            const newBox = new THREE.Mesh(
-                                new THREE.BoxGeometry(1, 1, 1),
-                                new THREE.MeshStandardMaterial({
-                                    color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b)
-                                })
-                            );
-                            newBox.name = mapMakerObject.material + " Box " + Math.floor(Math.random() * 100);
-                            newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
-                            newBox.userData.materialType = mapMakerObject.material;
-                            newBox.userData.isCutaway = mapMakerObject.isCutaway;
-                            if (mapMakerObject.isCutaway) {
-                                newBox.material = cutawayMaterial;
-                            }
-                            newBox.userData.existInGame = true;
-                            addToScene(newBox);
-                            MAPOBJECTS.push(newBox);
-                            newBox.scale.x = mapMakerObject.size.x;
-                            newBox.scale.y = mapMakerObject.size.y;
-                            newBox.scale.z = mapMakerObject.size.z;
-                        }
-                    })
-
-                    const mapMakerGroundData = parsedJSON.groundData;
-                    groundFloor.scale.set(mapMakerGroundData.groundSize.x, mapMakerGroundData.groundSize.y, mapMakerGroundData.groundSize.z);
-                    groundFloor.material.color.r = mapMakerGroundData.groundColor.r;
-                    groundFloor.material.color.g = mapMakerGroundData.groundColor.g;
-                    groundFloor.material.color.b = mapMakerGroundData.groundColor.b;
-
-                    updateLeftPanel();
-                    // scene.add(selectedObjects);
-                }
-            }
-            input.click();
-        }
-
-        document.querySelector("#import-button").addEventListener("click", function () {
-            importProject();
-        });
+document.querySelector("#import-button").addEventListener("click", function () {
+    importProject();
+});
 
     </script>
 

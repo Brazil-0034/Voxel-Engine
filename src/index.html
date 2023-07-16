@@ -206,7 +206,7 @@ var frameInfo = { FPS: 0, frameTime: 0, drawCalls: 0 };
 pane.addMonitor(frameInfo, 'FPS', {
 	view: 'graph',
 	min: 0,
-	max: 60,
+	max: 85 + 1,
 	interval: 100
 });
 pane.addMonitor(frameInfo, 'FPS', {
@@ -378,6 +378,8 @@ renderer.gammaFactor = 2.2
 // The most popular language in the world feels like its in its infancy
 // what shitholes designed this??
 
+// ^ note from the future: i dont remembe why i wrote this or why i was so angry. that code seems to be missing now.
+
 // LIGHTING
 // Initializes the THREE.js lighting
 // const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -547,15 +549,6 @@ class DiscreteVectorField {
 		if (!this.field[x][y][z]) {
 			this.field[x][y][z] = []
 		}
-		if (face == null)
-		{
-			face = this.get(x, y, z).face;
-			if (face == null)
-			{
-				console.error("No Face for voxel at ", x, y, z, " provided. Failed to build model.");
-				return;
-			}
-		}
 		this.field[x][y][z] = new blockData(
 			value,
 			new THREE.Vector3(x, y, z),
@@ -648,47 +641,18 @@ const crouchSpeed = 7.5;
 const playerHeight = 60;
 const crouchYPosition = playerHeight - crouchDepth;
 
-const cutawayStack = [];
+// CUTAWAYS: These allow map builders to make "cuts" in the map, using either cuboids or spheres
+// They act as a pre-filter for the world builder, masking out sections voxels should NOT be placed at
+const cutawayField = new DiscreteVectorField();
 const addToCutawayStack = function(scale, position) {
-	cutawayStack.push({
-		scale: scale,
-		position: position
-	});
-}
-
-const clearCutaways = function() {
-	cutawayStack.forEach(cutaway => {
-		for (let x = 0; x < cutaway.scale.x; x++)
-		{
-			for (let y = 0; y < cutaway.scale.y; y++)
-			{
-				for (let z = 0; z < cutaway.scale.z; z++)
-				{
-					const thisVoxel = voxelField.get(
-						cutaway.position.x + x,
-						cutaway.position.y + y,
-						cutaway.position.z + z
-					);
-
-					if (thisVoxel != null)
-					{
-						voxelField.set(
-							cutaway.position.x + x,
-							cutaway.position.y + y,
-							cutaway.position.z + z,
-							0,
-							thisVoxel.indexInChunk,
-							thisVoxel.chunk
-						);
-						console.log(1);
-
-						thisVoxel.chunk.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4().makeTranslation(0, -2, 0));
-						thisVoxel.chunk.needsUpdate = true;
-					}
-				}
+	console.log("Added a cutaway at " + position.x + ", " + position.y + ", " + position.z + " with scale " + scale);
+	for (let x = position.x - (scale.x / 2); x < position.x + (scale.x / 2); x++) {
+		for (let y = position.y - (scale.y / 2); y < position.y + (scale.y / 2); y++) {
+			for (let z = position.z - (scale.z / 2); z < position.z + (scale.z / 2); z++) {
+				cutawayField.set(x, y, z, 1);
 			}
 		}
-	});
+	}
 }
 
 let groundSize;
@@ -732,6 +696,18 @@ const generateWorld = function (modelURL) {
 
 			const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
 
+			// Filter 1: Cutaways
+			// These must be processed BEFORE boxes, but by nature can exist in save files in random order
+			mapObjects.forEach(mapObject => {
+				if (mapObject.type == "box" && mapObject.isCutaway == true)
+				{
+					addToCutawayStack(mapObject.size, mapObject.position);
+					mapObjects.splice(mapObjects.indexOf(mapObject), 1);
+				}
+			});
+
+			// Filter 2: Boxes
+			// These are the most standard world object, and are the quickest to process
 			mapObjects.forEach(mapObject => {
 				if (mapObject.type == "box") {
 					const mod = 1;
@@ -755,21 +731,11 @@ const generateWorld = function (modelURL) {
 					position.x -= scale.x / 2;
 					position.y -= scale.y / 2;
 					position.z -= scale.z / 2;
-					
-					if (!mapObject.isCutaway || mapObject.isCutaway == false)
-					{
-						// Normal Objects (Boxes)
-						buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.isCutaway);
-					}
-					else
-					{
-						// Cutaways
-						addToCutawayStack(scale, position);
-					}
+
+					// Normal Objects (Boxes)
+					buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.isCutaway);
 				}
 			});
-			// Performs all cutaway operations
-			clearCutaways();
 		});
 
 	});
@@ -885,7 +851,11 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		}
 
 		const setVoxel = function (voxelPosition,voxelFace,voxelColor) {
-			// first, check if a voxel already exists here.
+			// first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
+			if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) {
+				// if so, skip this voxel
+				return;
+			}
 			const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
 			var adjustMinMax = true;
 			if (voxel != null && voxel.value != 0) {
