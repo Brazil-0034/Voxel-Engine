@@ -148,7 +148,6 @@
 		}
 	</style>
 	<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
-
 	<script type="importmap">
 			{
 				"imports": {
@@ -158,6 +157,7 @@
 				}
 			}
 	</script>
+	<script src="howler/howler.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script>
 	<script src="canvasPixelReader.js"></script>
 <script type="module">
@@ -318,6 +318,7 @@ class LodBox {
 	}
 }
 
+const SFXVolume = 0.05;
 // ##########
 // NPC ENGINE
 // ##########
@@ -325,25 +326,32 @@ class LodBox {
 const globalModelLoader = new FBXLoader();
 const globalTextureLoader = new THREE.TextureLoader();
 const NPCBank = [];
+const deathSound = new Howl({
+	src: ['sfx/kill_ding.wav'],
+	volume: SFXVolume * 10
+});
 // This will be the main system for spawning and handling NPC behavior
 class NPC {
-	sceneObject
-	npcObject
+	sceneObject // the scene object of the npc - includes the mesh, bones, etc
+	npcObject // just the mesh object of the npc (children[0] of sceneObject)
 	
-	health
-	speed
+	health // health of NPC remaining
+	speed // how fast he move -->
 
-	runAnimation
-	idleAnimation
-	mixer
+	runAnimation // u alr know
+	idleAnimation // this too
+	mixer // 3js anim mixer (per-npc until instanced skinning makes its way into main branch)
 
 	// This will build the NPC (setting idle/run animation and loading model into scene)
-	constructor(npcName, texturePath, position, rotation, speed) {
+	constructor(npcName, texturePath, position, rotation, speed, health) {
 		this.speed = speed;
+		this.health = health;
 		const basePath = 'character_models/' + npcName + '/';
 		globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
 			// STEP 1: ASSIGN MATERIALS
 			this.sceneObject = object;
+			this.npcObject = object.children[0];
+			this.npcObject.npcHandler = this;
 			this.sceneObject.traverse(function (childObject) {
 				if (childObject.isMesh) {
 					childObject.castShadow = true;
@@ -374,13 +382,22 @@ class NPC {
 			// And lastly... add it to the scene!
 			if (Math.random() > 0.5) this.sceneObject.scale.x *= -1;
 			scene.add(this.sceneObject);
-			console.log(this.sceneObject)
-		},
-		(error) => {
-			console.log(error);
+
+			// add a helper to the bounding sphere
+			// compute bounding sphere
+			this.npcObject.geometry.computeBoundingSphere();
+			this.npcObject.geometry.boundingSphere.set(this.npcObject.position, 512);
 		});
 
 		NPCBank.push(this);
+	}
+
+	depleteHealth(amount) {
+		this.health -= amount;
+		if (this.health <= 0) {
+			deathSound.play();
+			this.despawn();
+		}
 	}
 
 	// This will update the NPC's behavior (every frame)
@@ -403,7 +420,8 @@ class NPC {
 		}
 		this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
 
-		
+		// lerp the color to 0xffffff
+		this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
 
 		// If too far, move closer
 		const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
@@ -423,12 +441,14 @@ class NPC {
 	}
 
 	despawn() {
-		scene.remove(this.sceneObject);
-		NPCBank.splice(NPCBank.indexOf(this), 1);
+		this.npcObject.material.color = new THREE.Color(0x00ff00);
+		this.sceneObject.remove(this.npcObject);
+		this.npcObject.geometry.dispose();
+		this.npcObject.material.dispose();
 	}
 }
 
-const sRange = 500;
+const sRange = 250;
 for (let i = 0; i < 10; i++)
 {
 	const testDummy = new NPC(
@@ -442,7 +462,8 @@ for (let i = 0; i < 10; i++)
 			0,
 			Math.random() * Math.PI * 2,
 			0),
-		100 + Math.random() * 100);
+		100 + Math.random() * 100,
+		100);
 }
 
 class ParticleMesh extends THREE.Points {
@@ -608,7 +629,8 @@ var weaponRange = 500,
 	weaponPlacementOffset,
 	weaponHelpText,
 	weaponType,
-	rateOfFire, // time in ms in between attacks()
+	weaponDamage,
+	fireRate, // time in ms in between attacks()
 	destroyedChunkRange, // max distance for voxel destruction from intersection
 	percentMissedHits // minimum % that must be destroyed
 
@@ -1183,7 +1205,8 @@ const generateWeaponModel = function (basePath) {
 				weaponType = jsonModel.weaponData.type;
 				percentMissedHits = jsonModel.weaponData.basepotency;
 				destroyedChunkRange = jsonModel.weaponData.damageRange;
-				rateOfFire = jsonModel.weaponData.fireRate;
+				fireRate = jsonModel.weaponData.fireRate;
+				weaponDamage = jsonModel.weaponData.weaponDamage;
 				weaponHelpText = jsonModel.weaponData.helpText;
 				// finally, add the weapon to the scene
 				scene.add(weaponModel);
@@ -1400,19 +1423,6 @@ var isLeftClicking = false;
 document.addEventListener('mousedown', (e) => { if (e.button != 0) return; isLeftClicking = true; });
 document.addEventListener('mouseup', (e) => { if (e.button != 0) return; isLeftClicking = false; });
 
-// MUZZLE FLASH (for weapons)
-const muzzleFlash = new THREE.Mesh(
-	new THREE.ConeGeometry(5, 75, 8, 1),
-	new THREE.MeshBasicMaterial({
-		color: 0xffd6c4
-	})
-);
-muzzleFlash.rotation.z = Math.PI / 2;
-muzzleFlash.rotation.y = -Math.PI / 2;
-muzzleFlash.name = "muzzleFlash";
-
-// muzzleFlash.onBeforeRender = function (renderer) { renderer.clearDepth(); };
-
 var isAttackAvailable = true;
 
 /*
@@ -1437,10 +1447,20 @@ const elasticLerp = function (a, b, t) {
 // this renders things. separate from the physics loop.
 const clock = new THREE.Clock();
 var frameCounter = 0;
-var weaponStartPosition;
 var defaultInstancedWeaponTargetPosition;
 var crouchLerp = 0;
 var loaderRemoved = false;
+const raycaster = new THREE.Raycaster();
+
+const hitSound = new Howl({
+	src: ['sfx/hit_ding.wav'],
+	volume: SFXVolume
+})
+
+const shootSound = new Howl({
+	src: ['sfx/shoot.wav'],
+	volume: SFXVolume
+});
 
 const render = function () {
 	// Frame Calculations
@@ -1493,8 +1513,6 @@ const render = function () {
 		if (crouchLerp < 0) crouchLerp = 0;
 	}
 	if (weaponModel && weaponTarget && delta > 0) {
-		muzzleFlash.renderOrder = weaponModel.renderOrder - 1;
-
 		if (!defaultInstancedWeaponTargetPosition) defaultInstancedWeaponTargetPosition = weaponTarget.position.clone();
 
 		// SIN the weapon's position
@@ -1521,12 +1539,6 @@ const render = function () {
 		weaponModel.rotation.setFromRotationMatrix(weaponTarget.matrixWorld);
 	}
 	if (isLeftClicking) {
-		if (!weaponStartPosition && weaponModel) {
-			weaponStartPosition = weaponTarget.position.clone();
-			weaponModel.add(muzzleFlash);
-			muzzleFlash.position.y = 55;
-			muzzleFlash.position.x = 5;
-		}
 		switch (weaponType) {
 			case undefined:
 				break;
@@ -1535,29 +1547,42 @@ const render = function () {
 				break;
 			case "ranged":
 				if (isAttackAvailable) {
-					muzzleFlash.visible = true;
-					// muzzleFlash.rotation.z = Math.random() * Math.PI * 2;
-					// for EACH vertex in the muzzle flash, set its position to a random position within a sphere
 					const weaponShakeIntensity = 1.5;
 					weaponTarget.position.set(
-						weaponStartPosition.x + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-						weaponStartPosition.y + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-						weaponStartPosition.z + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+						weaponPosition.x + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+						weaponPosition.y + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+						weaponPosition.z + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
 					);
-					const muzzleFlashYScaleModifierStrength = 1;
-					muzzleFlash.scale.y = Math.random() * muzzleFlashYScaleModifierStrength + muzzleFlashYScaleModifierStrength;
+
+					// Play Sound
+					shootSound.rate(clamp(1 + Math.random(), 1, 1.75));
+					shootSound.play();
 
 					// GOD i HATE javascript
 					// type annotations? NO.
 					// parameter delcarations? NO.
 					// return types? NO.
 					// why don't i just kill myself now?
-					shootRay(Math.random() < 0.25 ? true : false);
+					shootRay();
+					
+					raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+					const intersects = raycaster.intersectObjects(NPCBank.map(npc => npc.sceneObject.children[0]));
+
+					for ( let i = 0; i < intersects.length; i ++ ) {
+						const mainObj = intersects[i].object;
+						// Adjust Color
+						mainObj.material.color.r = 20 - (Math.random() * 5);
+						// Register Hit
+						mainObj.npcHandler.depleteHealth(weaponDamage);
+						// Squelch!
+						hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
+						hitSound.play();
+					}
 
 					isAttackAvailable = false;
 					setTimeout(function () {
 						isAttackAvailable = true;
-					}, rateOfFire);
+					}, fireRate);
 				}
 				break;
 			case "melee":
@@ -1571,13 +1596,10 @@ const render = function () {
 					isAttackAvailable = false;
 					setTimeout(function () {
 						isAttackAvailable = true;
-					}, rateOfFire);
+					}, fireRate);
 				}
 				break;
 		}
-	}
-	else {
-		muzzleFlash.visible = false;
 	}
 	mouseRayFollower.visible = false;
 	if (weaponType == "explosive") {
