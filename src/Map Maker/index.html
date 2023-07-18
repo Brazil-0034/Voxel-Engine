@@ -133,9 +133,9 @@ const MAPOBJECTS = [];
 var scene = new THREE.Scene();
 scene.name = "New Scene"
 const camera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 15, 5000);
-camera.position.x = -27.65656251980899;
-camera.position.y = 22.536512419213917;
-camera.position.z = 27.428691501840778;
+camera.position.x = -276.5656251980899;
+camera.position.y = 225.36512419213917;
+camera.position.z = 274.28691501840778;
 camera.rotation.x = -0.7733129332359928;
 camera.rotation.y = -0.6160013614421702;
 camera.rotation.z = -0.5135108191734854;
@@ -148,9 +148,9 @@ const human = new THREE.Mesh(
         map: new THREE.TextureLoader().load("../img/humanforscale.png"),
         transparent: true,
         side: THREE.DoubleSide,
-        
     })
 );
+human.type="human"
 human.material.map.magFilter = THREE.NearestFilter;
 human.material.map.minFilter = THREE.NearestFilter;
 human.scale.set(17.77, 60);
@@ -222,7 +222,6 @@ animate();
 //  ### SIMPLE FUNCTIONS
 
 const updateRightPanel = function (item) {
-
     document.querySelector("#selection-name").innerHTML = item.name;
 
     // for each property in the object, create an input field in #object-inspector-elements
@@ -371,7 +370,7 @@ const updateRightPanel = function (item) {
             const newMaterial = document.createElement("button");
             newMaterial.innerHTML = filename;
             newMaterial.addEventListener("click", function () {
-                item.material = new THREE.MeshStandardMaterial({
+                item.material = new THREE.MeshBasicMaterial({
                     color: 0xffffff,
                     roughness: 0.9,
                     metalness: 0.1,
@@ -481,11 +480,15 @@ scene.add(transformControls);
 var lastAttachedObject;
 const objectsUnderground = [];
 // load ../img/errorTex as errorTex
-const realignTexture = function(sceneObject) {
+const realignTexture = function(sceneObject, x, y) {
     if (!sceneObject.material.map) return;
-    sceneObject.material.map.repeat.x = selectedObjects.scale.x / 32;
-    sceneObject.material.map.repeat.y = selectedObjects.scale.y / 32;
+    x = Math.abs(x);
+    y = Math.abs(y);
+    sceneObject.material.map.repeat.x = 32;
+    sceneObject.material.map.repeat.y = 32;
+    sceneObject.material.color = new THREE.Color(0xffffff);
     sceneObject.material.map.needsUpdate = true;
+    console.log(sceneObject.material.map.repeat);
 }
 const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
 transformControls.addEventListener('dragging-changed', function (event) {
@@ -543,12 +546,12 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 selectedObjects.position.y = Math.floor(selectedObjects.position.y);
                 selectedObjects.position.z = Math.floor(selectedObjects.position.z);
                 selectedObjects.children.forEach(sceneObject => {
-                    realignTexture(sceneObject);
+                    realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.y);
                 });
             }
+            updateRightPanel(lastAttachedObject);
         }
 
-        updateRightPanel(lastAttachedObject);
     }
 });
 
@@ -684,37 +687,6 @@ groundFloor.position.y = -1;
 DEFAULTOBJECTS.push(groundFloor);
 addToScene(groundFloor);
 let cameraHelper;
-const addDefaultCamera = function () {
-    // adds a camerahelper as a placeholder for the camera
-    let defaultCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    defaultCamera.userData.existInGame = true;
-    defaultCamera.userData.cannotBeRemoved = true;
-    defaultCamera.name = "Main Camera";
-    defaultCamera.position.z = 5;
-    defaultCamera.position.y = 1;
-    addToScene(defaultCamera);
-
-    cameraHelper = new THREE.CameraHelper(defaultCamera);
-    cameraHelper.name = "Camera Helper";
-    cameraHelper.userData.existInGame = false;
-    cameraHelper.userData.cannotBeRemoved = true;
-    scene.add(cameraHelper);
-    DEFAULTOBJECTS.push(cameraHelper);
-}
-const addDefaultLight = function () {
-    let defaultLight = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
-    defaultLight.userData.existInGame = true;
-    defaultLight.name = "Hemisphere Light";
-    addToScene(defaultLight);
-    let hemisphereLightHelper = new THREE.HemisphereLightHelper(defaultLight, 1);
-    hemisphereLightHelper.name = "Hemisphere Light Helper";
-    hemisphereLightHelper.userData.existInGame = false;
-    scene.add(hemisphereLightHelper);
-    // DEFAULTOBJECTS.push(defaultLight);
-    // DEFAULTOBJECTS.push(hemisphereLightHelper);
-}
-addDefaultLight();
-addDefaultCamera();
 const removeFromScene = function (item) {
     if (item.userData.cannotBeRemoved == true) return;
     // if the item is of type light, scan the scene for any helpers for it
@@ -900,7 +872,7 @@ const contextMenuClick = function (action) {
                 })
             );
             cube.userData.existInGame = true;
-            cube.userData.materialType = "Plastic";
+            cube.userData.materialType = "smooth";
             cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
             addToScene(cube);
             MAPOBJECTS.push(cube);
@@ -1093,6 +1065,8 @@ canvas.addEventListener("click", function (e) {
                 "TransformControlsPlane",
                 "CameraHelper",
                 "LineSegments",
+                "Sprite",
+                "human",
                 "Line",
             ]
             // remove any intersects that are, have a parent that is, or have a parent whose parent is, any disallowedObjects type
@@ -1174,14 +1148,14 @@ const saveProject = function () {
 
     metaData.cameraData = {
         "cameraPosition": {
-            "x": cameraHelper.position.x,
-            "y": cameraHelper.position.y,
-            "z": cameraHelper.position.z
+            "x": playerSpawn.position.x,
+            "y": playerSpawn.position.y,
+            "z": playerSpawn.position.z
         },
         "cameraRotation": {
-            "x": cameraHelper.rotation.x,
-            "y": cameraHelper.rotation.y,
-            "z": cameraHelper.rotation.z
+            "x": playerSpawn.rotation.x,
+            "y": playerSpawn.rotation.y,
+            "z": playerSpawn.rotation.z
         }
     }
 
@@ -1438,7 +1412,7 @@ const importProject = function () {
                 if (mapMakerObject.type == "box") {
                     const newBox = new THREE.Mesh(
                         new THREE.BoxGeometry(1, 1, 1),
-                        new THREE.MeshStandardMaterial({
+                        new THREE.MeshBasicMaterial({
                             color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
                             map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
                         })
@@ -1446,7 +1420,6 @@ const importProject = function () {
                     newBox.material.map.magFilter = THREE.NearestFilter;
                     newBox.material.map.wrapS = THREE.RepeatWrapping;
                     newBox.material.map.wrapT = THREE.RepeatWrapping;
-                    realignTexture(newBox);
                     newBox.name = mapMakerObject.material + " Box " + Math.floor(Math.random() * 100);
                     newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
                     newBox.userData.materialType = mapMakerObject.material;
@@ -1460,6 +1433,7 @@ const importProject = function () {
                     newBox.scale.x = mapMakerObject.size.x;
                     newBox.scale.y = mapMakerObject.size.y;
                     newBox.scale.z = mapMakerObject.size.z;
+                    realignTexture(newBox, newBox.scale.x, newBox.scale.y);
                 }
             })
 

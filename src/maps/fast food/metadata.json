@@ -46,7 +46,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.7490196078431373,
                 "g": 0.7490196078431373,
@@ -70,7 +70,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 1,
                 "g": 0.9490196078431372,
@@ -94,7 +94,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.9450980392156862,
                 "g": 1,
@@ -118,7 +118,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.984313725490196,
                 "g": 1,
@@ -142,7 +142,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.984313725490196,
                 "g": 1,
@@ -166,7 +166,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.984313725490196,
                 "g": 1,
@@ -190,7 +190,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.984313725490196,
                 "g": 1,
@@ -214,7 +214,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.984313725490196,
                 "g": 1,
@@ -238,7 +238,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.6588235294117647,
                 "g": 0.8509803921568627,
@@ -262,7 +262,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -286,7 +286,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -310,7 +310,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -334,7 +334,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -358,7 +358,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Bricks",
+            "material": "tile",
             "color": {
                 "r": 0.23921568627450981,
                 "g": 0.16862745098039217,
@@ -382,7 +382,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Bricks",
+            "material": "tile",
             "color": {
                 "r": 0.23921568627450981,
                 "g": 0.16862745098039217,
@@ -406,7 +406,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Bricks",
+            "material": "tile",
             "color": {
                 "r": 0.23921568627450981,
                 "g": 0.16862745098039217,
@@ -430,7 +430,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Bricks",
+            "material": "tile",
             "color": {
                 "r": 0.23921568627450981,
                 "g": 0.16862745098039217,
@@ -454,7 +454,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.7490196078431373,
                 "g": 0.7490196078431373,
@@ -478,7 +478,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.6588235294117647,
                 "g": 0.8509803921568627,
@@ -502,7 +502,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.3843137254901961,
                 "g": 0.25882352941176473,
@@ -526,7 +526,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.25882352941176473,
                 "g": 0.44313725490196076,
@@ -550,7 +550,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -574,7 +574,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -598,7 +598,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -622,7 +622,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.3411764705882353,
                 "g": 0.592156862745098,
@@ -646,7 +646,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.3411764705882353,
                 "g": 0.5058823529411764,
@@ -670,7 +670,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.4196078431372549,
                 "g": 0.4588235294117647,
@@ -694,7 +694,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.3411764705882353,
                 "g": 0.592156862745098,
@@ -718,7 +718,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.3411764705882353,
                 "g": 0.592156862745098,
@@ -742,7 +742,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.3411764705882353,
                 "g": 0.592156862745098,
@@ -766,7 +766,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 0.3411764705882353,
                 "g": 0.592156862745098,
@@ -790,7 +790,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -814,7 +814,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -838,7 +838,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -862,7 +862,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -886,7 +886,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -910,7 +910,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Plastic",
+            "material": "smooth",
             "color": {
                 "r": 1,
                 "g": 1,
@@ -934,7 +934,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.8509803921568627,
                 "g": 0.8509803921568627,
@@ -958,7 +958,7 @@
                 "y": 0,
                 "z": 0
             },
-            "material": "Concrete",
+            "material": "rough",
             "color": {
                 "r": 0.8509803921568627,
                 "g": 0.8509803921568627,

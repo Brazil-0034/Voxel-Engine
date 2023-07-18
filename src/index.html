@@ -179,6 +179,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 // SAO
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
+// FBXLoader
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; 
 
 // ipc renderer
 const { ipcRenderer } = require('electron');
@@ -233,6 +235,10 @@ pane.addMonitor(frameInfo, 'drawCalls', {
 	view: 'text',
 	interval: 10
 });
+
+const lerp = function (a, b, t) {
+	return a + (b - a) * t;
+}
 
 /**
  * 
@@ -312,6 +318,133 @@ class LodBox {
 	}
 }
 
+// ##########
+// NPC ENGINE
+// ##########
+// Global File Loaders:
+const globalModelLoader = new FBXLoader();
+const globalTextureLoader = new THREE.TextureLoader();
+const NPCBank = [];
+// This will be the main system for spawning and handling NPC behavior
+class NPC {
+	sceneObject
+	npcObject
+	
+	health
+	speed
+
+	runAnimation
+	idleAnimation
+	mixer
+
+	// This will build the NPC (setting idle/run animation and loading model into scene)
+	constructor(npcName, texturePath, position, rotation, speed) {
+		this.speed = speed;
+		const basePath = 'character_models/' + npcName + '/';
+		globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
+			// STEP 1: ASSIGN MATERIALS
+			this.sceneObject = object;
+			this.sceneObject.traverse(function (childObject) {
+				if (childObject.isMesh) {
+					childObject.castShadow = true;
+					childObject.receiveShadow = true;
+					childObject.material = new THREE.MeshPhongMaterial({ 
+						map: globalTextureLoader.load(basePath + npcName + '.png'),
+						shininess: 0,
+						specular: 0x000000
+					});
+				}
+			});
+
+			// STEP 2: ASSIGN TRANSFORMS
+			this.sceneObject.position.copy(position);
+			this.sceneObject.rotation.set(rotation.x, rotation.y, rotation.z);
+			this.sceneObject.scale.multiplyScalar(0.1);
+
+			// STEP 3: APPLY ANIMATIONS
+			this.mixer = new THREE.AnimationMixer(this.sceneObject);
+			// load run animation
+			globalModelLoader.load(basePath + npcName + '_run.fbx', object => {
+				this.runAnimation = this.mixer.clipAction(object.animations[0]);
+				this.runAnimation.play();
+			});
+			this.idleAnimation = this.mixer.clipAction(this.sceneObject.animations[0]);
+			this.idleAnimation.play();
+
+			// And lastly... add it to the scene!
+			if (Math.random() > 0.5) this.sceneObject.scale.x *= -1;
+			scene.add(this.sceneObject);
+			console.log(this.sceneObject)
+		},
+		(error) => {
+			console.log(error);
+		});
+
+		NPCBank.push(this);
+	}
+
+	// This will update the NPC's behavior (every frame)
+	update(delta) {
+		if (!this.sceneObject || !this.mixer || !this.runAnimation || !this.idleAnimation) return;
+
+		// Update the animation mixer keyframe step
+		this.mixer.update(delta);
+
+		// Look towards the nearest player (camera) smoothly, using the lerp(a, b, t) function
+		const targetRotation = Math.atan2(camera.position.x - this.sceneObject.position.x, camera.position.z - this.sceneObject.position.z);
+		// prevent spinning by flipping the rotation value
+		if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
+			if (targetRotation > this.sceneObject.rotation.y) {
+				this.sceneObject.rotation.y += Math.PI * 2;
+			}
+			else {
+				this.sceneObject.rotation.y -= Math.PI * 2;
+			}
+		}
+		this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
+
+		
+
+		// If too far, move closer
+		const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
+		if (distanceToCamera > 150) {
+			const direction = new THREE.Vector3();
+			camera.getWorldDirection(direction);
+			direction.y = 0;
+			direction.normalize();
+			this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
+			this.runAnimation.play();
+		}
+		else
+		{
+			this.runAnimation.stop();
+			this.idleAnimation.play();
+		}
+	}
+
+	despawn() {
+		scene.remove(this.sceneObject);
+		NPCBank.splice(NPCBank.indexOf(this), 1);
+	}
+}
+
+const sRange = 500;
+for (let i = 0; i < 10; i++)
+{
+	const testDummy = new NPC(
+		'swat',
+		'character_models/swat_idle.png',
+		new THREE.Vector3(
+			Math.random() * sRange - (sRange/2),
+			0,
+			Math.random() * sRange - (sRange/2)),
+		new THREE.Vector3(
+			0,
+			Math.random() * Math.PI * 2,
+			0),
+		100 + Math.random() * 100);
+}
+
 class ParticleMesh extends THREE.Points {
 	velocities
 	lifetimes
@@ -382,14 +515,14 @@ renderer.gammaFactor = 2.2
 
 // LIGHTING
 // Initializes the THREE.js lighting
-// const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(ambientLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
 // Two opposing directional lights. The opposing light is dimmer. Both lights are angled against each other.
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.1);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
 directionalLight.position.set(1, 1, 1);
 scene.add(directionalLight);
-const opposingDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
+const opposingDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
 opposingDirectionalLight.position.set(-1, -1, -1);
 scene.add(opposingDirectionalLight);
 
@@ -410,7 +543,7 @@ pmremGenerator.compileEquirectangularShader();
 
 // PLAYER CAMERA
 // Initializes the local player's camera, rendered to the canvas
-const playerMoveSpeed = 100;
+const playerMoveSpeed = 250;
 const controls = new PointerLockControls(camera, renderer.domElement);
 scene.add(controls.getObject());
 
@@ -460,7 +593,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
 const modelURL = 'savedata';
-const weaponURL = 'weapons/' + 'weapon_m4.json';
+const weaponURL = 'weapons/' + 'smg/smg';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
@@ -473,7 +606,6 @@ var weaponRange = 500,
 	weaponRotation,
 	weaponRealWorldScaleMultiplier,
 	weaponPlacementOffset,
-	weaponScale,
 	weaponHelpText,
 	weaponType,
 	rateOfFire, // time in ms in between attacks()
@@ -733,7 +865,7 @@ const generateWorld = function (modelURL) {
 					position.z -= scale.z / 2;
 
 					// Normal Objects (Boxes)
-					buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.isCutaway);
+					buildWorldModelFromBox(scale, position, mapObject.material, color);
 				}
 			});
 		});
@@ -767,14 +899,11 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 	position.y = Math.round(position.y);
 	position.z = Math.round(position.z);
 
-
-	// Evaluate the LOD
 	const texturePath = 'textures/' + material + '.png';
 	const manager = new THREE.LoadingManager();
 	let pixelData;
 	manager.onLoad = function () {
 		pixelData = getPixelsFromImage(pixelData.image);
-		console.log(pixelData);
 		const getPixelColorAt = function(x, y) {
 			// pixelData is 32 arrays of 32. Each array is a row of pixels
 			// x and y can be beyond 32, but it will wrap around
@@ -803,13 +932,22 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		}
 		resetChunkBounds();
 
-		let instancedWorldModel = new VoxelChunk(
-			voxelGeometry,
-			voxelMaterial.clone(),
-			maxChunkSize
-		);
-		instancedWorldModel.name = chunkCounter.toString();
-		let localVoxelIterator = 0;
+		let instancedWorldModel, localVoxelIterator, instancedWorldSafetyOffset = new THREE.Vector3(-10000, -10000, -10000);
+		const resetInstancedWorldModel = function() {
+			instancedWorldModel = new VoxelChunk(
+				voxelGeometry,
+				voxelMaterial.clone(),
+				maxChunkSize
+			);
+			instancedWorldModel.position.copy(instancedWorldSafetyOffset);
+			instancedWorldModel.name = chunkCounter.toString();
+			localVoxelIterator = 0;
+			chunkCounter++;
+			instancedWorldModel.frustumCulled = false;
+
+			// instancedWorldModel.position.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+		}
+		resetInstancedWorldModel();
 
 		const finalizeChunk = function () {
 			// init for LODs
@@ -818,7 +956,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
 
 			instancedWorldModel.instanceMatrix.needsUpdate = true;
-			instancedWorldModel.instanceColor.needsUpdate = true;
 			scene.add(instancedWorldModel);
 			instancedModelIndex.push(instancedWorldModel);
 
@@ -838,54 +975,46 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 					(chunkMaxPosition.z - chunkMinPosition.z)
 				)
 			);
+			// createa  wireframe box to visualize the frustum box
+			const frustumBoxHelper = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0xffff00);
+			scene.add(frustumBoxHelper);
+
 			// Reset Everything!!
 			resetChunkBounds();
-			localVoxelIterator = 0;
-			chunkCounter++;
-			instancedWorldModel = new VoxelChunk(
-				voxelGeometry,
-				voxelMaterial.clone(),
-				maxChunkSize
-			);
-			instancedWorldModel.name = chunkCounter.toString();
+			resetInstancedWorldModel();
 		}
 
 		const setVoxel = function (voxelPosition,voxelFace,voxelColor) {
 			// first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
-			if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) {
-				// if so, skip this voxel
-				return;
-			}
+			if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) return;
 			const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
-			var adjustMinMax = true;
+			var adjustMinMax = true; // Culling min/max update flag
 			if (voxel != null && voxel.value != 0) {
 				// removing  clones ...
 				voxelPosition = new THREE.Vector3(0, -2, 0);
 				adjustMinMax = false;
 			}
-			// Push to the global voxel field
-			voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace);
-			// update min/max positions for this chunk
+			// Commit to the global voxel field
+			voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace); 
+			// update min/max positions for this chunk (for culling)
 			if (adjustMinMax == true) {
 				chunkMinPosition.min(voxelPosition);
 				chunkMaxPosition.max(voxelPosition);
-			}// update the instancedWorldModel
-			instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x, voxelPosition.y, voxelPosition.z)));
-			instancedWorldModel.face = voxelFace;
+			}
+			instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x - instancedWorldSafetyOffset.x, voxelPosition.y - instancedWorldSafetyOffset.y, voxelPosition.z - instancedWorldSafetyOffset.z)));
 			voxelColor.multiply(color);
 			if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
 			instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
-			localVoxelIterator++;
 			// check if we need to create a new chunk
+			localVoxelIterator++;
 			if (localVoxelIterator == maxChunkSize) {
 				finalizeChunk();
 			}
-			instancedWorldModel.frustumCulled = false;
 		}
 
 		// Create the FLOOR (bottom) of the box:
-		for (let x = 0; x < scale.x; x++) {
-			for (let z = 0; z < scale.z; z++) {
+		for (let x = 0; x < scale.x - 1; x++) {
+			for (let z = 0; z < scale.z - 1; z++) {
 				setVoxel(new THREE.Vector3(
 					position.x + x,
 					position.y,
@@ -898,8 +1027,8 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		finalizeChunk();
 
 		// Create the CEILING (top) of the box:
-		for (let x = 0; x < scale.x; x++) {
-			for (let z = 0; z < scale.z; z++) {
+		for (let x = 0; x < scale.x - 1; x++) {
+			for (let z = 0; z < scale.z - 1; z++) {
 				setVoxel(new THREE.Vector3(
 					position.x + x,
 					position.y + scale.y,
@@ -1014,112 +1143,113 @@ generateWorld(modelURL); // finally, we load and generate the model!
 // maybe in a networked game it may be necessary ... maybe it's not so dumb after all ...
 // ill look into it later.
 
-var instancedWeaponModel;
+var weaponModel;
 const weaponModelMaterial = new THREE.MeshStandardMaterial({
 	// highly reflective for funzies / make it contrast
 	envMap: reflectionCube,
 	roughness: 1.0,
 	color: 0x8c8c8c
 });
-weaponModelMaterial.depthTest = false;
-weaponModelMaterial.depthWrite = false;
 
-var instancedWeaponTarget; // target position for instancedWeapon (for lerping :P)
+var weaponTarget; // target position for instancedWeapon (for lerping :P)
 
-const generateWeaponModel = function (modelURL) {
-	let loader = new THREE.FileLoader();
-	loader.load(
-		modelURL,
-		function (jsondata) {
-			let jsonModel = JSON.parse(jsondata);
-			let voxelPositionsFromFile = jsonModel.voxels;
-			instancedWeaponModel = new VoxelChunk(
-				voxelGeometry,
-				weaponModelMaterial,
-				voxelPositionsFromFile.length
-			);
-			// make it render above everything else, cuz FPS!!
-			// instancedWeaponModel.onBeforeRender = function (renderer) { renderer.clearDepth(); };
-			instancedWeaponModel.renderOrder = 999999;
-			instancedWeaponModel.name = jsonModel.weaponData.name;
-			instancedWeaponTarget = new THREE.Mesh(
-				new THREE.BoxGeometry(1, 1, 1),
-				new THREE.MeshStandardMaterial({ color: 0xff0000 })
-			);
-			instancedWeaponTarget.material.visible = false; // uncomment to position weapon better
-			camera.add(instancedWeaponTarget);
-			for (let i = 0; i < voxelPositionsFromFile.length; i++) {
-				const thisVoxelData = voxelPositionsFromFile[i];
-				const thisVoxelPosition = new THREE.Vector3(thisVoxelData.x, thisVoxelData.y, thisVoxelData.z);
-				const thisVoxelColor = new THREE.Color("rgb(" + thisVoxelData.red + "," + thisVoxelData.green + "," + thisVoxelData.blue + ")");
-				instancedWeaponModel.setMatrixAt(i, new THREE.Matrix4().makeTranslation(thisVoxelPosition.x, thisVoxelPosition.y, thisVoxelPosition.z));
-				instancedWeaponModel.setColorAt(i, thisVoxelColor);
+// This will add the player's weapon model to the scene
+const generateWeaponModel = function (basePath) {
+	// First, load the weapon metadata from the .json file
+	let jsonLoader = new THREE.FileLoader();
+	jsonLoader.load(
+		basePath + '.json',
+		function (json) {
+			let jsonModel = JSON.parse(json);
+
+			// Once the metadata is loaded, we must load in the fbx model of the weapon and assign attributes
+			globalModelLoader.load(
+			basePath + '.fbx',
+			function (object) {
+				weaponModel = object;
+				// Load in the texture for the weapon
+				weaponModel.children[0].material.map = globalTextureLoader.load(basePath + '.png');
+				// Adjust the scale from standard magicavoxel scaling
+				weaponModel.scale.divideScalar(15);
+				weaponModel.renderOrder = 999999;
+				weaponModel.name = jsonModel.weaponData.name;
+				weaponTarget = new THREE.Mesh(
+					new THREE.BoxGeometry(1, 1, 1),
+					new THREE.MeshBasicMaterial({color: 0x00ff00})
+				);
+				weaponTarget.material.visible = false; // uncomment to position weapon better
+				camera.add(weaponTarget);
+				// json reads for weapon data
+				weaponType = jsonModel.weaponData.type;
+				percentMissedHits = jsonModel.weaponData.basepotency;
+				destroyedChunkRange = jsonModel.weaponData.damageRange;
+				rateOfFire = jsonModel.weaponData.fireRate;
+				weaponHelpText = jsonModel.weaponData.helpText;
+				// finally, add the weapon to the scene
+				scene.add(weaponModel);
+				weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
+				if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
+				weaponRange = jsonModel.weaponData.minimumDistance;
+				if (jsonModel.weaponData.realWorldScaleMultiplier != undefined) weaponRealWorldScaleMultiplier = jsonModel.weaponData.realWorldScaleMultiplier;
+				weaponTarget.position.copy(weaponPosition);
+
+				// add a clone of the weaponModel as a child of itself, shifted to the left by 5 units
+				// const weaponModelClone = weaponModel.clone();
+				// weaponModelClone.scale.multiplyScalar(15);
+				// weaponModelClone.position.z -= 865;
+				// weaponModel.add(weaponModelClone);
+
+
+				// DEBUG KEYS to move weapon target around, see what looks best :)
+				document.addEventListener('keydown', function (event) {
+					if (event.key == 'ArrowLeft') {
+						weaponTarget.position.x -= 1;
+						console.log(weaponTarget.position);
+					}
+					if (event.key == 'ArrowRight') {
+						weaponTarget.position.x += 1;
+						console.log(weaponTarget.position);
+					}
+					if (event.key == 'ArrowUp') {
+						weaponTarget.position.y += 1;
+						console.log(weaponTarget.position);
+					}
+					if (event.key == 'ArrowDown') {
+						weaponTarget.position.y -= 1;
+						console.log(weaponTarget.position);
+					}
+					if (event.key == '1') {
+						weaponTarget.position.z -= 1;
+						console.log(weaponTarget.position);
+					}
+					if (event.key == '2') {
+						weaponTarget.position.z += 1;
+						console.log(weaponTarget.position);
+					}
+					if (event.key == '3') {
+						weaponTarget.rotation.z += Math.PI / 100;
+					}
+					if (event.key == '4') {
+						weaponTarget.rotation.z -= Math.PI / 100;
+						console.log(weaponTarget.rotation);
+					}
+					if (event.key == '5') {
+						weaponTarget.rotation.y += Math.PI / 100;
+					}
+					if (event.key == '6') {
+						weaponTarget.rotation.y -= Math.PI / 100;
+						console.log(weaponTarget.rotation);
+					}
+				});
+				weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
+				weaponTarget.rotation.copy(weaponRotation);
+				if (weaponHelpText) setHelpText(weaponHelpText);
+			},
+			function (err) {
+				// console.log(err);
 			}
-			instancedWeaponModel.instanceMatrix.needsUpdate = true;
-			// json reads for weapon data
-			weaponType = jsonModel.weaponData.type;
-			percentMissedHits = jsonModel.weaponData.percentMissedHits;
-			destroyedChunkRange = jsonModel.weaponData.damageRange;
-			rateOfFire = jsonModel.weaponData.fireRate;
-			weaponHelpText = jsonModel.weaponData.helpText;
-			// finally, add the weapon to the scene
-			scene.add(instancedWeaponModel);
-			weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
-			if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
-			weaponScale = new THREE.Vector3(jsonModel.dimension.width, jsonModel.dimension.height, jsonModel.dimension.depth);
-			weaponScale.divideScalar(15);
-			weaponRange = jsonModel.weaponData.minimumDistance;
-			if (jsonModel.weaponData.realWorldScaleMultiplier != undefined) weaponRealWorldScaleMultiplier = jsonModel.weaponData.realWorldScaleMultiplier;
-			instancedWeaponTarget.position.copy(weaponPosition);
-			// DEBUG KEYS to move weapon target around, see what looks best :)
-			document.addEventListener('keydown', function (event) {
-				if (event.key == 'ArrowLeft') {
-					instancedWeaponTarget.position.x -= 1;
-					console.log(instancedWeaponTarget.position);
-				}
-				if (event.key == 'ArrowRight') {
-					instancedWeaponTarget.position.x += 1;
-					console.log(instancedWeaponTarget.position);
-				}
-				if (event.key == 'ArrowUp') {
-					instancedWeaponTarget.position.y += 1;
-					console.log(instancedWeaponTarget.position);
-				}
-				if (event.key == 'ArrowDown') {
-					instancedWeaponTarget.position.y -= 1;
-					console.log(instancedWeaponTarget.position);
-				}
-				if (event.key == '1') {
-					instancedWeaponTarget.position.z -= 1;
-					console.log(instancedWeaponTarget.position);
-				}
-				if (event.key == '2') {
-					instancedWeaponTarget.position.z += 1;
-					console.log(instancedWeaponTarget.position);
-				}
-				if (event.key == '3') {
-					instancedWeaponTarget.rotation.z += Math.PI / 100;
-				}
-				if (event.key == '4') {
-					instancedWeaponTarget.rotation.z -= Math.PI / 100;
-					console.log(instancedWeaponTarget.rotation);
-				}
-				if (event.key == '5') {
-					instancedWeaponTarget.rotation.y += Math.PI / 100;
-				}
-				if (event.key == '6') {
-					instancedWeaponTarget.rotation.y -= Math.PI / 100;
-					console.log(instancedWeaponTarget.rotation);
-				}
-			});
-			weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
-			instancedWeaponTarget.rotation.copy(weaponRotation);
-			if (weaponHelpText) setHelpText(weaponHelpText);
-		},
-		function (err) {
-			// console.log(err);
-		}
-	);
+		);
+	});
 }
 
 generateWeaponModel(weaponURL); // same as map, but for the weapon!
@@ -1199,7 +1329,7 @@ const createParticleInstance = function (effect, worldPos) {
 		}
 		path += ".png";
 	}
-	const particleTexture = new THREE.TextureLoader().load(path);
+	const particleTexture = globalTextureLoader.load(path);
 	const particleMaterial = new THREE.PointsMaterial({
 		map: particleTexture,
 		color: effect.color,
@@ -1285,10 +1415,6 @@ muzzleFlash.name = "muzzleFlash";
 
 var isAttackAvailable = true;
 
-const lerp = function (a, b, t) {
-	return a + (b - a) * t;
-}
-
 /*
 
 public static float Berp(float start, float end, float value)
@@ -1329,6 +1455,10 @@ const render = function () {
 	const delta = clock.getDelta();
 	frameInfo.FPS = Math.round(1 / delta);
 	frameInfo.frameTime = delta;
+	// Update NPC Motion
+	NPCBank.forEach(npc => {
+		npc.update(delta);
+	});
 	// Player Motion
 	let isCrouching = isKeyPressed["control"];
 	let zAxis = 0;
@@ -1362,10 +1492,10 @@ const render = function () {
 		crouchLerp -= crouchSpeed * delta;
 		if (crouchLerp < 0) crouchLerp = 0;
 	}
-	if (instancedWeaponModel && instancedWeaponTarget && delta > 0) {
-		muzzleFlash.renderOrder = instancedWeaponModel.renderOrder - 1;
+	if (weaponModel && weaponTarget && delta > 0) {
+		muzzleFlash.renderOrder = weaponModel.renderOrder - 1;
 
-		if (!defaultInstancedWeaponTargetPosition) defaultInstancedWeaponTargetPosition = instancedWeaponTarget.position.clone();
+		if (!defaultInstancedWeaponTargetPosition) defaultInstancedWeaponTargetPosition = weaponTarget.position.clone();
 
 		// SIN the weapon's position
 		const bounceRange = new THREE.Vector3(0.25, 0.25, 0);
@@ -1379,21 +1509,21 @@ const render = function () {
 			bounceRange.divideScalar(2.5);
 			speed.multiplyScalar(2.5);
 		}
-		instancedWeaponTarget.position.x += (Math.sin(Date.now() / speed.x) * bounceRange.x) * (isMoving);
-		instancedWeaponTarget.position.y += (Math.sin(Date.now() / speed.y) * bounceRange.y) * (isMoving);
+		weaponTarget.position.x += (Math.sin(Date.now() / speed.x) * bounceRange.x) * (isMoving);
+		weaponTarget.position.y += (Math.sin(Date.now() / speed.y) * bounceRange.y) * (isMoving);
 
 		// LERP the weapon's position
 		const instancedWeaponTargetWorldPosition = new THREE.Vector3();
-		instancedWeaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-		instancedWeaponModel.position.set(instancedWeaponTargetWorldPosition.x, instancedWeaponTargetWorldPosition.y, instancedWeaponTargetWorldPosition.z);
+		weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
+		weaponModel.position.set(instancedWeaponTargetWorldPosition.x, instancedWeaponTargetWorldPosition.y, instancedWeaponTargetWorldPosition.z);
 
 		// always realign the rotation of the weapon to the target
-		instancedWeaponModel.rotation.setFromRotationMatrix(instancedWeaponTarget.matrixWorld);
+		weaponModel.rotation.setFromRotationMatrix(weaponTarget.matrixWorld);
 	}
 	if (isLeftClicking) {
-		if (!weaponStartPosition && instancedWeaponModel) {
-			weaponStartPosition = instancedWeaponTarget.position.clone();
-			instancedWeaponModel.add(muzzleFlash);
+		if (!weaponStartPosition && weaponModel) {
+			weaponStartPosition = weaponTarget.position.clone();
+			weaponModel.add(muzzleFlash);
 			muzzleFlash.position.y = 55;
 			muzzleFlash.position.x = 5;
 		}
@@ -1408,11 +1538,11 @@ const render = function () {
 					muzzleFlash.visible = true;
 					// muzzleFlash.rotation.z = Math.random() * Math.PI * 2;
 					// for EACH vertex in the muzzle flash, set its position to a random position within a sphere
-					const bzzStrength = 2.5;
-					instancedWeaponTarget.position.set(
-						weaponStartPosition.x + Math.random() * bzzStrength - bzzStrength / 2 - 0.5,
-						weaponStartPosition.y + Math.random() * bzzStrength - bzzStrength / 2 + 0.5,
-						weaponStartPosition.z + Math.random() * bzzStrength - bzzStrength / 2 + 0.5
+					const weaponShakeIntensity = 1.5;
+					weaponTarget.position.set(
+						weaponStartPosition.x + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+						weaponStartPosition.y + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+						weaponStartPosition.z + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
 					);
 					const muzzleFlashYScaleModifierStrength = 1;
 					muzzleFlash.scale.y = Math.random() * muzzleFlashYScaleModifierStrength + muzzleFlashYScaleModifierStrength;
@@ -1661,7 +1791,7 @@ const createVizSphere = function (x, y, z, color = 0x00ff00, size = 1.5) {
 	scene.add(sphere);
 }
 
-const cubeSprite = new THREE.TextureLoader().load("img/cubesprite.png");
+const cubeSprite = globalTextureLoader.load("img/cubesprite.png");
 const conjunctionCheckTimesPerSecond = 1;
 const recentlyEditedWorldModels = [];
 const maxChunksInPhysicsCache = 15;
@@ -1849,7 +1979,7 @@ for (let i = 0; i < bankLength; i++) {
 }
 var bankIterator = 0;
 const rapidFloat = () => { return randomBank[bankIterator++ % bankLength]; }
-const shootRay = function (emitParticleEffect) {
+const shootRay = function () {
 	// RAYCAST INTO THE VOXEL FIELD
 	// STEP 1: GET THE CAMERA POSITION
 	// STEP 2: GET THE CAMERA DIRECTION
@@ -1878,24 +2008,6 @@ const shootRay = function (emitParticleEffect) {
 
 		const intersectedVoxelData = voxelField.get(intersectPosition.x, intersectPosition.y, intersectPosition.z);
 		// currentModel.LODBOX.dropLODLevel(intersectedVoxelData.face);
-
-		if (emitParticleEffect) {
-			const color = new THREE.Color(0xffdd8f);
-			voxelField.get(intersectPosition.x, intersectPosition.y, intersectPosition.z).chunk.getColorAt(intersection.index, color);
-			createParticleInstance(new ParticleEffect(
-        /*count:*/Math.floor(Math.random() * 20),
-        /*lifetime:*/5,
-        /*color:Math.random() < 0.25 ? new THREE.Color(0xffec82) : */color,
-        /*size:*/2,
-        /*spread:*/new THREE.Vector3(1, 1, 1),
-        /*direction:*/new THREE.Vector3((Math.random() - 0.5) / 2.5, -1, (Math.random() - 0.5) / 2.5),
-        /*filePath:"./img/smoke/smoke"*/"./img/cubesprite.png",
-        /*useRandomSprite:*/false, //true
-        /*randomSpriteRange:*/3,
-        /*useGravity:*/false,
-        /*fadeOut:*/true
-			), intersectPosition);
-		}
 
 		// for every voxel within a destroyedChunkRange of the intersection, destroy it
 		for (let x = intersectPosition.x - destroyedChunkRange; x <= intersectPosition.x + destroyedChunkRange; x++) {
@@ -1940,7 +2052,7 @@ const plantExplosive = function () {
 	const intersection = voxelField.raycast(cameraPosition, cameraDirection, 100);
 	// Determine which voxels in chunk are to be destroyed
 	if (intersection != null) {
-		const weaponModel = instancedWeaponModel.clone();
+		const weaponModel = weaponModel.clone();
 		weaponModel.explodeRange = destroyedChunkRange;
 		weaponModel.onBeforeRender = function () { return };
 		weaponModel.renderOrder = 0;

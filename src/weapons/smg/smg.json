@@ -1,0 +1,21 @@
+{
+    "weaponData": {
+        "type": "ranged",
+        "name": "UZI",
+        "helpText": "[Left Click] Shoot",
+        "fireRate": 5,
+        "damageRange": 3,
+        "minimumDistance": 500,
+        "basepotency": 0.35,
+        "position": {
+            "x": 29.3404767778952,
+            "y": -35.71519173158039,
+            "z": -84.25836737671506
+        },
+        "rotation": {
+            "x": 0.06283185307179587,
+            "y": 1.5274124282453232,
+            "z": 0
+        }
+    }
+}
