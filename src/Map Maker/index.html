@@ -486,9 +486,7 @@ const realignTexture = function(sceneObject, x, y) {
     y = Math.abs(y);
     sceneObject.material.map.repeat.x = 32;
     sceneObject.material.map.repeat.y = 32;
-    sceneObject.material.color = new THREE.Color(0xffffff);
     sceneObject.material.map.needsUpdate = true;
-    console.log(sceneObject.material.map.repeat);
 }
 const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
 transformControls.addEventListener('dragging-changed', function (event) {
@@ -745,10 +743,10 @@ document.body.addEventListener('keydown', function (event) {
             //     transformControls.setMode("rotate");
             //     break;
             case 'r':
-                // set the scale Z -> x, X -> y, Y -> z
-                const scale = selectedObjects.scale;
-                selectedObjects.scale.set(scale.z, scale.x, scale.y);
-                console.log(selectedObjects.scale);
+                // swap X and Z scale
+                const temp = selectedObjects.scale.x;
+                selectedObjects.scale.x = selectedObjects.scale.z;
+                selectedObjects.scale.z = temp;
                 break;
             case 't':
                 transformControls.setMode("scale");
@@ -1417,6 +1415,7 @@ const importProject = function () {
                             map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
                         })
                     );
+                    newBox.material.side = THREE.DoubleSide;
                     newBox.material.map.magFilter = THREE.NearestFilter;
                     newBox.material.map.wrapS = THREE.RepeatWrapping;
                     newBox.material.map.wrapT = THREE.RepeatWrapping;
