@@ -537,9 +537,9 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 selectedObjects.scale.x = Math.floor(selectedObjects.scale.x);
                 selectedObjects.scale.y = Math.floor(selectedObjects.scale.y);
                 selectedObjects.scale.z = Math.floor(selectedObjects.scale.z);
-                if (selectedObjects.scale.x % 2 == 0) selectedObjects.scale.x += 1;
-                if (selectedObjects.scale.y % 2 == 0) selectedObjects.scale.y += 1;
-                if (selectedObjects.scale.z % 2 == 0) selectedObjects.scale.z += 1;
+                // if (selectedObjects.scale.x % 2 == 0) selectedObjects.scale.x += 1;
+                // if (selectedObjects.scale.y % 2 == 0) selectedObjects.scale.y += 1;
+                // if (selectedObjects.scale.z % 2 == 0) selectedObjects.scale.z += 1;
                 selectedObjects.position.x = Math.floor(selectedObjects.position.x);
                 selectedObjects.position.y = Math.floor(selectedObjects.position.y);
                 selectedObjects.position.z = Math.floor(selectedObjects.position.z);
@@ -573,12 +573,10 @@ const clearSelectedObjects = function () {
 }
 clearSelectedObjects();
 const attachHandles = function (item, dontResetSelections=false) {
-    // if the retach isnt loaded yet, skip
+    // bug fix for double-click attach:
     if (!retachAvailable) return;
+    // make sure we dont select the ground floor
     if (item.userData.isGroundFloor) return;
-    // if the item is a helper object, select the parent or light instead
-    if (item.userData.selectParentInstead == true) item = item.parent;
-    if (item.type.includes("LightHelper")) item = item.light;
     // if we already have it selected, forget about it!
     if (selectedObjects.children.includes(item)) return;
     // if we are holding shift, add to the selection
@@ -586,8 +584,6 @@ const attachHandles = function (item, dontResetSelections=false) {
         clearSelectedObjects();
     }
 
-    const itemWorldPos = new THREE.Vector3();
-    item.getWorldPosition(itemWorldPos);
 
     const cacheSelectedObjects = [];
     selectedObjects.children.forEach(child => {
@@ -595,7 +591,7 @@ const attachHandles = function (item, dontResetSelections=false) {
     });
     cacheSelectedObjects.push(item);
     clearSelectedObjects();
-    selectedObjects.position.copy(itemWorldPos);
+    selectedObjects.position.copy(item.position);
 
     cacheSelectedObjects.forEach(child => {
         selectedObjects.attach(child);

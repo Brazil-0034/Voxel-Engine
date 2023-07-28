@@ -160,6 +160,7 @@
 	<script src="howler/howler.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script>
 	<script src="canvasPixelReader.js"></script>
+	<div id="middle-crosshair" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;">x</div>
 <script type="module">
 
 // choose a loader gif at random
@@ -416,24 +417,6 @@ class NPC {
 		this.npcObject.geometry.dispose();
 		this.npcObject.material.dispose();
 	}
-}
-
-const sRange = 250;
-for (let i = 0; i < 10; i++)
-{
-	const testDummy = new NPC(
-		'swat',
-		'character_models/swat_idle.png',
-		new THREE.Vector3(
-			Math.random() * sRange - (sRange/2),
-			0,
-			Math.random() * sRange - (sRange/2)),
-		new THREE.Vector3(
-			0,
-			Math.random() * Math.PI * 2,
-			0),
-		100 + Math.random() * 100,
-		100);
 }
 
 class ParticleMesh extends THREE.Points {
@@ -755,7 +738,7 @@ class DiscreteVectorField {
 // This initializes the voxelField used for physics calculations
 // This engine uses a two-fold representation of voxel data.
 // One is stored in main memory (RAM), and the other is stored in GPU memory (vRAM)
-// the GPU memory is used to render and display millions of voxels in as few draw calls as possible (the higher maxChunkSize, the fewer)
+// the GPU memory is used to render and display millions of voxels in as few draw calls as possible (the higher squareChunkSize, the fewer)
 // the CPU memory is used to store the positions of these voxels, and use them for physics (such as raycasting, explosions, etc)
 const voxelField = new DiscreteVectorField();
 
@@ -877,7 +860,7 @@ const voxelMaterial = new THREE.MeshBasicMaterial({
 // Lower size = fewer chunks
 // It is best to alter this dynamically between maps for performance
 // TODO implement some algorithm to determine this value on the fly
-let maxChunkSize = Math.pow(100, 2); // max chunk size
+const squareChunkSize = 64;
 
 let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
 // on click of "F", set visible = false for all models
@@ -894,20 +877,20 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 	position.y = Math.round(position.y);
 	position.z = Math.round(position.z);
 
-	// create a transparent box around the whole thing
-	const box = new THREE.Mesh(
-		new THREE.BoxGeometry(scale.x + 1, scale.y + 1, scale.z + 1),
-		new THREE.MeshBasicMaterial({
-			color: 0x000000,
-			transparent: true,
-			opacity: 0.5
-		})
-	);
-	// offset for center
-	box.position.x = position.x + scale.x / 2;
-	box.position.y = position.y + scale.y / 2;
-	box.position.z = position.z + scale.z / 2;
-	scene.add(box);
+	// // create a transparent box around the whole thing
+	// const box = new THREE.Mesh(
+	// 	new THREE.BoxGeometry(scale.x + 1, scale.y + 1, scale.z + 1),
+	// 	new THREE.MeshBasicMaterial({
+	// 		color: 0x000000,
+	// 		transparent: true,
+	// 		opacity: 0.5
+	// 	})
+	// );
+	// // offset for center
+	// box.position.x = position.x + scale.x / 2;
+	// box.position.y = position.y + scale.y / 2;
+	// box.position.z = position.z + scale.z / 2;
+	// scene.add(box);
 
 	const texturePath = 'textures/' + material + '.png';
 	const manager = new THREE.LoadingManager();
@@ -919,7 +902,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			// x and y can be beyond 32, but it will wrap around
 			x = x % 32;
 			y = y % 32;
-			const data = pixelData[y][x];
+			const data = pixelData[x][y];
 			return new THREE.Color(data[0] / 255, data[1] / 255, data[2] / 255);
 		}
 
@@ -947,7 +930,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			instancedWorldModel = new VoxelChunk(
 				voxelGeometry,
 				voxelMaterial.clone(),
-				maxChunkSize
+				squareChunkSize * squareChunkSize
 			);
 			instancedWorldModel.visible = false;
 			instancedWorldModel.position.copy(instancedWorldSafetyOffset);
@@ -958,7 +941,8 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		}
 		resetInstancedWorldModel();
 
-		const finalizeChunk = function (voxelFace, isAbnormal=false) {
+		const finalizeChunk = function (voxelFace, isAbnormal=false, customColor=new THREE.Color(0xffffff)) {
+			if (voxelFace != VoxelFace.BOTTOM) return;
 			instancedWorldModel.visible = false;
 			
 			debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
@@ -991,7 +975,8 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			const coverBox = new THREE.Mesh(
 				new THREE.BoxGeometry(1,1,1),
 				new THREE.MeshBasicMaterial({
-					map: texture.clone()
+					map: texture,
+					color: customColor
 				})
 			);
 			coverBox.scale.set(
@@ -1004,25 +989,28 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			coverBox.material.map.wrapT = THREE.RepeatWrapping;
 			coverBox.material.map.magFilter = THREE.NearestFilter;
 			coverBox.material.map.minFilter = THREE.NearestFilter;
-			console.log(coverBox.scale);
 			coverBox.material.map.repeat.set(
-				(coverBox.geometry.parameters.width * 2),
-				(coverBox.geometry.parameters.height * 2)
+				squareChunkSize / 32,
+				squareChunkSize / 32 // 32 is the texture resolution, so it is the [size (in world units) of the chunk / size of the texture]
 			);
-			// offset X by 32
-			coverBox.material.map.offset.set(0.5 + 1/32, 0.5 + 1/32)
+			instancedWorldModel.frustumBox.getCenter(coverBox.position);
 			if (isAbnormal) {
-				// adjust the repeat by the scale from 64x1x64
-				coverBox.material.map.repeat.set(
-					(coverBox.geometry.parameters.width)*2,
-					(coverBox.geometry.parameters.height)/2
-				);
-				// offset X by 32
-				coverBox.material.map.offset.set(0.5 + 1/32, 0)
+				coverBox.material.map = texture.clone();
+				if (voxelFace == VoxelFace.BOTTOM) {
+					// get the scale.x and scale.z of this box relative to the squareChunkSize
+					// and set the repeat to that
+					coverBox.material.map.repeat.multiply(
+						new THREE.Vector2(
+							(coverBox.scale.x / (squareChunkSize)),
+							(coverBox.scale.z / (squareChunkSize))
+						)
+					);
+					if (coverBox.scale.z < squareChunkSize) {
+						coverBox.material.map.offset.y = (squareChunkSize - coverBox.scale.z) / (squareChunkSize/2);
+					}
+				}
 			}
 			scene.add(coverBox);
-			instancedWorldModel.frustumBox.getCenter(coverBox.position);
-			// round the position
 			instancedWorldModel.setCoverBox(coverBox);
 
 			// Reset Everything!!
@@ -1053,15 +1041,12 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
 			// check if we need to create a new chunk
 			localVoxelIterator++;
-			if (localVoxelIterator == maxChunkSize) {
-				finalizeChunk(voxelFace);
-			}
 		}
 
-
-		const squareChunkSize = 64;
-
 		// Create the FLOOR (bottom) of the box:
+		console.log("TOTAL SIZE: " + Math.ceil(scale.x/squareChunkSize), Math.ceil(scale.z/squareChunkSize));
+		console.log("TOTAL NUM OF CHUNKS: " + Math.ceil(scale.x/squareChunkSize) * Math.ceil(scale.z/squareChunkSize));
+		console.log("SCALE: " + scale.x, scale.z);
 		for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
 		{
 			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
@@ -1078,7 +1063,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 						if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
 						{
 							// we set the voxel at this position
-							setVoxel(voxelPosition, VoxelFace.BOTTOM, getPixelColorAt(x + i, z + j));
+							setVoxel(voxelPosition, VoxelFace.BOTTOM, getPixelColorAt(x * thisChunkSizeX + i, z * thisChunkSizeZ + j));
 						}
 						else
 						{
@@ -1086,8 +1071,12 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 						}
 					}
 				}
+				let col = new THREE.Color(0xffffff);
+				if (isFullChunk == false) col.multiplyScalar(0.75);
+				const singleUnitSize = 1/32;
+
 				// we finalize this chunk
-				finalizeChunk(VoxelFace.BOTTOM, !isFullChunk);
+				finalizeChunk(VoxelFace.BOTTOM, !isFullChunk, col);
 			}
 		}
 
@@ -1539,6 +1528,19 @@ const moveTowards = function(vectorA, vectorB, step) {
 	return vectorA.clone().add(difference.normalize().multiplyScalar(step));
 }
 
+const shootLine = function(vec) {
+	const newLine = new THREE.LineSegments(
+		new THREE.BufferGeometry().setFromPoints([
+			camera.position,
+			vec
+		]),
+		new THREE.LineBasicMaterial({
+			color: 0xcccccc
+		})
+	);
+	scene.add(newLine);
+}
+
 const render = function () {
 	// Frame Calculations
 	if (!loaderRemoved && frameCounter > 10){
@@ -1672,6 +1674,8 @@ const render = function () {
 						// Squelch!
 						hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
 						hitSound.play();
+						// create a shoot effect
+						shootLine(intersects[i].point);
 					}
 
 					isAttackAvailable = false;
@@ -1904,7 +1908,7 @@ setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond);
 const createVizSphere = function (x, y, z, color = 0x00ff00, size = 1.5) {
 	const sphere = new THREE.Mesh(
 		new THREE.SphereGeometry(size, 2, 2),
-		new THREE.MeshBasicMaterial({ color: color })
+		new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5 })
 	);
 	sphere.position.set(x, y, z);
 	scene.add(sphere);
@@ -2274,6 +2278,25 @@ document.addEventListener('keydown', function (e) {
 	}
 	if (e.key == 'e') camera.position.y += 10;
 	if (e.key == 'q') camera.position.y -= 10;
+	if (e.key == 'n') {
+		const sRange = 250;
+		for (let i = 0; i < 10; i++)
+		{
+			const testDummy = new NPC(
+				'swat',
+				'character_models/swat_idle.png',
+				new THREE.Vector3(
+					Math.random() * sRange - (sRange/2),
+					0,
+					Math.random() * sRange - (sRange/2)),
+				new THREE.Vector3(
+					0,
+					Math.random() * Math.PI * 2,
+					0),
+				100 + Math.random() * 100,
+				100);
+		}
+	}
 
 	// stolen from stackoverflow:
 	// guesses the size of an object
