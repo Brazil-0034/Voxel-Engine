@@ -127,11 +127,22 @@
 			top: -1px;
 			right: 100px;
 		}
+
+		#FPSViz {
+			position: absolute;
+			top: 35px;
+			left: 35px;
+			font-size: 26px;
+			color: yellow;
+			font-weight: bold;
+			z-index: 1000;
+		}
 	</style>
 
 </head>
 
 <body>
+	<div id="FPSViz">Loading ...</div>
 	<div id="topbar">
 		<span class="topbar-button" id="minimize">&#128469;</span>
 		<span class="topbar-button" id="maximize">&#128470;</span>
@@ -158,7 +169,7 @@
 			}
 	</script>
 	<script src="howler/howler.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script>
+	<!-- <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script> -->
 	<script src="canvasPixelReader.js"></script>
 	<div id="middle-crosshair" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;">x</div>
 <script type="module">
@@ -192,50 +203,51 @@ document.querySelector("#maximize").addEventListener("click", (e) => ipcRenderer
 // This is my JavaScript-based Voxel game (engine)
 const USERSETTINGS = {
 	debugMode: false,
-	useSpriteParticles: true
+	useSpriteParticles: true,
+	baseFOV: 45
 }
 
 // ###
 // DEBUG UI
 // ###
-const pane = new Tweakpane.Pane();
-const paneParent = pane.element.parentElement;
-paneParent.style.zIndex = "1000";
-paneParent.style.top = "40px";
-paneParent.style.opacity = 0;
+// const pane = new Tweakpane.Pane();
+// const paneParent = pane.element.parentElement;
+// paneParent.style.zIndex = "1000";
+// paneParent.style.top = "40px";
+// paneParent.style.opacity = 0;
 var positionOverlayValue = new THREE.Vector3();
-var frameInfo = { FPS: 0, frameTime: 0, drawCalls: 0 };
-// DEBUG UI: FPS
-pane.addMonitor(frameInfo, 'FPS', {
-	view: 'graph',
-	min: 0,
-	max: 85 + 1,
-	interval: 100
-});
-pane.addMonitor(frameInfo, 'FPS', {
-	view: 'number',
-	interval: 60
-});
-pane.addSeparator();
-// DEBUG UI: POSITION
-pane.addMonitor(positionOverlayValue, 'x', {
-	view: 'text',
-	interval: 10
-});
-pane.addMonitor(positionOverlayValue, 'y', {
-	view: 'text',
-	interval: 10
-});
-pane.addMonitor(positionOverlayValue, 'z', {
-	view: 'text',
-	interval: 10
-});
-pane.addSeparator();
-// DEBUG UI: DRAW CALLS
-pane.addMonitor(frameInfo, 'drawCalls', {
-	view: 'text',
-	interval: 10
-});
+// var frameInfo = { FPS: 0, frameTime: 0, drawCalls: 0 };
+// // DEBUG UI: FPS
+// pane.addMonitor(frameInfo, 'FPS', {
+// 	view: 'graph',
+// 	min: 0,
+// 	max: 85 + 1,
+// 	interval: 100
+// });
+// pane.addMonitor(frameInfo, 'FPS', {
+// 	view: 'number',
+// 	interval: 60
+// });
+// pane.addSeparator();
+// // DEBUG UI: POSITION
+// pane.addMonitor(positionOverlayValue, 'x', {
+// 	view: 'text',
+// 	interval: 10
+// });
+// pane.addMonitor(positionOverlayValue, 'y', {
+// 	view: 'text',
+// 	interval: 10
+// });
+// pane.addMonitor(positionOverlayValue, 'z', {
+// 	view: 'text',
+// 	interval: 10
+// });
+// pane.addSeparator();
+// // DEBUG UI: DRAW CALLS
+// pane.addMonitor(frameInfo, 'drawCalls', {
+// 	view: 'text',
+// 	interval: 10
+// });
 
 const lerp = function (a, b, t) {
 	return a + (b - a) * t;
@@ -255,6 +267,7 @@ class VoxelChunk extends THREE.InstancedMesh {
 	isActivated
 	deadVoxels
 	coverBox
+	bigCoverBox
 	isCovered
 
 	constructor(geometry, material, count) {
@@ -272,10 +285,31 @@ class VoxelChunk extends THREE.InstancedMesh {
 	uncover() {
 		if (this.isCovered == true)
 		{
+			this.bigCoverBox.uncover();
 			scene.remove(this.coverBox);
 			this.isCovered = false;
 			this.visible = true;
 		}
+	}
+}
+
+class BigBox extends THREE.Mesh {
+	coveredBoxes
+
+	constructor(geometry, material) {
+		super(geometry, material);
+		this.coveredBoxes = [];
+	}
+
+	addCoveredBox(sceneObject) {
+		this.coveredBoxes.push(sceneObject);
+	}
+
+	uncover() {
+		this.coveredBoxes.forEach(box => {
+			box.visible = true;
+		});
+		scene.remove(this);
 	}
 }
 
@@ -434,12 +468,16 @@ const setHelpText = (text) => { document.querySelector("#help-text").innerHTML =
 
 // SCENE SETUP
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 15, 5000);
+let defaultFOV = USERSETTINGS.baseFOV;
+let zoomFOV = defaultFOV - 20;
+let targetFOV = defaultFOV;
+const camera = new THREE.PerspectiveCamera(targetFOV, window.innerWidth / window.innerHeight, 15, 5000);
 // RENDERER SETUP
 // Initializes the THREE.js renderer
 const renderer = new THREE.WebGLRenderer({
 	antialias: true
 });
+renderer.info.autoReset = false;
 renderer.logarithmicDepthBuffer = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -541,24 +579,6 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
 	isKeyPressed[e.key.toLowerCase()] = false;
 });
-
-// on mousemove LEFT and RIGHT, rotate the player's camera
-var mouseMoveTimer = 0;
-let weaponLeanDirX = 0, weaponLeanDirZ = 0;
-document.addEventListener('mousemove', function (e) {
-	if (controls.isLocked === true) {
-		if (e.movementX < 0) weaponLeanDirX = -1
-		else if (e.movementX > 0) weaponLeanDirX = 1
-		mouseMoveTimer = 0;
-	}
-});
-setInterval(() => {
-	if (mouseMoveTimer > 1) {
-		weaponLeanDirZ = 0;
-		weaponLeanDirX = 0;
-	}
-	mouseMoveTimer++;
-}, 10);
 
 // This is a function that can clamp two numbers within a range.
 // For some reason, it doesn't seem to exist in Vanilla JS? so we must write one ourselves:
@@ -749,7 +769,7 @@ const voxelField = new DiscreteVectorField();
 //  ^ this is very unncessary but could be useful for features like streaming
 const crouchDepth = 7.5;
 const crouchSpeed = 7.5;
-const playerHeight = 60;
+let playerHeight = 60;
 const crouchYPosition = playerHeight - crouchDepth;
 
 // CUTAWAYS: These allow map builders to make "cuts" in the map, using either cuboids or spheres
@@ -871,26 +891,32 @@ document.addEventListener('keydown', (event) => {
 		});
 	}
 });
+const coverBoxes = [];
+// on press of "I" or "K", increase/decrease the coverBox.material.map.offset X for each element. On "J" or "L", increase/decrease Y
+const offset = new THREE.Vector2(0,0);
+document.addEventListener('keydown', (event) => {
+	if (event.key == "j") {
+		offset.y += 0.1;
+	}
+	if (event.key == "l") {
+		offset.y -= 0.1;
+	}
+	if (event.key == "i") {
+		offset.x -= 0.1;
+	}
+	if (event.key == "k") {
+		offset.x += 0.1;
+	}
+	coverBoxes.forEach(coverBox => {
+		coverBox.material.map.offset = offset;
+	});
+	console.log(offset.x, offset.y);
+});
 const buildWorldModelFromBox = function (scale, position, material, color) {
 	// round the position
 	position.x = Math.round(position.x);
 	position.y = Math.round(position.y);
 	position.z = Math.round(position.z);
-
-	// // create a transparent box around the whole thing
-	// const box = new THREE.Mesh(
-	// 	new THREE.BoxGeometry(scale.x + 1, scale.y + 1, scale.z + 1),
-	// 	new THREE.MeshBasicMaterial({
-	// 		color: 0x000000,
-	// 		transparent: true,
-	// 		opacity: 0.5
-	// 	})
-	// );
-	// // offset for center
-	// box.position.x = position.x + scale.x / 2;
-	// box.position.y = position.y + scale.y / 2;
-	// box.position.z = position.z + scale.z / 2;
-	// scene.add(box);
 
 	const texturePath = 'textures/' + material + '.png';
 	const manager = new THREE.LoadingManager();
@@ -902,7 +928,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			// x and y can be beyond 32, but it will wrap around
 			x = x % 32;
 			y = y % 32;
-			const data = pixelData[x][y];
+			let data = pixelData[x][y];
 			return new THREE.Color(data[0] / 255, data[1] / 255, data[2] / 255);
 		}
 
@@ -941,8 +967,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		}
 		resetInstancedWorldModel();
 
-		const finalizeChunk = function (voxelFace, isAbnormal=false, customColor=new THREE.Color(0xffffff)) {
-			if (voxelFace != VoxelFace.BOTTOM) return;
+		const finalizeChunk = function (voxelFace, isAbnormal=false) {
 			instancedWorldModel.visible = false;
 			
 			debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
@@ -967,56 +992,128 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 					(chunkMaxPosition.z - chunkMinPosition.z)
 				)
 			);
+			instancedWorldModel.bigCoverBox = bigCoverBox;
 			// createa  wireframe box to visualize the frustum box
-			const frustumBoxHelper = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0xffff00);
-			scene.add(frustumBoxHelper);
+			// const frustumBoxHelper = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0xffff00);
+			// scene.add(frustumBoxHelper);
 
 			// create a cover box with the same dimensions and position as the frustum box
 			const coverBox = new THREE.Mesh(
-				new THREE.BoxGeometry(1,1,1),
+				new THREE.PlaneGeometry(1, 1),
 				new THREE.MeshBasicMaterial({
 					map: texture,
-					color: customColor
+					side: THREE.DoubleSide
 				})
 			);
-			coverBox.scale.set(
-				instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
-				instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1,
-				instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1
-			);
+			coverBoxes.push(coverBox);
+
 			// box.material.map.repeat.set(squareChunkSize,squareChunkSize);
 			coverBox.material.map.wrapS = THREE.RepeatWrapping;
 			coverBox.material.map.wrapT = THREE.RepeatWrapping;
 			coverBox.material.map.magFilter = THREE.NearestFilter;
 			coverBox.material.map.minFilter = THREE.NearestFilter;
+			instancedWorldModel.frustumBox.getCenter(coverBox.position);
+			coverBox.material.map = texture.clone();
 			coverBox.material.map.repeat.set(
 				squareChunkSize / 32,
 				squareChunkSize / 32 // 32 is the texture resolution, so it is the [size (in world units) of the chunk / size of the texture]
 			);
-			instancedWorldModel.frustumBox.getCenter(coverBox.position);
-			if (isAbnormal) {
-				coverBox.material.map = texture.clone();
-				if (voxelFace == VoxelFace.BOTTOM) {
-					// get the scale.x and scale.z of this box relative to the squareChunkSize
-					// and set the repeat to that
+
+			switch (voxelFace) {
+				default:
+					console.error("Invalid VoxelFace: " + voxelFace);
+					return;
+				case VoxelFace.TOP:
+					coverBox.material.map.repeat.multiply(
+						new THREE.Vector2(
+							1,
+							-1
+						)
+					)
+				case VoxelFace.BOTTOM:
+					coverBox.scale.set(
+						instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
+						instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1
+					);
 					coverBox.material.map.repeat.multiply(
 						new THREE.Vector2(
 							(coverBox.scale.x / (squareChunkSize)),
-							(coverBox.scale.z / (squareChunkSize))
+							(coverBox.scale.y / (squareChunkSize))
 						)
 					);
-					if (coverBox.scale.z < squareChunkSize) {
-						coverBox.material.map.offset.y = (squareChunkSize - coverBox.scale.z) / (squareChunkSize/2);
+					if (coverBox.scale.y < squareChunkSize) {
+						coverBox.material.color.multiplyScalar(0.5);
+						// CENTERS:
+						// default (0,0) bottom left
+						coverBox.material.map.center.set(1,1);
 					}
-				}
+					if (coverBox.scale.x < squareChunkSize) {
+						coverBox.material.color.multiplyScalar(0.5);
+						// CENTERS:
+						// default (0,0) bottom left
+						coverBox.material.map.center.set(0,1);
+					}
+
+
+
+
+					coverBox.rotation.x = -Math.PI/2;
+					coverBox.position.y += 0.5;
+
+					// const subBox = coverBox.clone();
+					// scene.add(subBox);
+					// subBox.rotation.x = Math.PI/2;
+					// subBox.position.y -= 1;
+					// console.log(coverBox.material.map.repeat);
+					break;
+				case VoxelFace.LEFT:
+				case VoxelFace.RIGHT:
+					coverBox.material.map.repeat.multiply(
+						new THREE.Vector2(
+							-(coverBox.scale.z / (squareChunkSize)),
+							-(coverBox.scale.y / (squareChunkSize))
+						)
+					);
+					if (isAbnormal) {
+						coverBox.material.map.offset.set(
+							(coverBox.scale.z - squareChunkSize) / (squareChunkSize/2),
+							(coverBox.scale.y - squareChunkSize) / (squareChunkSize + squareChunkSize/2)
+						)
+					}
+					break;
 			}
+
+			bigCoverBox.addCoveredBox(coverBox);
 			scene.add(coverBox);
+			// coverBox.visible = false;
 			instancedWorldModel.setCoverBox(coverBox);
 
 			// Reset Everything!!
 			resetChunkBounds();
 			resetInstancedWorldModel();
 		}
+
+		// create a BIG box around the whole thing
+		const bigCoverBox = new BigBox(
+			new THREE.BoxGeometry(scale.x, scale.y, scale.z),
+			new THREE.MeshBasicMaterial({
+				color: 0xffffff,
+				map: texture.clone()
+			})
+		);
+		bigCoverBox.material.map.wrapS = THREE.RepeatWrapping;
+		bigCoverBox.material.map.wrapT = THREE.RepeatWrapping;
+		bigCoverBox.material.map.magFilter = THREE.NearestFilter;
+		bigCoverBox.material.map.minFilter = THREE.NearestFilter;
+		bigCoverBox.material.map.repeat.set(
+			scale.x / 32,
+			scale.z / 32 // 32 is the texture resolution, so it is the [size (in world units) of the chunk / size of the texture]
+		);
+		// offset for center
+		bigCoverBox.position.x = position.x + scale.x / 2;
+		bigCoverBox.position.y = position.y + scale.y / 2;
+		bigCoverBox.position.z = position.z + scale.z / 2;
+		// scene.add(bigCoverBox);
 
 		const setVoxel = function (voxelPosition,voxelFace,voxelColor) {
 			// first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
@@ -1044,9 +1141,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 		}
 
 		// Create the FLOOR (bottom) of the box:
-		console.log("TOTAL SIZE: " + Math.ceil(scale.x/squareChunkSize), Math.ceil(scale.z/squareChunkSize));
-		console.log("TOTAL NUM OF CHUNKS: " + Math.ceil(scale.x/squareChunkSize) * Math.ceil(scale.z/squareChunkSize));
-		console.log("SCALE: " + scale.x, scale.z);
 		for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
 		{
 			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
@@ -1071,104 +1165,73 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 						}
 					}
 				}
-				let col = new THREE.Color(0xffffff);
-				if (isFullChunk == false) col.multiplyScalar(0.75);
-				const singleUnitSize = 1/32;
 
 				// we finalize this chunk
-				finalizeChunk(VoxelFace.BOTTOM, !isFullChunk, col);
+				finalizeChunk(VoxelFace.BOTTOM, !isFullChunk);
 			}
 		}
 
-		// Create the ROOF (top) of the box:
-		for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
-		{
-			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
-			{
-				let isFullChunk = true;
-				let thisChunkSizeX = squareChunkSize;
-				let thisChunkSizeZ = squareChunkSize;
-				for (let i = 0; i < thisChunkSizeX; i++)
-				{
-					for (let j = 0; j < thisChunkSizeZ; j++)
-					{
-						const voxelPosition = new THREE.Vector3(position.x + x*squareChunkSize + i, position.y + scale.y, position.z + z*squareChunkSize + j);
-						// if the point is within the box:
-						if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
-						{
-							// we set the voxel at this position
-							setVoxel(voxelPosition, VoxelFace.TOP, getPixelColorAt(x + i, z + j));
-						}
-						else
-						{
-							isFullChunk = false;
-						}
-					}
-				}
-				// we finalize this chunk
-				finalizeChunk(VoxelFace.TOP, !isFullChunk);
-			}
-		}
+		// // Create the ROOF (top) of the box:
+		// for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
+		// {
+		// 	for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
+		// 	{
+		// 		let isFullChunk = true;
+		// 		let thisChunkSizeX = squareChunkSize;
+		// 		let thisChunkSizeZ = squareChunkSize;
+		// 		for (let i = 0; i < thisChunkSizeX; i++)
+		// 		{
+		// 			for (let j = 0; j < thisChunkSizeZ; j++)
+		// 			{
+		// 				const voxelPosition = new THREE.Vector3(position.x + x*squareChunkSize + i, position.y + scale.y - 1, position.z + z*squareChunkSize + j);
+		// 				// if the point is within the box:
+		// 				if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
+		// 				{
+		// 					// we set the voxel at this position
+		// 					setVoxel(voxelPosition, VoxelFace.TOP, getPixelColorAt(x * thisChunkSizeX + i, z * thisChunkSizeZ + j));
+		// 				}
+		// 				else
+		// 				{
+		// 					isFullChunk = false;
+		// 				}
+		// 			}
+		// 		}
 
-		// Create the LEFT WALL of the box:
-		for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
-		{
-			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
-			{
-				let isFullChunk = true;
-				let thisChunkSizeY = squareChunkSize;
-				let thisChunkSizeZ = squareChunkSize;
-				for (let i = 0; i < thisChunkSizeY; i++)
-				{
-					for (let j = 0; j < thisChunkSizeZ; j++)
-					{
-						const voxelPosition = new THREE.Vector3(position.x, position.y + y*squareChunkSize + i, position.z + z*squareChunkSize + j);
-						// if the point is within the box:
-						if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
-						{
-							// we set the voxel at this position
-							setVoxel(voxelPosition, VoxelFace.LEFT, getPixelColorAt(y + i, z + j));
-						}
-						else
-						{
-							isFullChunk = false;
-						}
-					}
-				}
-				// we finalize this chunk
-				finalizeChunk(VoxelFace.LEFT, !isFullChunk);
-			}
-		}
+		// 		// we finalize this chunk
+		// 		finalizeChunk(VoxelFace.TOP, !isFullChunk);
+		// 	}
+		// }
 
-		// Create the RIGHT WALL of the box:
-		for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
-		{
-			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
-			{
-				let isFullChunk = true;
-				let thisChunkSizeY = squareChunkSize;
-				let thisChunkSizeZ = squareChunkSize;
-				for (let i = 0; i < thisChunkSizeY; i++)
-				{
-					for (let j = 0; j < thisChunkSizeZ; j++)
-					{
-						const voxelPosition = new THREE.Vector3(position.x + scale.x, position.y + y*squareChunkSize + i, position.z + z*squareChunkSize + j);
-						// if the point is within the box:
-						if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
-						{
-							// we set the voxel at this position
-							setVoxel(voxelPosition, VoxelFace.RIGHT, getPixelColorAt(y + i, z + j));
-						}
-						else
-						{
-							isFullChunk = false;
-						}
-					}
-				}
-				// we finalize this chunk
-				finalizeChunk(VoxelFace.RIGHT, !isFullChunk);
-			}
-		}
+		// // Create the LEFT WALL of the box:
+		// for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
+		// {
+		// 	for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
+		// 	{
+		// 		let isFullChunk = true;
+		// 		let thisChunkSizeY = squareChunkSize;
+		// 		let thisChunkSizeZ = squareChunkSize;
+		// 		for (let i = 0; i < thisChunkSizeY; i++)
+		// 		{
+		// 			for (let j = 0; j < thisChunkSizeZ; j++)
+		// 			{
+		// 				const voxelPosition = new THREE.Vector3(position.x, position.y + y*squareChunkSize + i, position.z + z*squareChunkSize + j);
+		// 				// if the point is within the box:
+		// 				if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
+		// 				{
+		// 					// we set the voxel at this position
+		// 					setVoxel(voxelPosition, VoxelFace.LEFT, getPixelColorAt(y * thisChunkSizeY + i, z * thisChunkSizeZ + j, "YX"));
+		// 				}
+		// 				else
+		// 				{
+		// 					isFullChunk = false;
+		// 				}
+		// 			}
+		// 		}
+
+		// 		// we finalize this chunk
+		// 		finalizeChunk(VoxelFace.LEFT, !isFullChunk);
+		// 	}
+		// }
 
 	};
 	const loader = new THREE.TextureLoader(manager);
@@ -1548,18 +1611,19 @@ const render = function () {
 		setTimeout(() => {document.querySelector("#loader-bg").remove()}, 250);
 		loaderRemoved = true;
 		setHelpText("[WASD] Move [Mouse] Look");
-		paneParent.style.opacity = 1;
+		// paneParent.style.opacity = 1;
 	}
 	frameCounter = (frameCounter + 1) % 60;
 	const delta = clock.getDelta();
-	frameInfo.FPS = Math.round(1 / delta);
-	frameInfo.frameTime = delta;
+	document.querySelector("#FPSViz").textContent = Math.round(1 / delta);
+	// frameInfo.frameTime = delta;
 	// Update NPC Motion
 	NPCBank.forEach(npc => {
 		npc.update(delta);
 	});
 	// Player Motion
 	let isCrouching = isKeyPressed["control"];
+
 	let zAxis = 0;
 	if (isKeyPressed["s"]) zAxis += 1 * delta;
 	if (isKeyPressed["w"]) zAxis -= 1 * delta;
@@ -1601,7 +1665,7 @@ const render = function () {
 		if (xAxis != 0 || zAxis != 0) {
 			isMoving = true;
 		}
-		else if (mouseMoveTimer == 0 && controls.isLocked == true) {
+		else if (controls.isLocked == true) {
 			isMoving = true;
 			bounceRange.divideScalar(2.5);
 			speed.multiplyScalar(2.5);
@@ -1617,7 +1681,10 @@ const render = function () {
 		// always realign the rotation of the weapon to the target
 		weaponModel.rotation.setFromRotationMatrix(weaponTarget.matrixWorld);
 	}
+	
+	targetFOV = defaultFOV;
 	if (isRightClicking) {
+		targetFOV = zoomFOV;
 		switch (weaponType) {
 			case undefined:
 				break;
@@ -1633,6 +1700,9 @@ const render = function () {
 	{
 		if (weaponTarget) weaponTarget.position.set(weaponPosition.x, weaponPosition.y, weaponPosition.z);
 	}
+	camera.fov = lerp(camera.fov, targetFOV, 10 * delta);
+	if (Math.abs(camera.fov - targetFOV) > 1) camera.updateProjectionMatrix();
+
 	if (isLeftClicking) {
 		switch (weaponType) {
 			case undefined:
@@ -1722,23 +1792,19 @@ const render = function () {
 	frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
 	instancedModelIndex.forEach(model => {
 		if (frustum.intersectsBox(model.frustumBox)) {
-			if (model.isCovered) {
-				model.coverBox.visible = true;
-			}
-			else {
+			if (!model.isCovered) {
 				model.visible = true;
 			}
 		}
 		else {
 			model.visible = false;
-			if (model.isCovered) {
-				model.coverBox.visible = false;
-			}
 		}
 	});
 
-	frameInfo.drawCalls = renderer.info.render.calls;
+	// frameInfo.drawCalls = renderer.info.render.calls;
 	requestAnimationFrame(render);
+
+	renderer.info.reset();
 	composer.render();
 }
 
@@ -1903,7 +1969,7 @@ const physicsUpdate = function () {
 	// }
 }
 
-setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond);
+// setInterval(physicsUpdate, 1000 / physicsUpdatesPerSecond);
 
 const createVizSphere = function (x, y, z, color = 0x00ff00, size = 1.5) {
 	const sphere = new THREE.Mesh(
@@ -2020,7 +2086,6 @@ const conjunctionCheck = function () {
 		const endTime = performance.now();
 		console.log("conjunction check took " + (endTime - startTime) + " milliseconds");
 
-		console.log(fullHole.length);
 		if (fullHole.length > 5)
 		{
 			const sound = Math.floor(Math.random() * bigDropSounds.length)
@@ -2276,8 +2341,8 @@ document.addEventListener('keydown', function (e) {
 		console.log(triVoxelDroppedPieces);
 		console.log("\n+==============================+\n")
 	}
-	if (e.key == 'e') camera.position.y += 10;
-	if (e.key == 'q') camera.position.y -= 10;
+	if (e.key == 'e') playerHeight += 10;
+	if (e.key == 'q') playerHeight -= 10;
 	if (e.key == 'n') {
 		const sRange = 250;
 		for (let i = 0; i < 10; i++)

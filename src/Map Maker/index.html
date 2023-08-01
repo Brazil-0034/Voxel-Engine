@@ -480,13 +480,15 @@ scene.add(transformControls);
 var lastAttachedObject;
 const objectsUnderground = [];
 // load ../img/errorTex as errorTex
-const realignTexture = function(sceneObject, x, y) {
+const realignTexture = function(sceneObject, scaleX, scaleZ) {
     if (!sceneObject.material.map) return;
-    x = Math.abs(x);
-    y = Math.abs(y);
-    sceneObject.material.map.repeat.x = 32;
-    sceneObject.material.map.repeat.y = 32;
+    scaleX = Math.abs(scaleX);
+    scaleZ = Math.abs(scaleZ);
+    const squareChunkSize = 64;
+    sceneObject.material.map.repeat.x = scaleX / (squareChunkSize/2);
+    sceneObject.material.map.repeat.y = scaleZ / (squareChunkSize/2);
     sceneObject.material.map.needsUpdate = true;
+    console.log("Realigned texture with dimensions: " + sceneObject.material.map.repeat.x + "," + sceneObject.material.map.repeat.y);
 }
 const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
 transformControls.addEventListener('dragging-changed', function (event) {
@@ -544,7 +546,7 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 selectedObjects.position.y = Math.floor(selectedObjects.position.y);
                 selectedObjects.position.z = Math.floor(selectedObjects.position.z);
                 selectedObjects.children.forEach(sceneObject => {
-                    realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.y);
+                    realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.z);
                 });
             }
             updateRightPanel(lastAttachedObject);
@@ -1428,7 +1430,7 @@ const importProject = function () {
                     newBox.scale.x = mapMakerObject.size.x;
                     newBox.scale.y = mapMakerObject.size.y;
                     newBox.scale.z = mapMakerObject.size.z;
-                    realignTexture(newBox, newBox.scale.x, newBox.scale.y);
+                    realignTexture(newBox, newBox.scale.x, newBox.scale.z);
                 }
             })
 
