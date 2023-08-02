@@ -128,21 +128,45 @@
 			right: 100px;
 		}
 
-		#FPSViz {
+		#vizbox {
 			position: absolute;
 			top: 35px;
 			left: 35px;
-			font-size: 26px;
+			z-index: 1000;
+			font-size: 18px;
 			color: yellow;
 			font-weight: bold;
-			z-index: 1000;
+			padding: 10px 30px;
+			background: rgba(0, 0, 0, 0.85);
+		}
+
+		#DRAWCALLSViz {
+			color: lightyellow;
+		}
+
+		#XViz {
+			color: lightcoral;
+		}
+
+		#YViz {
+			color: lightgreen;
+		}
+
+		#ZViz {
+			color: lightblue;
 		}
 	</style>
 
 </head>
 
 <body>
-	<div id="FPSViz">Loading ...</div>
+	<div id="vizbox">
+		<div id="FPSViz">Loading ...</div>
+		<div id="DRAWCALLSViz">Loading ...</div>
+		<div id="XViz">N/A</div>
+		<div id="YViz">N/A</div>
+		<div id="ZViz">N/A</div>
+	</div>
 	<div id="topbar">
 		<span class="topbar-button" id="minimize">&#128469;</span>
 		<span class="topbar-button" id="maximize">&#128470;</span>
@@ -267,7 +291,6 @@ class VoxelChunk extends THREE.InstancedMesh {
 	isActivated
 	deadVoxels
 	coverBox
-	bigCoverBox
 	isCovered
 
 	constructor(geometry, material, count) {
@@ -275,18 +298,23 @@ class VoxelChunk extends THREE.InstancedMesh {
 		this.frustumBox = new THREE.Box3();
 		this.deadVoxels = [];
 		this.isCovered = false;
+		this.coverBox = []
 	}
 
-	setCoverBox(coverBox) {
+	addCoverBox(coverBox) {
 		this.isCovered = true;
-		this.coverBox = coverBox;
+		this.coverBox.push(coverBox);
 	}
 
 	uncover() {
 		if (this.isCovered == true)
 		{
-			this.bigCoverBox.uncover();
-			scene.remove(this.coverBox);
+			this.coverBox.forEach(box => {
+				scene.remove(box);
+				box.material.map.dispose();
+				box.material.dispose();
+				box.geometry.dispose();
+			})
 			this.isCovered = false;
 			this.visible = true;
 		}
@@ -303,6 +331,7 @@ class BigBox extends THREE.Mesh {
 
 	addCoveredBox(sceneObject) {
 		this.coveredBoxes.push(sceneObject);
+		sceneObject.visible = false;
 	}
 
 	uncover() {
@@ -891,27 +920,6 @@ document.addEventListener('keydown', (event) => {
 		});
 	}
 });
-const coverBoxes = [];
-// on press of "I" or "K", increase/decrease the coverBox.material.map.offset X for each element. On "J" or "L", increase/decrease Y
-const offset = new THREE.Vector2(0,0);
-document.addEventListener('keydown', (event) => {
-	if (event.key == "j") {
-		offset.y += 0.1;
-	}
-	if (event.key == "l") {
-		offset.y -= 0.1;
-	}
-	if (event.key == "i") {
-		offset.x -= 0.1;
-	}
-	if (event.key == "k") {
-		offset.x += 0.1;
-	}
-	coverBoxes.forEach(coverBox => {
-		coverBox.material.map.offset = offset;
-	});
-	console.log(offset.x, offset.y);
-});
 const buildWorldModelFromBox = function (scale, position, material, color) {
 	// round the position
 	position.x = Math.round(position.x);
@@ -992,7 +1000,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 					(chunkMaxPosition.z - chunkMinPosition.z)
 				)
 			);
-			instancedWorldModel.bigCoverBox = bigCoverBox;
 			// createa  wireframe box to visualize the frustum box
 			// const frustumBoxHelper = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0xffff00);
 			// scene.add(frustumBoxHelper);
@@ -1005,7 +1012,6 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 					side: THREE.DoubleSide
 				})
 			);
-			coverBoxes.push(coverBox);
 
 			// box.material.map.repeat.set(squareChunkSize,squareChunkSize);
 			coverBox.material.map.wrapS = THREE.RepeatWrapping;
@@ -1019,17 +1025,13 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 				squareChunkSize / 32 // 32 is the texture resolution, so it is the [size (in world units) of the chunk / size of the texture]
 			);
 
+			let subBox; // switch cases require parent block scoped variables? guess i don kno much about js ... or coding ... or life
+			// whose idea to make this in js was it anyway??
 			switch (voxelFace) {
 				default:
 					console.error("Invalid VoxelFace: " + voxelFace);
 					return;
 				case VoxelFace.TOP:
-					coverBox.material.map.repeat.multiply(
-						new THREE.Vector2(
-							1,
-							-1
-						)
-					)
 				case VoxelFace.BOTTOM:
 					coverBox.scale.set(
 						instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
@@ -1042,78 +1044,106 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 						)
 					);
 					if (coverBox.scale.y < squareChunkSize) {
-						coverBox.material.color.multiplyScalar(0.5);
 						// CENTERS:
 						// default (0,0) bottom left
 						coverBox.material.map.center.set(1,1);
 					}
 					if (coverBox.scale.x < squareChunkSize) {
-						coverBox.material.color.multiplyScalar(0.5);
 						// CENTERS:
 						// default (0,0) bottom left
 						coverBox.material.map.center.set(0,1);
 					}
 
-
-
-
 					coverBox.rotation.x = -Math.PI/2;
 					coverBox.position.y += 0.5;
 
-					// const subBox = coverBox.clone();
-					// scene.add(subBox);
-					// subBox.rotation.x = Math.PI/2;
-					// subBox.position.y -= 1;
-					// console.log(coverBox.material.map.repeat);
+					subBox = coverBox.clone();
+					subBox.position.y -= 1;
+
+					instancedWorldModel.addCoverBox(subBox);
+					instancedWorldModel.addCoverBox(coverBox);
+					scene.add(subBox);
+					scene.add(coverBox);
 					break;
 				case VoxelFace.LEFT:
 				case VoxelFace.RIGHT:
+					coverBox.scale.set(
+						instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1,
+						instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
+					);
 					coverBox.material.map.repeat.multiply(
 						new THREE.Vector2(
-							-(coverBox.scale.z / (squareChunkSize)),
+							(coverBox.scale.y / (squareChunkSize)),
+							-(coverBox.scale.x / (squareChunkSize))
+						)
+					);
+					if (coverBox.scale.x < squareChunkSize) {
+						// CENTERS:
+						// default (0,0) bottom left
+						coverBox.material.map.center.set(1,1);
+						if (coverBox.scale.y < squareChunkSize) {
+							coverBox.material.color.multiplyScalar(0.5);
+							// CENTERS:
+							// default (0,0) bottom left
+							coverBox.material.map.center.set(1,0);
+						}
+					}
+
+					coverBox.material.map.rotation = Math.PI/2;
+					coverBox.rotation.y = Math.PI/2;
+					coverBox.position.x += 0.5;
+
+					subBox = coverBox.clone();
+					subBox.position.x -= 1;
+
+					instancedWorldModel.addCoverBox(subBox);
+					instancedWorldModel.addCoverBox(coverBox);
+					scene.add(subBox);
+					scene.add(coverBox);
+					break;
+				case VoxelFace.FRONT:
+				case VoxelFace.BACK:
+					coverBox.scale.set(
+						instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
+						instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
+					);
+					coverBox.material.map.repeat.multiply(
+						new THREE.Vector2(
+							-(coverBox.scale.x / (squareChunkSize)),
 							-(coverBox.scale.y / (squareChunkSize))
 						)
 					);
-					if (isAbnormal) {
-						coverBox.material.map.offset.set(
-							(coverBox.scale.z - squareChunkSize) / (squareChunkSize/2),
-							(coverBox.scale.y - squareChunkSize) / (squareChunkSize + squareChunkSize/2)
-						)
+
+					if (coverBox.scale.x < squareChunkSize) {
+						// CENTERS:
+						// default (0,0) bottom left
+						coverBox.material.map.center.set(1,1);
+						if (coverBox.scale.y < squareChunkSize) {
+							coverBox.material.color.multiplyScalar(0.5);
+							// CENTERS:
+							// default (0,0) bottom left
+							coverBox.material.map.center.set(1,0);
+						}
 					}
+
+					coverBox.rotation.y = Math.PI;
+					coverBox.position.z += 0.5;
+
+					subBox = coverBox.clone();
+					subBox.position.z -= 1;
+
+					instancedWorldModel.addCoverBox(subBox);
+					instancedWorldModel.addCoverBox(coverBox);
+					scene.add(subBox);
+					scene.add(coverBox);
 					break;
 			}
-
-			bigCoverBox.addCoveredBox(coverBox);
-			scene.add(coverBox);
 			// coverBox.visible = false;
-			instancedWorldModel.setCoverBox(coverBox);
 
 			// Reset Everything!!
 			resetChunkBounds();
 			resetInstancedWorldModel();
 		}
-
-		// create a BIG box around the whole thing
-		const bigCoverBox = new BigBox(
-			new THREE.BoxGeometry(scale.x, scale.y, scale.z),
-			new THREE.MeshBasicMaterial({
-				color: 0xffffff,
-				map: texture.clone()
-			})
-		);
-		bigCoverBox.material.map.wrapS = THREE.RepeatWrapping;
-		bigCoverBox.material.map.wrapT = THREE.RepeatWrapping;
-		bigCoverBox.material.map.magFilter = THREE.NearestFilter;
-		bigCoverBox.material.map.minFilter = THREE.NearestFilter;
-		bigCoverBox.material.map.repeat.set(
-			scale.x / 32,
-			scale.z / 32 // 32 is the texture resolution, so it is the [size (in world units) of the chunk / size of the texture]
-		);
-		// offset for center
-		bigCoverBox.position.x = position.x + scale.x / 2;
-		bigCoverBox.position.y = position.y + scale.y / 2;
-		bigCoverBox.position.z = position.z + scale.z / 2;
-		// scene.add(bigCoverBox);
 
 		const setVoxel = function (voxelPosition,voxelFace,voxelColor) {
 			// first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
@@ -1171,67 +1201,160 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			}
 		}
 
-		// // Create the ROOF (top) of the box:
-		// for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
-		// {
-		// 	for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
-		// 	{
-		// 		let isFullChunk = true;
-		// 		let thisChunkSizeX = squareChunkSize;
-		// 		let thisChunkSizeZ = squareChunkSize;
-		// 		for (let i = 0; i < thisChunkSizeX; i++)
-		// 		{
-		// 			for (let j = 0; j < thisChunkSizeZ; j++)
-		// 			{
-		// 				const voxelPosition = new THREE.Vector3(position.x + x*squareChunkSize + i, position.y + scale.y - 1, position.z + z*squareChunkSize + j);
-		// 				// if the point is within the box:
-		// 				if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
-		// 				{
-		// 					// we set the voxel at this position
-		// 					setVoxel(voxelPosition, VoxelFace.TOP, getPixelColorAt(x * thisChunkSizeX + i, z * thisChunkSizeZ + j));
-		// 				}
-		// 				else
-		// 				{
-		// 					isFullChunk = false;
-		// 				}
-		// 			}
-		// 		}
+		// Create the ROOF (top) of the box:
+		for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
+		{
+			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
+			{
+				let isFullChunk = true;
+				let thisChunkSizeX = squareChunkSize;
+				let thisChunkSizeZ = squareChunkSize;
+				for (let i = 0; i < thisChunkSizeX; i++)
+				{
+					for (let j = 0; j < thisChunkSizeZ; j++)
+					{
+						const voxelPosition = new THREE.Vector3(position.x + x*squareChunkSize + i, position.y + scale.y - 1, position.z + z*squareChunkSize + j);
+						// if the point is within the box:
+						if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
+						{
+							// we set the voxel at this position
+							setVoxel(voxelPosition, VoxelFace.TOP, getPixelColorAt(x * thisChunkSizeX + i, z * thisChunkSizeZ + j));
+						}
+						else
+						{
+							isFullChunk = false;
+						}
+					}
+				}
 
-		// 		// we finalize this chunk
-		// 		finalizeChunk(VoxelFace.TOP, !isFullChunk);
-		// 	}
-		// }
+				// we finalize this chunk
+				finalizeChunk(VoxelFace.TOP, !isFullChunk);
+			}
+		}
 
-		// // Create the LEFT WALL of the box:
-		// for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
-		// {
-		// 	for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
-		// 	{
-		// 		let isFullChunk = true;
-		// 		let thisChunkSizeY = squareChunkSize;
-		// 		let thisChunkSizeZ = squareChunkSize;
-		// 		for (let i = 0; i < thisChunkSizeY; i++)
-		// 		{
-		// 			for (let j = 0; j < thisChunkSizeZ; j++)
-		// 			{
-		// 				const voxelPosition = new THREE.Vector3(position.x, position.y + y*squareChunkSize + i, position.z + z*squareChunkSize + j);
-		// 				// if the point is within the box:
-		// 				if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
-		// 				{
-		// 					// we set the voxel at this position
-		// 					setVoxel(voxelPosition, VoxelFace.LEFT, getPixelColorAt(y * thisChunkSizeY + i, z * thisChunkSizeZ + j, "YX"));
-		// 				}
-		// 				else
-		// 				{
-		// 					isFullChunk = false;
-		// 				}
-		// 			}
-		// 		}
+		// Create the LEFT WALL of the box:
+		for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
+		{
+			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
+			{
+				let isFullChunk = true;
+				let thisChunkSizeY = squareChunkSize;
+				let thisChunkSizeZ = squareChunkSize;
+				for (let i = 0; i < thisChunkSizeY; i++)
+				{
+					for (let j = 0; j < thisChunkSizeZ; j++)
+					{
+						const voxelPosition = new THREE.Vector3(position.x, position.y + y*squareChunkSize + i, position.z + z*squareChunkSize + j);
+						// if the point is within the box:
+						if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
+						{
+							// we set the voxel at this position
+							setVoxel(voxelPosition, VoxelFace.LEFT, getPixelColorAt(y * thisChunkSizeY + i, z * thisChunkSizeZ + j));
+						}
+						else
+						{
+							isFullChunk = false;
+						}
+					}
+				}
 
-		// 		// we finalize this chunk
-		// 		finalizeChunk(VoxelFace.LEFT, !isFullChunk);
-		// 	}
-		// }
+				// we finalize this chunk
+				finalizeChunk(VoxelFace.LEFT, !isFullChunk);
+			}
+		}
+
+		// Create the RIGHT WALL of the box:
+		for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
+		{
+			for (let z = 0; z < Math.ceil(scale.z/squareChunkSize); z++)
+			{
+				let isFullChunk = true;
+				let thisChunkSizeY = squareChunkSize;
+				let thisChunkSizeZ = squareChunkSize;
+				for (let i = 0; i < thisChunkSizeY; i++)
+				{
+					for (let j = 0; j < thisChunkSizeZ; j++)
+					{
+						const voxelPosition = new THREE.Vector3(position.x + scale.x - 1, position.y + y*squareChunkSize + i, position.z + z*squareChunkSize + j);
+						// if the point is within the box:
+						if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z)
+						{
+							// we set the voxel at this position
+							setVoxel(voxelPosition, VoxelFace.RIGHT, getPixelColorAt(y * thisChunkSizeY + i, z * thisChunkSizeZ + j));
+						}
+						else
+						{
+							isFullChunk = false;
+						}
+					}
+				}
+
+				// we finalize this chunk
+				finalizeChunk(VoxelFace.RIGHT, !isFullChunk);
+			}
+		}
+
+		// Create the FRONT WALL of the box:
+		for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
+		{
+			for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
+			{
+				let isFullChunk = true;
+				let thisChunkSizeX = squareChunkSize;
+				let thisChunkSizeY = squareChunkSize;
+				for (let i = 0; i < thisChunkSizeX; i++)
+				{
+					for (let j = 0; j < thisChunkSizeY; j++)
+					{
+						const voxelPosition = new THREE.Vector3(position.x + x*squareChunkSize + i, position.y + y*squareChunkSize + j, position.z);
+						// if the point is within the box:
+						if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y)
+						{
+							// we set the voxel at this position
+							setVoxel(voxelPosition, VoxelFace.FRONT, getPixelColorAt(x * thisChunkSizeX + i, y * thisChunkSizeY + j));
+						}
+						else
+						{
+							isFullChunk = false;
+						}
+					}
+				}
+
+				// we finalize this chunk
+				finalizeChunk(VoxelFace.FRONT, !isFullChunk);
+			}
+		}
+
+		// Create the BACK WALL of the box:
+		for (let x = 0; x < Math.ceil(scale.x/squareChunkSize); x++)
+		{
+			for (let y = 0; y < Math.ceil(scale.y/squareChunkSize); y++)
+			{
+				let isFullChunk = true;
+				let thisChunkSizeX = squareChunkSize;
+				let thisChunkSizeY = squareChunkSize;
+				for (let i = 0; i < thisChunkSizeX; i++)
+				{
+					for (let j = 0; j < thisChunkSizeY; j++)
+					{
+						const voxelPosition = new THREE.Vector3(position.x + x*squareChunkSize + i, position.y + y*squareChunkSize + j, position.z + scale.z - 1);
+						// if the point is within the box:
+						if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y)
+						{
+							// we set the voxel at this position
+							setVoxel(voxelPosition, VoxelFace.BACK, getPixelColorAt(x * thisChunkSizeX + i, y * thisChunkSizeY + j));
+						}
+						else
+						{
+							isFullChunk = false;
+						}
+					}
+				}
+
+				// we finalize this chunk
+				finalizeChunk(VoxelFace.BACK, !isFullChunk);
+			}
+		}
 
 	};
 	const loader = new THREE.TextureLoader(manager);
@@ -1615,7 +1738,11 @@ const render = function () {
 	}
 	frameCounter = (frameCounter + 1) % 60;
 	const delta = clock.getDelta();
-	document.querySelector("#FPSViz").textContent = Math.round(1 / delta);
+	document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
+	document.querySelector("#DRAWCALLSViz").textContent = renderer.info.render.calls;
+	document.querySelector("#XViz").textContent = "X:" + Math.round(camera.position.x);
+	document.querySelector("#YViz").textContent = "Y:" + Math.round(camera.position.y);
+	document.querySelector("#ZViz").textContent = "Z:" + Math.round(camera.position.z);
 	// frameInfo.frameTime = delta;
 	// Update NPC Motion
 	NPCBank.forEach(npc => {
@@ -1792,7 +1919,7 @@ const render = function () {
 	frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
 	instancedModelIndex.forEach(model => {
 		if (frustum.intersectsBox(model.frustumBox)) {
-			if (!model.isCovered) {
+			if (model.isCovered == false) {
 				model.visible = true;
 			}
 		}
