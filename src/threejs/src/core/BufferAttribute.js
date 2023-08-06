@@ -1,7 +1,7 @@
 import { Vector3 } from '../math/Vector3.js';
 import { Vector2 } from '../math/Vector2.js';
 import { denormalize, normalize } from '../math/MathUtils.js';
-import { StaticDrawUsage } from '../constants.js';
+import { StaticDrawUsage, FloatType } from '../constants.js';
 import { fromHalfFloat, toHalfFloat } from '../extras/DataUtils.js';
 
 const _vector = /*@__PURE__*/ new Vector3();
@@ -28,6 +28,7 @@ class BufferAttribute {
 
 		this.usage = StaticDrawUsage;
 		this.updateRange = { offset: 0, count: - 1 };
+		this.gpuType = FloatType;
 
 		this.version = 0;
 
@@ -58,6 +59,7 @@ class BufferAttribute {
 		this.normalized = source.normalized;
 
 		this.usage = source.usage;
+		this.gpuType = source.gpuType;
 
 		return this;
 
@@ -168,6 +170,26 @@ class BufferAttribute {
 
 		// Matching BufferAttribute constructor, do not normalize the array.
 		this.array.set( value, offset );
+
+		return this;
+
+	}
+
+	getComponent( index, component ) {
+
+		let value = this.array[ index * this.itemSize + component ];
+
+		if ( this.normalized ) value = denormalize( value, this.array );
+
+		return value;
+
+	}
+
+	setComponent( index, component, value ) {
+
+		if ( this.normalized ) value = normalize( value, this.array );
+
+		this.array[ index * this.itemSize + component ] = value;
 
 		return this;
 
@@ -341,30 +363,6 @@ class BufferAttribute {
 		if ( this.updateRange.offset !== 0 || this.updateRange.count !== - 1 ) data.updateRange = this.updateRange;
 
 		return data;
-
-	}
-
-	copyColorsArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyColorsArray() was removed in r144.' );
-
-	}
-
-	copyVector2sArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyVector2sArray() was removed in r144.' );
-
-	}
-
-	copyVector3sArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyVector3sArray() was removed in r144.' );
-
-	}
-
-	copyVector4sArray() { // @deprecated, r144
-
-		console.error( 'THREE.BufferAttribute: copyVector4sArray() was removed in r144.' );
 
 	}
 

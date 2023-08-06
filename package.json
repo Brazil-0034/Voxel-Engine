@@ -15,6 +15,7 @@
     "build:linux": "electron-builder --linux --config"
   },
   "dependencies": {
+    "@6c65726f79/custom-titlebar": "^0.9.1",
     "@electron-toolkit/preload": "^1.0.3",
     "@electron-toolkit/utils": "^1.0.2",
     "tweakpane": "^3.1.9"

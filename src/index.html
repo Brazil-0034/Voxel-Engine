@@ -5,15 +5,12 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<style>
-		* {
+		body {
+			background: black;
 			margin: 0;
 			overflow: hidden;
 			font-family: 'Montserrat', sans-serif;
 			user-select: none;
-		}
-
-		body {
-			background: black;
 		}
 
 		canvas {
@@ -84,53 +81,9 @@
 			}
 		}
 
-		#topbar {
-			position: absolute;
-			z-index: 1000;
-			top: 0;
-			right: 0;
-			text-align: right;
-			width: 100%;
-			height: 30px;
-			background: #333;
-			z-index: 1000;
-		}
-
-		.topbar-button {
-			display: inline-block;
-			color: white;
-			font-size: 16px;
-			opacity: 0.4;
-			cursor: pointer;
-		}
-
-		.topbar-button:hover {
-			opacity: 1;
-		}
-
-		#quit {
-            transform: rotate(45deg);
-			position: absolute;
-			top: 4.5px;
-			right: 13.5px;
-		}
-
-		#maximize {
-			position: absolute;
-			top: 5px;
-			right: 55px;
-			font-size: 14px;
-		}
-
-		#minimize {
-			position: absolute;
-			top: -1px;
-			right: 100px;
-		}
-
 		#vizbox {
 			position: absolute;
-			top: 35px;
+			bottom: 35px;
 			left: 35px;
 			z-index: 1000;
 			font-size: 18px;
@@ -163,6 +116,14 @@
 		#NUMCOVERBOXESViz {
 			color: lightcyan;
 		}
+
+		#devpanel {
+			z-index: 10000;
+			position: absolute;
+			top: 0;
+			right: 0;
+			background: white !important;
+		}
 	</style>
 
 </head>
@@ -176,11 +137,6 @@
 		<div id="XViz">N/A</div>
 		<div id="YViz">N/A</div>
 		<div id="ZViz">N/A</div>
-	</div>
-	<div id="topbar">
-		<span class="topbar-button" id="minimize">&#128469;</span>
-		<span class="topbar-button" id="maximize">&#128470;</span>
-		<span class="topbar-button" id="quit" onclick="window.close()">&#128929;</span>
 	</div>
 
 	<div id="loader-bg">
@@ -203,9 +159,9 @@
 			}
 	</script>
 	<script src="howler/howler.js"></script>
-	<!-- <script src="https://cdn.jsdelivr.net/npm/tweakpane@3.1.9/dist/tweakpane.min.js"></script> -->
 	<script src="canvasPixelReader.js"></script>
-	<div id="middle-crosshair" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;">x</div>
+	<script src="dat.gui.min.js"></script>
+	<div id="middle-crosshair" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;"></div>
 <script type="module">
 
 // choose a loader gif at random
@@ -225,17 +181,17 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 // SAO
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 // N8AO - ty n8
 import {N8AOPass} from "./N8AO.js"
+// UNREAL BLOOM
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+// OUTPUTPASS
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 // FBXLoader
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; 
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
 // ipc renderer
 const { ipcRenderer } = require('electron');
-
-document.querySelector("#minimize").addEventListener("click", (e) => ipcRenderer.send('minimize'))
-document.querySelector("#maximize").addEventListener("click", (e) => ipcRenderer.send('maximizeToggle'))
 
 // This is my JavaScript-based Voxel game (engine)
 const USERSETTINGS = {
@@ -252,44 +208,6 @@ const LEVELDATA = {
 // ###
 // DEBUG UI
 // ###
-// const pane = new Tweakpane.Pane();
-// const paneParent = pane.element.parentElement;
-// paneParent.style.zIndex = "1000";
-// paneParent.style.top = "40px";
-// paneParent.style.opacity = 0;
-var positionOverlayValue = new THREE.Vector3();
-// var frameInfo = { FPS: 0, frameTime: 0, drawCalls: 0 };
-// // DEBUG UI: FPS
-// pane.addMonitor(frameInfo, 'FPS', {
-// 	view: 'graph',
-// 	min: 0,
-// 	max: 85 + 1,
-// 	interval: 100
-// });
-// pane.addMonitor(frameInfo, 'FPS', {
-// 	view: 'number',
-// 	interval: 60
-// });
-// pane.addSeparator();
-// // DEBUG UI: POSITION
-// pane.addMonitor(positionOverlayValue, 'x', {
-// 	view: 'text',
-// 	interval: 10
-// });
-// pane.addMonitor(positionOverlayValue, 'y', {
-// 	view: 'text',
-// 	interval: 10
-// });
-// pane.addMonitor(positionOverlayValue, 'z', {
-// 	view: 'text',
-// 	interval: 10
-// });
-// pane.addSeparator();
-// // DEBUG UI: DRAW CALLS
-// pane.addMonitor(frameInfo, 'drawCalls', {
-// 	view: 'text',
-// 	interval: 10
-// });
 
 const lerp = function (a, b, t) {
 	return a + (b - a) * t;
@@ -405,8 +323,8 @@ class NPC {
 			this.npcObject.npcHandler = this;
 			this.sceneObject.traverse(function (childObject) {
 				if (childObject.isMesh) {
-					childObject.castShadow = true;
-					childObject.receiveShadow = true;
+					// childObject.castShadow = true;
+					// childObject.receiveShadow = true;
 					childObject.material = new THREE.MeshPhongMaterial({ 
 						map: globalTextureLoader.load(basePath + npcName + '.png'),
 						shininess: 0,
@@ -523,54 +441,57 @@ let zoomFOV = defaultFOV - 20;
 let targetFOV = defaultFOV;
 const camera = new THREE.PerspectiveCamera(targetFOV, window.innerWidth / window.innerHeight, 15, 5000);
 
+// DEBUG PANEL GUI
+const gui = new dat.GUI({name: 'Developer Panel'});
+var gui_postProcessingFolder = gui.addFolder('Post Processing');
 
 // RENDERER SETUP
 // Initializes the THREE.js renderer
 const renderer = new THREE.WebGLRenderer({
-	antialias: true
+	// antialias: true
 });
+// THREE.ColorManagement.legacyMode = false
+// renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
+// renderer.outputEncoding = THREE.sRGBEncoding;
+// renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.info.autoReset = false;
 renderer.logarithmicDepthBuffer = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
-renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.domElement.style.zIndex = "-1";
+renderer.shadowMap.enabled = false
+// renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.setClearColor(0xffffff)
-renderer.toneMappingExposure = 1
-renderer.gammaOutput = true
-renderer.gammaInput = true
-renderer.gammaFactor = 2.2
-
 
 const composer = new EffectComposer(renderer);
-// const renderPass = new RenderPass(scene, camera);
-// composer.addPass(renderPass);
 
-// THIS LIKE TRIPLES THE DRAW CALL COUNT. MUST FIND DIFFERENT SHADER. MAYBE WITH FALLOFF.
 const n8aopass = new N8AOPass(scene, camera, window.innerWidth, window.innerHeight);
-// THE SCALE of the scene is very very large (thousands of units distance), so we need to scale the SAO pass to match
+gui_postProcessingFolder.open();
+let currentQualityMode = { qualityMode: "Performance" };
+gui_postProcessingFolder.add(currentQualityMode, 'qualityMode', ["Performance", "Low", "Medium", "High", "Ultra"]).onChange(function (value) {
+	n8aopass.setQualityMode(value);
+});
+n8aopass.configuration.intensity = 4;
+n8aopass.configuration.radius = 10;
+n8aopass.configuration.halfRes = true;
+n8aopass.configuration.gammaCorrection = false;
 composer.addPass(n8aopass);
 
-// const ssaaRenderPass = new SSAARenderPass(scene, camera, 0xAAAAAA, 0)
-// composer.addPass(ssaaRenderPass)
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(128, 128), 0.8, 0, 0.45);
+// enabled
+gui_postProcessingFolder.add(bloomPass, 'enabled').onChange(function (value) {
+	bloomPass.enabled = value;
+});
+composer.addPass(bloomPass);
 
-// const SAO = new SAOPass(scene, camera, true, true)
-// SAO.resolution.set(0.5, 0.5)
-// composer.addPass(SAO)
-
-// SAO.params.saoBias = .5
-// SAO.params.saoIntensity = .0012
-// SAO.params.saoScale = .3
-// SAO.params.saoKernelRadius = 40
-// SAO.params.saoMinResolution = 0
 
 // What the hell is this?? I fucking hate javascript.
 // Hours of research and there is no way around this awful bundling system
 // The most popular language in the world feels like its in its infancy
 // what shitholes designed this??
 
-// ^ note from the future: i dont remembe why i wrote this or why i was so angry. that code seems to be missing now.
+// ^ note from the future: i dont remembe why i wrote this or why i was so angry. the code it references seems to be missing now.
 
 // LIGHTING
 // Initializes the THREE.js lighting
@@ -595,14 +516,14 @@ const urls = [
 const reflectionCube = new THREE.CubeTextureLoader().load(urls);
 reflectionCube.textureSpace = THREE.sRGBEncoding;
 reflectionCube.mapping = THREE.CubeReflectionMapping;
-scene.background = reflectionCube;
+// scene.background = reflectionCube;
 
 var pmremGenerator = new THREE.PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
 
 // PLAYER CAMERA
 // Initializes the local player's camera, rendered to the canvas
-const playerMoveSpeed = 250;
+const playerMoveSpeed = 175;
 const controls = new PointerLockControls(camera, renderer.domElement);
 scene.add(controls.getObject());
 
@@ -615,16 +536,20 @@ var mouseRayFollower = new THREE.Mesh(
 scene.add(mouseRayFollower)
 
 // This locks the pointer into the screen, so the player can move the camera without the pointer leaving the screen
-renderer.domElement.addEventListener('click', () => controls.lock());
+renderer.domElement.addEventListener('mousedown', () => controls.lock());
 
 // MOTION CONTROLS
 // This is the code that handles the player's motion
 const isKeyPressed = {};
+let capsLockPressed = false;
 document.addEventListener('keydown', (e) => {
 	isKeyPressed[e.key.toLowerCase()] = true;
 });
 document.addEventListener('keyup', (e) => {
 	isKeyPressed[e.key.toLowerCase()] = false;
+	if (e.key.toLowerCase() === 'capslock') {
+		capsLockPressed = !capsLockPressed;
+	}
 });
 
 // This is a function that can clamp two numbers within a range.
@@ -873,6 +798,7 @@ const generateWorld = function (modelURL) {
 			}
 
 			const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
+			const mapLights = JSON.parse(arg.metaData).lightData;
 
 			// Filter 1: Cutaways
 			// These must be processed BEFORE boxes, but by nature can exist in save files in random order
@@ -919,7 +845,7 @@ const generateWorld = function (modelURL) {
 }
 // VOXEL OBJECT DATA
 let voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
-const voxelMaterial = new THREE.MeshBasicMaterial({
+const voxelMaterial = new THREE.MeshLambertMaterial({
 	color: 0xffffff
 });
 
@@ -938,7 +864,7 @@ document.addEventListener('keydown', (event) => {
 		});
 	}
 });
-const buildWorldModelFromBox = function (scale, position, material, color) {
+const buildWorldModelFromBox = function (scale, position, material, colorData) {
 	// round the position
 	position.x = Math.round(position.x);
 	position.y = Math.round(position.y);
@@ -955,7 +881,9 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			x = x % 32;
 			y = y % 32;
 			let data = pixelData[x][y];
-			return new THREE.Color(data[0] / 255, data[1] / 255, data[2] / 255);
+			const voxelColor = new THREE.Color(data[0] / 255, data[1] / 255, data[2] / 255);
+			voxelColor.convertSRGBToLinear();
+			return voxelColor;
 		}
 
 		// compute the chunk
@@ -1025,9 +953,10 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			// create a cover box with the same dimensions and position as the frustum box
 			const coverBox = new THREE.Mesh(
 				new THREE.PlaneGeometry(1, 1),
-				new THREE.MeshBasicMaterial({
+				new THREE.MeshLambertMaterial({
 					map: texture,
 					side: THREE.DoubleSide,
+					color: new THREE.Color(colorData.r, colorData.g, colorData.b)
 				})
 			);
 
@@ -1160,6 +1089,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			// Reset Everything!!
 			resetChunkBounds();
 			resetInstancedWorldModel();
+
 		}
 
 		const setVoxel = function (voxelPosition,voxelFace,voxelColor) {
@@ -1177,7 +1107,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 			// update min/max positions for this chunk (for culling)
 			voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace); 
 			instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x - instancedWorldSafetyOffset.x, voxelPosition.y - instancedWorldSafetyOffset.y, voxelPosition.z - instancedWorldSafetyOffset.z)));
-			voxelColor.multiply(color);
+			voxelColor.multiply(colorData);
 			if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
 			instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
 			localVoxelIterator++;
@@ -1374,6 +1304,7 @@ const buildWorldModelFromBox = function (scale, position, material, color) {
 	};
 	const loader = new THREE.TextureLoader(manager);
 	const texture = loader.load(texturePath, (texture) => {
+		texture.encoding = THREE.sRGBEncoding;
 		pixelData = texture;
 	});
 }
@@ -1390,12 +1321,6 @@ generateWorld(modelURL); // finally, we load and generate the model!
 // ill look into it later.
 
 var weaponModel;
-const weaponModelMaterial = new THREE.MeshStandardMaterial({
-	// highly reflective for funzies / make it contrast
-	envMap: reflectionCube,
-	roughness: 1.0,
-	color: 0x8c8c8c
-});
 
 var weaponTarget; // target position for instancedWeapon (for lerping :P)
 
@@ -1417,8 +1342,10 @@ const generateWeaponModel = function (basePath) {
 				weaponModel.children[0].material.map = globalTextureLoader.load(basePath + '.png');
 				// Adjust the scale from standard magicavoxel scaling
 				weaponModel.scale.divideScalar(15);
-				weaponModel.renderOrder = 999999;
+				console.log(weaponModel.children[0])
 				weaponModel.name = jsonModel.weaponData.name;
+				weaponModel.children[0].renderOrder = 999;
+				weaponModel.children[0].material.depthTest = false;
 				weaponTarget = new THREE.Mesh(
 					new THREE.BoxGeometry(1, 1, 1),
 					new THREE.MeshBasicMaterial({color: 0x00ff00})
@@ -1435,7 +1362,7 @@ const generateWeaponModel = function (basePath) {
 				weaponDamage = jsonModel.weaponData.weaponDamage;
 				weaponHelpText = jsonModel.weaponData.helpText;
 				// finally, add the weapon to the scene
-				scene.add(weaponModel);
+				// scene.add(weaponModel);
 				weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
 				if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
 				weaponRange = jsonModel.weaponData.minimumDistance;
@@ -1752,7 +1679,7 @@ const render = function () {
 		// paneParent.style.opacity = 1;
 	}
 	frameCounter = (frameCounter + 1) % 60;
-	const delta = clock.getDelta();
+	const delta = clock.getDelta() * timeModifier;
 	document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
 	document.querySelector("#DRAWCALLSViz").textContent = renderer.info.render.calls + " calls";
 	let numVoxels = LEVELDATA.numVoxels;
@@ -1770,6 +1697,17 @@ const render = function () {
 	});
 	// Player Motion
 	let isCrouching = isKeyPressed["control"];
+	if (capsLockPressed) {
+		timeModifier = 0.25;
+
+		bloomPass.threshold = lerp(bloomPass.threshold, 0, delta * 15);
+		bloomPass.radius = lerp(bloomPass.radius, 5, delta * 15);
+	} else {
+		timeModifier = 1;
+
+		bloomPass.threshold = lerp(bloomPass.threshold, 0.45, delta * 0.25);
+		bloomPass.radius = lerp(bloomPass.radius, 0, delta * 0.25);
+	}
 
 	let zAxis = 0;
 	if (isKeyPressed["s"]) zAxis += 1 * delta;
@@ -1782,10 +1720,6 @@ const render = function () {
 	let sprinting = isKeyPressed["shift"] ? 2 : 1;
 	controls.moveRight(playerMoveSpeed * xAxis * sprinting);
 	controls.moveForward(-playerMoveSpeed * zAxis * sprinting);
-	// Overlay Updates
-	positionOverlayValue.x = Math.round(controls.getObject().position.x);
-	positionOverlayValue.y = Math.round(controls.getObject().position.y);
-	positionOverlayValue.z = Math.round(controls.getObject().position.z);
 	if (isCrouching) {
 		camera.position.y = lerp(playerHeight, crouchYPosition, crouchLerp);
 		crouchLerp += crouchSpeed * delta;
@@ -1806,24 +1740,19 @@ const render = function () {
 		if (!defaultInstancedWeaponTargetPosition) defaultInstancedWeaponTargetPosition = weaponTarget.position.clone();
 
 		// SIN the weapon's position
-		const bounceRange = new THREE.Vector3(0.25, 0.25, 0);
-		let speed = new THREE.Vector3(100, 50, 100);
+		const bounceRange = new THREE.Vector3(100, 100, 0);
+		let speed = new THREE.Vector3(0.01, 0.02, 0.01);
+		if (capsLockPressed) speed.multiplyScalar(0.5)
 		let isMoving = false;
-		if (xAxis != 0 || zAxis != 0) {
-			isMoving = true;
-		}
-		else if (controls.isLocked == true) {
-			isMoving = true;
-			bounceRange.divideScalar(2.5);
-			speed.multiplyScalar(2.5);
-		}
-		weaponTarget.position.x += (Math.sin(Date.now() / speed.x) * bounceRange.x) * (isMoving);
-		weaponTarget.position.y += (Math.sin(Date.now() / speed.y) * bounceRange.y) * (isMoving);
+		if ((xAxis != 0 || zAxis != 0) && controls.isLocked == true) isMoving = true;
+		
+		weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1/timeModifier;
+		weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1/timeModifier;
 
 		// LERP the weapon's position
 		const instancedWeaponTargetWorldPosition = new THREE.Vector3();
 		weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-		weaponModel.position.copy(moveTowards(weaponModel.position, instancedWeaponTargetWorldPosition, delta * 1000));
+		weaponModel.position.copy(moveTowards(weaponModel.position, instancedWeaponTargetWorldPosition, delta * 1000 * 1/timeModifier));
 
 		// always realign the rotation of the weapon to the target
 		weaponModel.rotation.setFromRotationMatrix(weaponTarget.matrixWorld);
@@ -1892,7 +1821,7 @@ const render = function () {
 						hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
 						hitSound.play();
 						// create a shoot effect
-						shootLine(intersects[i].point);
+						// shootLine(intersects[i].point);
 					}
 
 					isAttackAvailable = false;
@@ -1955,6 +1884,7 @@ const render = function () {
 	composer.render();
 }
 
+let timeModifier = 1.0;
 // ### PHYSICS LOOPS ###
 const physicsUpdatesPerSecond = 60; // physics speed
 const cubeDestructionParticlesSimulator = []; // index of all cubedestructionparticle
@@ -2395,7 +2325,6 @@ const plantExplosive = function () {
 	if (intersection != null) {
 		const weaponModel = weaponModel.clone();
 		weaponModel.explodeRange = destroyedChunkRange;
-		weaponModel.onBeforeRender = function () { return };
 		weaponModel.renderOrder = 0;
 		weaponModel.scale.multiplyScalar(weaponRealWorldScaleMultiplier);
 		const intersectionPosition = new THREE.Vector3(
@@ -2507,6 +2436,16 @@ document.addEventListener('keydown', function (e) {
 					0),
 				100 + Math.random() * 100,
 				100);
+			console.log(testDummy);
+		}
+	}
+	if (e.key == 't') {
+		// toggle #vizbox visibility (div)
+		const vizbox = document.getElementById('vizbox');
+		if (vizbox.style.display == 'none') {
+			vizbox.style.display = 'block';
+		} else {
+			vizbox.style.display = 'none';
 		}
 	}
 
