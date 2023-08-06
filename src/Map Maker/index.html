@@ -314,36 +314,23 @@ const updateRightPanel = function (item) {
         scaleZ.addEventListener("input", function () {
             selectedObjects.scale.z = scaleZ.value;
         });
-        scale.appendChild(scaleX);
-        scale.appendChild(scaleY);
-        scale.appendChild(scaleZ);
-        inspector.appendChild(scale);
-    }
-    if (item.userData.isLight) {
-        // is light (bool)
-        const isLight = document.createElement("div");
-        isLight.classList.add("inspector-element");
-        isLight.innerHTML = "<h3>Is Light</h3>";
-        const isLightInput = document.createElement("input");
-        isLightInput.type = "checkbox";
-        isLightInput.checked = item.userData.isLight;
-        isLightInput.addEventListener("change", function () {
-            item.userData.isLight = isLightInput.checked;
-        });
-        isLight.appendChild(isLightInput);
-        inspector.appendChild(isLight);
         // light brightness
         const lightBrightness = document.createElement("div");
         lightBrightness.classList.add("inspector-element");
         lightBrightness.innerHTML = "<h3>Brightness</h3>";
         const lightBrightnessInput = document.createElement("input");
         lightBrightnessInput.type = "number";
-        lightBrightnessInput.value = item.intensity;
+        lightBrightnessInput.value = item.userData.lightBrightness;
         lightBrightnessInput.addEventListener("input", function () {
-            item.intensity = lightBrightnessInput.value;
+            item.userData.lightBrightness = lightBrightnessInput.value;
         });
         lightBrightness.appendChild(lightBrightnessInput);
         inspector.appendChild(lightBrightness);
+        // finalize
+        scale.appendChild(scaleX);
+        scale.appendChild(scaleY);
+        scale.appendChild(scaleZ);
+        inspector.appendChild(scale);
     }
     // For each material (if any) - this only applies to 3D objects in the world, so it can have properties such as cutaway as well
     if (item.material != undefined) {
@@ -372,11 +359,12 @@ const updateRightPanel = function (item) {
             material.appendChild(newMaterial);
         }
 
-        addMaterial('diamond')
         addMaterial('rough')
         addMaterial('smooth')
         addMaterial('tile')
         addMaterial('wood')
+        addMaterial('bricks')
+        addMaterial('cobblestone')
         addMaterial('debug')
 
         // global color override
@@ -495,9 +483,7 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 if (selectedObjects.children.some(child => (new THREE.Box3().setFromObject(child).min.y < -1)))
                 {
                     const tempSelObjs = Array.from(selectedObjects.children);
-                    console.log(tempSelObjs);
                     clearSelectedObjects();
-                    console.log(tempSelObjs);
                     tempSelObjs.forEach(selectedObject => {
                         const boundingBox = new THREE.Box3().setFromObject(selectedObject);
                         if (boundingBox.min.y < -1) {
@@ -516,6 +502,12 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 selectedObjects.position.z = Math.floor(selectedObjects.position.z);
                 selectedObjects.children.forEach(sceneObject => {
                     realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.z);
+                    if (sceneObject.userData.isLight == true) {
+                        // set their WORLD scale to 1
+                        sceneObject.scale.x = 1 / selectedObjects.scale.x;
+                        sceneObject.scale.y = 1 / selectedObjects.scale.y;
+                        sceneObject.scale.z = 1 / selectedObjects.scale.z;
+                    }
                 });
             }
             updateRightPanel(lastAttachedObject);
@@ -759,6 +751,8 @@ document.body.addEventListener('keydown', function (event) {
                                 clone.material = clone.material.clone();
                             }
                         }
+                        // also copy the userdata from the old object
+                        clone.userData = old.userData;
                         addToScene(clone);
                         attachHandles(clone, true);
                         MAPOBJECTS.push(clone);
@@ -825,6 +819,25 @@ document.body.addEventListener('keydown', function (event) {
     }
 });
 
+const createPointLight = function(position, color, lightBrightness) {
+    const lightCube = new THREE.Mesh(
+        new THREE.SphereGeometry(5, 5, 3),
+        new THREE.MeshBasicMaterial({
+            color: color,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.75
+        })
+    );
+    lightCube.position.copy(position);
+    lightCube.userData.existInGame = true;
+    lightCube.userData.materialType = "smooth";
+    lightCube.userData.isLight = true;
+    lightCube.userData.lightBrightness = lightBrightness;
+    lightCube.name = "Point Light - " + Math.floor(Math.random() * 1000);
+    addToScene(lightCube);
+    MAPOBJECTS.push(lightCube);
+}
 
 // ### CONTEXT MENU
 const rightClickMenu = document.querySelector("#right-click-menu");
@@ -842,87 +855,13 @@ const contextMenuClick = function (action) {
             cube.userData.existInGame = true;
             cube.userData.materialType = "smooth";
             cube.userData.isLight = false;
-            cube.userData.lightBrightness = 1;
+            cube.userData.lightBrightness = 0;
             cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
             addToScene(cube);
             MAPOBJECTS.push(cube);
             break;
         case "Create Point Light":
-            const light = new THREE.PointLight(new THREE.Color(0xffffff), 1, 100);
-            light.userData.existInGame = true;
-            light.name = "Point Light - " + Math.floor(Math.random() * 1000);
-            light.position.y = 1.5;
-            addToScene(light);
-            const helper = new THREE.PointLightHelper(light, 0.2);
-            helper.userData.existInGame = false;
-            scene.add(helper);
-            MAPOBJECTS.push(light);
-            break;
-        case "Create Spot Light":
-            const spotLight = new THREE.SpotLight(randomColor(), 1, 100, Math.PI * 0.1, 0.25, 1);
-            spotLight.userData.existInGame = true;
-            spotLight.name = "Spot Light - " + Math.floor(Math.random() * 1000);
-            spotLight.position.set(0, 2, 0);
-            spotLight.castShadow = true;
-            spotLight.shadow.mapSize.width = 1024;
-            spotLight.shadow.mapSize.height = 1024;
-            spotLight.shadow.camera.near = 0.5;
-            spotLight.shadow.camera.far = 500;
-            spotLight.shadow.camera.fov = 30;
-            addToScene(spotLight);
-            const spotLightHelper = new THREE.SpotLightHelper(spotLight);
-            scene.add(spotLightHelper);
-            // create a 'target' for the spotLightHelper, that follows the position of the spotlight's 'target', and add it to the userdata
-            const spotLightHelperTarget = new THREE.Mesh(
-                new THREE.SphereGeometry(0.05, 16, 16),
-                new THREE.MeshBasicMaterial({ color: 0xff0000 })
-            );
-            spotLightHelperTarget.userData.selectParentInstead = true;
-            spotLightHelperTarget.userData.existInGame = false;
-            spotLight.add(spotLightHelperTarget);
-            spotLightHelperTarget.position.y -= 2;
-            spotLight.target = spotLightHelperTarget;
-            MAPOBJECTS.push(spotLight);
-            break;
-        case "Create Directional Light":
-            const directionalLight = new THREE.DirectionalLight(randomColor(), 1);
-            directionalLight.userData.existInGame = true;
-            directionalLight.name = "Directional Light - " + Math.floor(Math.random() * 1000);
-            directionalLight.position.set(0, 2, 0);
-            directionalLight.castShadow = true;
-            addToScene(directionalLight);
-            const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 0.2);
-            scene.add(directionalLightHelper);
-
-            const directionalLightHelperTarget = new THREE.Mesh(
-                new THREE.SphereGeometry(0.05, 16, 16),
-                new THREE.MeshBasicMaterial({ color: 0xff0000 })
-            );
-            directionalLightHelperTarget.userData.selectParentInstead = true;
-            directionalLightHelper.userData.existInGame = false;
-            directionalLightHelperTarget.userData.existInGame = false;
-            directionalLight.add(directionalLightHelperTarget);
-            directionalLightHelperTarget.position.y -= 2;
-            directionalLight.target = directionalLightHelperTarget;
-            MAPOBJECTS.push(directionalLight);
-            break;
-        case "Create Hemisphere Light":
-            const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
-            hemisphereLight.userData.existInGame = true;
-            hemisphereLight.name = "Hemisphere Light - " + Math.floor(Math.random() * 1000);
-            addToScene(hemisphereLight);
-            // helper
-            const hemisphereLightHelper = new THREE.HemisphereLightHelper(hemisphereLight, 0.2);
-            hemisphereLightHelper.userData.existInGame = false;
-            scene.add(hemisphereLightHelper);
-            MAPOBJECTS.push(hemisphereLight);
-            break;
-        case "Create Ambient Light":
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            ambientLight.userData.existInGame = true;
-            ambientLight.name = "Ambient Light - " + Math.floor(Math.random() * 1000);
-            addToScene(ambientLight);
-            MAPOBJECTS.push(ambientLight);
+            createPointLight(new THREE.Vector3(0, 0, 0), randomColor(), 10000);
             break;
         //  ### Object Manipulation
         case "Delete Object":
@@ -955,10 +894,6 @@ const invokeContextMenu = function (e) {
         options.push("Create Hollow Box");
         options.push("[] Add Lighting");
         options.push("Create Point Light");
-        options.push("Create Spot Light");
-        options.push("Create Directional Light");
-        options.push("Create Hemisphere Light");
-        options.push("Create Ambient Light");
     }
     if (clickedElement.parentElement.id == "scene-objects-list") {
         options.push("Delete Object");
@@ -1212,31 +1147,44 @@ const importProject = function () {
 
             mapMakerSaveData.forEach(mapMakerObject => {
                 if (mapMakerObject.type == "box") {
-                    const newBox = new THREE.Mesh(
-                        new THREE.BoxGeometry(1, 1, 1),
-                        new THREE.MeshBasicMaterial({
-                            color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
-                            map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
-                        })
-                    );
-                    newBox.material.side = THREE.DoubleSide;
-                    newBox.material.map.magFilter = THREE.NearestFilter;
-                    newBox.material.map.wrapS = THREE.RepeatWrapping;
-                    newBox.material.map.wrapT = THREE.RepeatWrapping;
-                    newBox.name = capitalizeFirstLetter(mapMakerObject.material + " Box ID:" + Math.floor(Math.random() * 1000000));
-                    newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
-                    newBox.userData.materialType = mapMakerObject.material;
-                    newBox.userData.isCutaway = mapMakerObject.isCutaway;
-                    if (mapMakerObject.isCutaway) {
-                        newBox.material = cutawayMaterial;
+                    if (mapMakerObject.isLight == true) {
+                        createPointLight(
+                            new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
+                            new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
+                            mapMakerObject.lightBrightness
+                        );
                     }
-                    newBox.userData.existInGame = true;
-                    addToScene(newBox);
-                    MAPOBJECTS.push(newBox);
-                    newBox.scale.x = mapMakerObject.size.x;
-                    newBox.scale.y = mapMakerObject.size.y;
-                    newBox.scale.z = mapMakerObject.size.z;
-                    realignTexture(newBox, newBox.scale.x, newBox.scale.z);
+                    else
+                    {
+                        const newBox = new THREE.Mesh(
+                            new THREE.BoxGeometry(1, 1, 1),
+                            new THREE.MeshBasicMaterial({
+                                color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
+                                map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
+                            })
+                        );
+                        newBox.material.side = THREE.DoubleSide;
+                        newBox.material.map.magFilter = THREE.NearestFilter;
+                        newBox.material.map.wrapS = THREE.RepeatWrapping;
+                        newBox.material.map.wrapT = THREE.RepeatWrapping;
+                        newBox.name = capitalizeFirstLetter(mapMakerObject.material + " Box ID:" + Math.floor(Math.random() * 1000000));
+                        newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
+                        newBox.userData.materialType = mapMakerObject.material;
+                        newBox.userData.isCutaway = mapMakerObject.isCutaway;
+                        if (mapMakerObject.isCutaway) {
+                            newBox.material = cutawayMaterial;
+                        }
+                        console.log(mapMakerObject.isLight);
+                        newBox.userData.existInGame = true;
+                        newBox.userData.isLight = mapMakerObject.isLight;
+                        newBox.userData.lightBrightness = mapMakerObject.lightBrightness;
+                        addToScene(newBox);
+                        MAPOBJECTS.push(newBox);
+                        newBox.scale.x = mapMakerObject.size.x;
+                        newBox.scale.y = mapMakerObject.size.y;
+                        newBox.scale.z = mapMakerObject.size.z;
+                        realignTexture(newBox, newBox.scale.x, newBox.scale.z);
+                    }
                 }
             })
 

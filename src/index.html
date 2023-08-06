@@ -495,16 +495,16 @@ composer.addPass(bloomPass);
 
 // LIGHTING
 // Initializes the THREE.js lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
+// const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+// scene.add(ambientLight);
 
 // Two opposing directional lights. The opposing light is dimmer. Both lights are angled against each other.
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
-directionalLight.position.set(1, 1, 1);
-scene.add(directionalLight);
-const opposingDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
-opposingDirectionalLight.position.set(-1, -1, -1);
-scene.add(opposingDirectionalLight);
+// const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
+// directionalLight.position.set(1, 1, 1);
+// scene.add(directionalLight);
+// const opposingDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
+// opposingDirectionalLight.position.set(-1, -1, -1);
+// scene.add(opposingDirectionalLight);
 
 const path = 'skyboxes/BlueSky/';
 const format = '.jpg';
@@ -559,7 +559,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 // FILESYSTEM CONSTANTS
 // These mark locations in the local file system that store the map and current weapon
 const modelURL = 'savedata';
-const weaponURL = 'weapons/' + 'smg/smg';
+const weaponURL = 'weapons/' + 'fists/fists';
 // This stores any JSON data that is loaded from the file system, on the main thread.
 // Since only one thread can access the file system at a time, it is convenient to store the data here.
 // TODO - this explanation sucks. just pass it between functions. too many globals.
@@ -814,6 +814,7 @@ const generateWorld = function (modelURL) {
 			// These are the most standard world object, and are the quickest to process
 			mapObjects.forEach(mapObject => {
 				if (mapObject.type == "box") {
+
 					const mod = 1;
 					const scale = mapObject.size;
 					scale.x /= mod;
@@ -836,8 +837,18 @@ const generateWorld = function (modelURL) {
 					position.y -= scale.y / 2;
 					position.z -= scale.z / 2;
 
+					// Lights
+					if (mapObject.isLight == true)
+					{
+						// create a point light at this position with mapObject.lightBrightness
+						const light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
+						light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
+						scene.add(light);
+						return;
+					}
+
 					// Normal Objects (Boxes)
-					buildWorldModelFromBox(scale, position, mapObject.material, color);
+					buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.lightBrightness);
 				}
 			});
 		});
@@ -864,7 +875,7 @@ document.addEventListener('keydown', (event) => {
 		});
 	}
 });
-const buildWorldModelFromBox = function (scale, position, material, colorData) {
+const buildWorldModelFromBox = function (scale, position, material, colorData, lightBrightness = 0) {
 	// round the position
 	position.x = Math.round(position.x);
 	position.y = Math.round(position.y);
@@ -956,7 +967,9 @@ const buildWorldModelFromBox = function (scale, position, material, colorData) {
 				new THREE.MeshLambertMaterial({
 					map: texture,
 					side: THREE.DoubleSide,
-					color: new THREE.Color(colorData.r, colorData.g, colorData.b)
+					color: new THREE.Color(colorData.r, colorData.g, colorData.b),
+					emissive: new THREE.Color(0xffffff),
+					emissiveIntensity: lightBrightness
 				})
 			);
 
@@ -1362,7 +1375,7 @@ const generateWeaponModel = function (basePath) {
 				weaponDamage = jsonModel.weaponData.weaponDamage;
 				weaponHelpText = jsonModel.weaponData.helpText;
 				// finally, add the weapon to the scene
-				// scene.add(weaponModel);
+				scene.add(weaponModel);
 				weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
 				if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
 				weaponRange = jsonModel.weaponData.minimumDistance;
@@ -1767,6 +1780,7 @@ const render = function () {
 			default:
 				console.error("Illegal Weapon Type - \"" + weaponType + "\"");
 				break;
+			case "melee":
 			case "ranged":
 				weaponTarget.position.set(adsPosition.x, adsPosition.y, adsPosition.z);
 				weaponTarget.rotation.set(adsRotation.x, adsRotation.y, adsRotation.z);
@@ -1786,6 +1800,9 @@ const render = function () {
 			default:
 				console.error("Illegal Weapon Type - \"" + weaponType + "\"");
 				break;
+			case "melee":
+				// move weaponModel position forward relative to player camera
+				if (isAttackAvailable) weaponModel.translateX(100);
 			case "ranged":
 				if (isAttackAvailable) {
 					if (!isRightClicking) {
@@ -1829,9 +1846,6 @@ const render = function () {
 						isAttackAvailable = true;
 					}, fireRate);
 				}
-				break;
-			case "melee":
-				// TODO
 				break;
 			case "explosive":
 				if (isAttackAvailable) {
@@ -2440,7 +2454,6 @@ document.addEventListener('keydown', function (e) {
 		}
 	}
 	if (e.key == 't') {
-		// toggle #vizbox visibility (div)
 		const vizbox = document.getElementById('vizbox');
 		if (vizbox.style.display == 'none') {
 			vizbox.style.display = 'block';
