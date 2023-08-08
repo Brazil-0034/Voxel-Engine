@@ -299,6 +299,13 @@ const deathSound = new Howl({
 	src: ['sfx/kill_ding.wav'],
 	volume: SFXVolume * 7.5
 });
+let canGo = false;
+// on press of "F", set canGo to true
+document.addEventListener('keydown', function (event) {
+	if (event.key == 'f') {
+		canGo = true;
+	}
+});
 // This will be the main system for spawning and handling NPC behavior
 class NPC {
 	sceneObject // the scene object of the npc - includes the mesh, bones, etc
@@ -309,7 +316,9 @@ class NPC {
 
 	runAnimation // u alr know
 	idleAnimation // this too
+	dieAnimation
 	mixer // 3js anim mixer (per-npc until instanced skinning makes its way into main branch)
+	fovCone // for state updating
 
 	// This will build the NPC (setting idle/run animation and loading model into scene)
 	constructor(npcName, texturePath, position, rotation, speed, health) {
@@ -343,10 +352,26 @@ class NPC {
 			// load run animation
 			globalModelLoader.load(basePath + npcName + '_run.fbx', object => {
 				this.runAnimation = this.mixer.clipAction(object.animations[0]);
-				this.runAnimation.play();
+			});
+			globalModelLoader.load(basePath + npcName + '_die_' + Math.floor(Math.random() * 3) + '.fbx', object => {
+				this.dieAnimation = this.mixer.clipAction(object.animations[0]);
+				this.dieAnimation.setLoop(THREE.LoopOnce);
 			});
 			this.idleAnimation = this.mixer.clipAction(this.sceneObject.animations[0]);
 			this.idleAnimation.play();
+
+			// create a "Field of View" cone in front of the head
+			const fovGeometry = new THREE.ConeGeometry(3, 8, 4);
+			const fovMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+			this.fovCone = new THREE.Mesh(fovGeometry, fovMaterial);
+			this.fovCone.rotation.set(rotation.x, rotation.y - Math.PI/2, rotation.z + Math.PI/2);
+			this.fovCone.scale.multiplyScalar(100);
+			this.fovCone.position.set(position.x, 60, position.z);
+			scene.add(this.fovCone);
+			this.sceneObject.attach(this.fovCone);
+			// translate it forward relative to the head (sceneObject)
+			this.fovCone.translateY(-4000);
+			
 
 			// And lastly... add it to the scene!
 			if (Math.random() > 0.5) this.sceneObject.scale.x *= -1;
@@ -366,55 +391,70 @@ class NPC {
 		if (this.health <= 0) {
 			deathSound.rate(clamp(Math.random() + 0.8, 0, 1))
 			deathSound.play();
-			this.despawn();
+			this.kill();
 		}
 	}
 
 	// This will update the NPC's behavior (every frame)
-	update(delta) {
-		if (!this.sceneObject || !this.mixer || !this.runAnimation || !this.idleAnimation) return;
+	update(delta) { 
+		if (!this.sceneObject || !this.mixer || !this.runAnimation || !this.idleAnimation || !this.dieAnimation) return;
 
 		// Update the animation mixer keyframe step
 		this.mixer.update(delta);
-
-		// Look towards the nearest player (camera) smoothly, using the lerp(a, b, t) function
-		const targetRotation = Math.atan2(camera.position.x - this.sceneObject.position.x, camera.position.z - this.sceneObject.position.z);
-		// prevent spinning by flipping the rotation value
-		if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
-			if (targetRotation > this.sceneObject.rotation.y) {
-				this.sceneObject.rotation.y += Math.PI * 2;
-			}
-			else {
-				this.sceneObject.rotation.y -= Math.PI * 2;
-			}
-		}
-		this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
-
 		// lerp the color to 0xffffff
 		this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
 
-		// If too far, move closer
-		const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
-		if (distanceToCamera > 150) {
-			const direction = new THREE.Vector3();
-			camera.getWorldDirection(direction);
-			direction.y = 0;
-			direction.normalize();
-			this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
-			this.runAnimation.play();
-		}
-		else
+		if (this.health > 0)
 		{
-			this.runAnimation.stop();
-			this.idleAnimation.play();
+			// Look towards the nearest player (camera) smoothly, using the lerp(a, b, t) function
+			const targetRotation = Math.atan2(camera.position.x - this.sceneObject.position.x, camera.position.z - this.sceneObject.position.z);
+			// prevent spinning by flipping the rotation value
+			if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
+				if (targetRotation > this.sceneObject.rotation.y) {
+					this.sceneObject.rotation.y += Math.PI * 2;
+				}
+				else {
+					this.sceneObject.rotation.y -= Math.PI * 2;
+				}
+			}
+			this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
+
+			// If too far, move closer
+			const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
+			if (distanceToCamera > 150) {
+				const direction = new THREE.Vector3();
+				camera.getWorldDirection(direction);
+				direction.y = 0;
+				direction.normalize();
+				this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
+				this.runAnimation.play();
+			}
+			else
+			{
+				this.runAnimation.stop();
+				this.idleAnimation.play();
+			}
 		}
 	}
 
-	despawn() {
-		this.npcObject.material.color = new THREE.Color(0x00ff00);
-		this.sceneObject.remove(this.npcObject);
-		this.npcObject.geometry.dispose();
-		this.npcObject.material.dispose();
+	kill() {
+		// disable all animation
+		this.mixer.stopAllAction();
+		this.dieAnimation.play();
+		// remove the debug cone
+		this.sceneObject.remove(this.fovCone);
+		this.fovCone.geometry.dispose();
+		this.fovCone.material.dispose();
+		// stop the animation after it finishes (with a frame delay relevant to 85fps)
+		setTimeout(() => {
+			this.mixer.timeScale = 0;
+			// keep the NPC stats in memory but prevent updating
+			this.update = () => {return};
+		}, (this.dieAnimation._clip.duration * 1000) - 12);
+		// this.npcObject.material.color = new THREE.Color(0x00ff00);
+		// this.sceneObject.remove(this.npcObject);
+		// this.npcObject.geometry.dispose();
+		// this.npcObject.material.dispose();
 	}
 }
 
@@ -450,10 +490,11 @@ var gui_postProcessingFolder = gui.addFolder('Post Processing');
 const renderer = new THREE.WebGLRenderer({
 	// antialias: true
 });
+renderer.debug.checkShaderErrors = false;
 // THREE.ColorManagement.legacyMode = false
-// renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
-// renderer.outputEncoding = THREE.sRGBEncoding;
-// renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.info.autoReset = false;
 renderer.logarithmicDepthBuffer = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -495,8 +536,8 @@ composer.addPass(bloomPass);
 
 // LIGHTING
 // Initializes the THREE.js lighting
-// const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
-// scene.add(ambientLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1/*0.065*/);
+scene.add(ambientLight);
 
 // Two opposing directional lights. The opposing light is dimmer. Both lights are angled against each other.
 // const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
@@ -577,6 +618,7 @@ var weaponRange = 500,
 	adsPosition,
 	adsRotation,
 	weaponDamage,
+	weaponFollowSpeed,
 	fireRate, // time in ms in between attacks()
 	destroyedChunkRange, // max distance for voxel destruction from intersection
 	percentMissedHits // minimum % that must be destroyed
@@ -759,6 +801,7 @@ const addToCutawayStack = function(scale, position) {
 }
 
 let groundSize;
+let engineDoneLoadingWorld = false;
 const generateWorld = function (modelURL) {
 
 	// send IPC message 'list-maps' and wait for response (sends eventResponse)
@@ -838,7 +881,7 @@ const generateWorld = function (modelURL) {
 					position.z -= scale.z / 2;
 
 					// Lights
-					if (mapObject.isLight == true)
+					if (mapObject.isLight && mapObject.isLight == true)
 					{
 						// create a point light at this position with mapObject.lightBrightness
 						const light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
@@ -847,10 +890,33 @@ const generateWorld = function (modelURL) {
 						return;
 					}
 
+					// Enemy NPCs
+					if (mapObject.isEnemyNPC && mapObject.isEnemyNPC == true)
+					{
+						const thisNPC = new NPC(
+							'swat',
+							'character_models/swat_idle.png',
+							new THREE.Vector3(position.x, position.y, position.z),
+							new THREE.Vector3(
+								0,
+								mapObject.rotation.y - Math.PI/2,
+								0
+							),
+							100 + Math.random() * 100,
+							100);
+						return;
+					}
+
 					// Normal Objects (Boxes)
 					buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.lightBrightness);
 				}
 			});
+			// get rid of the pump cover
+			engineDoneLoadingWorld = true;
+			document.querySelector("#loader-bg").style.animation = "fade-out 0.25s ease";
+			setTimeout(() => {document.querySelector("#loader-bg").remove()}, 250);
+			loaderRemoved = true;
+			setHelpText("[WASD] Move [Mouse] Look");
 		});
 	});
 }
@@ -1355,7 +1421,6 @@ const generateWeaponModel = function (basePath) {
 				weaponModel.children[0].material.map = globalTextureLoader.load(basePath + '.png');
 				// Adjust the scale from standard magicavoxel scaling
 				weaponModel.scale.divideScalar(15);
-				console.log(weaponModel.children[0])
 				weaponModel.name = jsonModel.weaponData.name;
 				weaponModel.children[0].renderOrder = 999;
 				weaponModel.children[0].material.depthTest = false;
@@ -1373,6 +1438,7 @@ const generateWeaponModel = function (basePath) {
 				destroyedChunkRange = jsonModel.weaponData.damageRange;
 				fireRate = jsonModel.weaponData.fireRate;
 				weaponDamage = jsonModel.weaponData.weaponDamage;
+				weaponFollowSpeed = jsonModel.weaponData.followSpeed;
 				weaponHelpText = jsonModel.weaponData.helpText;
 				// finally, add the weapon to the scene
 				scene.add(weaponModel);
@@ -1645,7 +1711,6 @@ const elasticLerp = function (a, b, t) {
 // ### RENDER LOOP ###
 // this renders things. separate from the physics loop.
 const clock = new THREE.Clock();
-var frameCounter = 0;
 var defaultInstancedWeaponTargetPosition;
 var crouchLerp = 0;
 var loaderRemoved = false;
@@ -1684,14 +1749,6 @@ const shootLine = function(vec) {
 
 const render = function () {
 	// Frame Calculations
-	if (!loaderRemoved && frameCounter > 10){
-		document.querySelector("#loader-bg").style.animation = "fade-out 0.25s ease";
-		setTimeout(() => {document.querySelector("#loader-bg").remove()}, 250);
-		loaderRemoved = true;
-		setHelpText("[WASD] Move [Mouse] Look");
-		// paneParent.style.opacity = 1;
-	}
-	frameCounter = (frameCounter + 1) % 60;
 	const delta = clock.getDelta() * timeModifier;
 	document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
 	document.querySelector("#DRAWCALLSViz").textContent = renderer.info.render.calls + " calls";
@@ -1765,7 +1822,7 @@ const render = function () {
 		// LERP the weapon's position
 		const instancedWeaponTargetWorldPosition = new THREE.Vector3();
 		weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-		weaponModel.position.copy(moveTowards(weaponModel.position, instancedWeaponTargetWorldPosition, delta * 1000 * 1/timeModifier));
+		weaponModel.position.copy(moveTowards(weaponModel.position, instancedWeaponTargetWorldPosition, delta * weaponFollowSpeed * 1/timeModifier));
 
 		// always realign the rotation of the weapon to the target
 		weaponModel.rotation.setFromRotationMatrix(weaponTarget.matrixWorld);
@@ -1802,7 +1859,7 @@ const render = function () {
 				break;
 			case "melee":
 				// move weaponModel position forward relative to player camera
-				if (isAttackAvailable) weaponModel.translateX(100);
+				if (isAttackAvailable) weaponModel.translateX(50);
 			case "ranged":
 				if (isAttackAvailable) {
 					if (!isRightClicking) {
@@ -1825,15 +1882,19 @@ const render = function () {
 					// why don't i just kill myself now?
 					shootRay();
 					
+					raycaster.far = weaponRange;
 					raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 					const intersects = raycaster.intersectObjects(NPCBank.map(npc => npc.sceneObject.children[0]));
 
 					for ( let i = 0; i < intersects.length; i ++ ) {
 						const mainObj = intersects[i].object;
-						// Adjust Color
-						mainObj.material.color.r = 20 - (Math.random() * 5);
-						// Register Hit
-						mainObj.npcHandler.depleteHealth(weaponDamage);
+						if (mainObj.npcHandler.health > 0)
+						{
+							// Adjust Color
+							mainObj.material.color.r = 20 - (Math.random() * 5);
+							// Register Hit
+							mainObj.npcHandler.depleteHealth(weaponDamage);
+						}
 						// Squelch!
 						hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
 						hitSound.play();
@@ -2435,23 +2496,20 @@ document.addEventListener('keydown', function (e) {
 	if (e.key == 'q') playerHeight -= 10;
 	if (e.key == 'n') {
 		const sRange = 250;
-		for (let i = 0; i < 10; i++)
-		{
-			const testDummy = new NPC(
-				'swat',
-				'character_models/swat_idle.png',
-				new THREE.Vector3(
-					Math.random() * sRange - (sRange/2),
-					0,
-					Math.random() * sRange - (sRange/2)),
-				new THREE.Vector3(
-					0,
-					Math.random() * Math.PI * 2,
-					0),
-				100 + Math.random() * 100,
-				100);
-			console.log(testDummy);
-		}
+		const testDummy = new NPC(
+			'swat',
+			'character_models/swat_idle.png',
+			new THREE.Vector3(
+				Math.random() * sRange - (sRange/2),
+				0,
+				Math.random() * sRange - (sRange/2)),
+			new THREE.Vector3(
+				0,
+				Math.random() * Math.PI * 2,
+				0),
+			100 + Math.random() * 100,
+			100
+		);
 	}
 	if (e.key == 't') {
 		const vizbox = document.getElementById('vizbox');

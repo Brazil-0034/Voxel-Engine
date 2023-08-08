@@ -132,7 +132,7 @@ const DEFAULTOBJECTS = [];
 const MAPOBJECTS = [];
 var scene = new THREE.Scene();
 scene.name = "New Scene"
-const camera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 15, 5000);
+const camera = new THREE.PerspectiveCamera(80, canvas.width / canvas.height, 15, 5000);
 camera.position.x = -276.5656251980899;
 camera.position.y = 225.36512419213917;
 camera.position.z = 274.28691501840778;
@@ -216,6 +216,13 @@ sao.params.saoKernelRadius = 100;
 composer.addPass(sao);
 const controls = new OrbitControls(camera, canvas);
 controls.name = "OrbitControls";
+// controls.panSpeed = controls.rotateSpeed = 0.5;
+controls.dollyOut = function(){
+    this.object.position.z -= 25;
+}
+controls.dollyIn = function(){
+    this.object.position.z += 25;
+}
 DEFAULTOBJECTS.push(controls);
 const adjustCanvasSize = function () {
     canvas.width = editorWindow.clientWidth;
@@ -515,7 +522,6 @@ transformControls.addEventListener('dragging-changed', function (event) {
 
     }
 
-    console.log(selectedObjects.scale.x, selectedObjects.scale.y, selectedObjects.scale.z);
 });
 
 // ### UPDATING HIERARCHY PANEL ###
@@ -569,6 +575,7 @@ const clearSelectedObjects = function () {
     transformControls.visible = false;
     for (let i = 0; i < selectedObjects.children.length; i++) {
         const child = selectedObjects.children[i];
+        console.log(child.name, child.rotation.x, child.rotation.y, child.rotation.z)
         // get world pos
         const newPos = new THREE.Vector3();
         newPos.setFromMatrixPosition(child.matrixWorld);
@@ -582,6 +589,7 @@ const clearSelectedObjects = function () {
         child.scale.set(newScale.x, newScale.y, newScale.z);
         clearSelectedObjects();
     }
+    selectedObjects.rotation.set(0, 0, 0);
     updateLeftPanel();
 }
 clearSelectedObjects();
@@ -705,10 +713,17 @@ document.body.addEventListener('keydown', function (event) {
             //     transformControls.setMode("rotate");
             //     break;
             case 'r':
-                // swap X and Z scale
-                const temp = selectedObjects.scale.x;
-                selectedObjects.scale.x = selectedObjects.scale.z;
-                selectedObjects.scale.z = temp;
+                if (lastAttachedObject.userData.isEnemyNPC == true)
+                {
+                    lastAttachedObject.rotation.y += Math.PI / 4;
+                }
+                else
+                {
+                    // swap X and Z scale
+                    const temp = selectedObjects.scale.x;
+                    selectedObjects.scale.x = selectedObjects.scale.z;
+                    selectedObjects.scale.z = temp;
+                }
                 break;
             case 't':
                 transformControls.setMode("scale");
@@ -839,6 +854,26 @@ const createPointLight = function(position, color, lightBrightness) {
     MAPOBJECTS.push(lightCube);
 }
 
+const createEnemyNPC = function(position, rotation=new THREE.Vector3(0,0,Math.PI/2)) {
+    const enemyNPC = new THREE.Mesh(
+        new THREE.ConeGeometry(5,15,3),
+        new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.75
+        })
+    );
+    enemyNPC.rotation.set(rotation.x, rotation.y, rotation.z);
+    enemyNPC.position.copy(position);
+    enemyNPC.userData.existInGame = true;
+    enemyNPC.userData.isEnemyNPC = true;
+    enemyNPC.userData.isLight = false;
+    enemyNPC.name = "Enemy NPC - " + Math.floor(Math.random() * 1000);
+    addToScene(enemyNPC);
+    MAPOBJECTS.push(enemyNPC);
+}
+
 // ### CONTEXT MENU
 const rightClickMenu = document.querySelector("#right-click-menu");
 const contextMenuClick = function (action) {
@@ -862,6 +897,14 @@ const contextMenuClick = function (action) {
             break;
         case "Create Point Light":
             createPointLight(new THREE.Vector3(0, 0, 0), randomColor(), 10000);
+            break;
+        case "Create NPC Enemy":
+            // set EnemyNPCPosition to be right IN FRONT of the camera
+            const enemyNPCPosition = new THREE.Vector3();
+            enemyNPCPosition.copy(camera.position);
+            enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(200));
+
+            createEnemyNPC(enemyNPCPosition);
             break;
         //  ### Object Manipulation
         case "Delete Object":
@@ -894,6 +937,7 @@ const invokeContextMenu = function (e) {
         options.push("Create Hollow Box");
         options.push("[] Add Lighting");
         options.push("Create Point Light");
+        options.push("Create NPC Enemy");
     }
     if (clickedElement.parentElement.id == "scene-objects-list") {
         options.push("Delete Object");
@@ -1046,7 +1090,8 @@ const saveProject = function () {
                     "b": mapObject.material.color.b
                 },
                 "isLight": mapObject.userData.isLight,
-                "lightBrightness": mapObject.userData.lightBrightness
+                "lightBrightness": mapObject.userData.lightBrightness,
+                "isEnemyNPC": mapObject.userData.isEnemyNPC
             });
         }
     });
@@ -1152,6 +1197,13 @@ const importProject = function () {
                             new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
                             new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
                             mapMakerObject.lightBrightness
+                        );
+                    }
+                    else if (mapMakerObject.isEnemyNPC && mapMakerObject.isEnemyNPC == true)
+                    {
+                        createEnemyNPC(
+                            new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
+                            new THREE.Vector3(mapMakerObject.rotation.x, mapMakerObject.rotation.y, mapMakerObject.rotation.z)
                         );
                     }
                     else

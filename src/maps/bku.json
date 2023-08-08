@@ -1,1 +1,857 @@
-{"cameraData":{"cameraPosition":{"x":0,"y":0,"z":0},"cameraRotation":{"x":0,"y":0,"z":0}},"groundData":{"groundSize":{"x":1000,"y":1000},"groundColor":{"r":0.6038273388475408,"g":0.6038273388475408,"b":0.6038273388475408}},"mapMakerSave":[{"type":"box","size":{"x":567,"y":34,"z":1},"position":{"x":0,"y":19,"z":77},"rotation":{"x":0,"y":0,"z":0},"material":"smooth","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":569,"y":10,"z":1},"position":{"x":0,"y":32,"z":76},"rotation":{"x":0,"y":0,"z":0},"material":"smooth","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":569,"y":5,"z":1},"position":{"x":0,"y":34,"z":75},"rotation":{"x":0,"y":0,"z":0},"material":"smooth","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":569,"y":101,"z":1},"position":{"x":0,"y":87,"z":77},"rotation":{"x":0,"y":0,"z":0},"material":"bricks","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":566,"y":33,"z":1},"position":{"x":0,"y":18,"z":-140},"rotation":{"x":0,"y":0,"z":0},"material":"smooth","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":568,"y":101,"z":1},"position":{"x":0,"y":86,"z":-140},"rotation":{"x":0,"y":0,"z":0},"material":"bricks","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":568,"y":9,"z":1},"position":{"x":0,"y":31,"z":-139},"rotation":{"x":0,"y":0,"z":0},"material":"smooth","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":568,"y":4,"z":1},"position":{"x":0,"y":34,"z":-138},"rotation":{"x":0,"y":0,"z":0},"material":"smooth","color":{"r":1,"g":1,"b":1}},{"type":"box","size":{"x":566,"y":1,"z":216},"position":{"x":0,"y":1,"z":-31},"rotation":{"x":0,"y":0,"z":0},"material":"tile","color":{"r":1,"g":1,"b":1},"isLight":false,"lightBrightness":1},{"type":"box","size":{"x":566,"y":1,"z":216},"position":{"x":0,"y":134,"z":-31},"rotation":{"x":0,"y":0,"z":0},"material":"cobblestone","color":{"r":1,"g":1,"b":1},"isLight":false,"lightBrightness":1},{"type":"box","size":{"x":1,"y":136,"z":221},"position":{"x":281,"y":69,"z":-32},"rotation":{"x":0,"y":0,"z":0},"material":"wood","color":{"r":1,"g":1,"b":1},"isLight":false,"lightBrightness":1},{"type":"box","size":{"x":1,"y":136,"z":221},"position":{"x":-280,"y":69,"z":-32},"rotation":{"x":0,"y":0,"z":0},"material":"wood","color":{"r":1,"g":1,"b":1},"isLight":false,"lightBrightness":1}]}
+{
+    "cameraData": {
+        "cameraPosition": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "cameraRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        }
+    },
+    "groundData": {
+        "groundSize": {
+            "x": "10000",
+            "y": "10000"
+        },
+        "groundColor": {
+            "r": 0.6038273388475408,
+            "g": 0.6038273388475408,
+            "b": 0.6038273388475408
+        }
+    },
+    "mapMakerSave": [
+        {
+            "type": "box",
+            "size": {
+                "x": 709,
+                "y": 34,
+                "z": 1
+            },
+            "position": {
+                "x": 304,
+                "y": 19,
+                "z": 117
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 711,
+                "y": 10,
+                "z": 1
+            },
+            "position": {
+                "x": 304,
+                "y": 32,
+                "z": 116
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 711,
+                "y": 101,
+                "z": 1
+            },
+            "position": {
+                "x": 304,
+                "y": 87,
+                "z": 117
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "bricks",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 566,
+                "y": 33,
+                "z": 1
+            },
+            "position": {
+                "x": 236,
+                "y": 18,
+                "z": -100
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 568,
+                "y": 101,
+                "z": 1
+            },
+            "position": {
+                "x": 236,
+                "y": 86,
+                "z": -100
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "bricks",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 568,
+                "y": 9,
+                "z": 1
+            },
+            "position": {
+                "x": 236,
+                "y": 31,
+                "z": -99
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 566,
+                "y": 1,
+                "z": 216
+            },
+            "position": {
+                "x": 236,
+                "y": 1,
+                "z": 9
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "cobblestone",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 566,
+                "y": 1,
+                "z": 216
+            },
+            "position": {
+                "x": 236,
+                "y": 134,
+                "z": 9
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "cobblestone",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 136,
+                "z": 577
+            },
+            "position": {
+                "x": 656,
+                "y": 69,
+                "z": -161
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "wood",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 136,
+                "z": 221
+            },
+            "position": {
+                "x": -44,
+                "y": 69,
+                "z": 8
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "wood",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "position": {
+                "x": 236,
+                "y": 122,
+                "z": 107
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 0.9911020971136257,
+                "g": 1,
+                "b": 0.6038273388475408
+            },
+            "isLight": true,
+            "lightBrightness": "512"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "position": {
+                "x": 236,
+                "y": 122,
+                "z": -85
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 0.9911020971136257,
+                "b": 0.6724431569510133
+            },
+            "isLight": true,
+            "lightBrightness": "512"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 14,
+                "y": 2,
+                "z": 1
+            },
+            "position": {
+                "x": 235,
+                "y": 132,
+                "z": -99
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": "50"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 14,
+                "y": 2,
+                "z": 1
+            },
+            "position": {
+                "x": 235,
+                "y": 132,
+                "z": 116
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": "50"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "position": {
+                "x": 644,
+                "y": 122,
+                "z": -48
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 0.9911020971136257,
+                "g": 1,
+                "b": 0.6038273388475408
+            },
+            "isLight": true,
+            "lightBrightness": "512"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 2,
+                "z": 14
+            },
+            "position": {
+                "x": 655,
+                "y": 132,
+                "z": -47
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": "50"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "position": {
+                "x": 644,
+                "y": 122,
+                "z": -256
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 0.9911020971136257,
+                "g": 1,
+                "b": 0.6038273388475408
+            },
+            "isLight": true,
+            "lightBrightness": "512"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 2,
+                "z": 14
+            },
+            "position": {
+                "x": 655,
+                "y": 132,
+                "z": -255
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": "50"
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 138,
+                "y": 1,
+                "z": 566
+            },
+            "position": {
+                "x": 588,
+                "y": 1,
+                "z": -166
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "cobblestone",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "position": {
+                "x": 593,
+                "y": 4,
+                "z": -164
+            },
+            "rotation": {
+                "x": -1.5707963267948963,
+                "y": -1.5707963267948966,
+                "z": 0
+            },
+            "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0
+            },
+            "isLight": false,
+            "isEnemyNPC": true
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 101,
+                "z": 493
+            },
+            "position": {
+                "x": 519,
+                "y": 84,
+                "z": -346
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "bricks",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 9,
+                "z": 493
+            },
+            "position": {
+                "x": 521,
+                "y": 30,
+                "z": -346
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 33,
+                "z": 493
+            },
+            "position": {
+                "x": 519,
+                "y": 16,
+                "z": -346
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 384,
+                "y": 1,
+                "z": 138
+            },
+            "position": {
+                "x": 710,
+                "y": 1,
+                "z": -518
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "cobblestone",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 239,
+                "y": 9,
+                "z": 1
+            },
+            "position": {
+                "x": 639,
+                "y": 31,
+                "z": -586
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 238,
+                "y": 33,
+                "z": 1
+            },
+            "position": {
+                "x": 639,
+                "y": 18,
+                "z": -587
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "smooth",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 239,
+                "y": 101,
+                "z": 1
+            },
+            "position": {
+                "x": 639,
+                "y": 86,
+                "z": -587
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "bricks",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 225,
+                "y": 136,
+                "z": 1
+            },
+            "position": {
+                "x": 769,
+                "y": 69,
+                "z": -447
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "wood",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 225,
+                "y": 136,
+                "z": 1
+            },
+            "position": {
+                "x": 871,
+                "y": 69,
+                "z": -587
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "wood",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "position": {
+                "x": 698,
+                "y": 4,
+                "z": -513
+            },
+            "rotation": {
+                "x": -3.141592653589793,
+                "y": 1.2246467991473532e-16,
+                "z": -1.570796326794897
+            },
+            "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0
+            },
+            "isLight": false,
+            "isEnemyNPC": true
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 138,
+                "y": 1,
+                "z": 562
+            },
+            "position": {
+                "x": 588,
+                "y": 135,
+                "z": -169
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "cobblestone",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        },
+        {
+            "type": "box",
+            "size": {
+                "x": 384,
+                "y": 1,
+                "z": 137
+            },
+            "position": {
+                "x": 710,
+                "y": 135,
+                "z": -518
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "material": "cobblestone",
+            "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1
+            },
+            "isLight": false,
+            "lightBrightness": 0
+        }
+    ]
+}

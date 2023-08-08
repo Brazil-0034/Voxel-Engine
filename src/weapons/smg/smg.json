@@ -7,6 +7,7 @@
         "weaponDamage": 15,
         "damageRange": 3,
         "minimumDistance": 500,
+        "followSpeed": 1000,
         "basepotency": 0.35,
         "position": {
             "x": 29.3404767778952,
