@@ -14,9 +14,9 @@
 	<script type="importmap">
 			{
 				"imports": {
-					"three": "../threejs/build/three.module.js",
-					"three/addons/": "../threejs/examples/jsm/",
-					"three/nodes": "../threejs/examples/jsm/nodes/Nodes.js"
+					"three": "../opensource/threejs/build/three.module.js",
+					"three/addons/": "../opensource/threejs/examples/jsm/",
+					"three/nodes": "../opensource/threejs/examples/jsm/nodes/Nodes.js"
 				}
 			}
 	</script>
@@ -88,12 +88,23 @@
         <div id="center-panel" class="panel">
             <h1>Loading . . .</h1>
         </div>
+
+        <div class="tooltip">Thank you for playing my game and making mods :)</div>
     </div>
 
     <script type="module">
-    // ### IMPORTANT METADATA
+// ### IMPORTANT METADATA
 const editorVersion = "0.1.0"
 document.title = "WreckMesh Map Maker v" + editorVersion;
+
+// ### TOOLTIPS
+const sendTooltip = function(tip) {
+    // create a "tip" element
+    const tipElement = document.createElement("div");
+    tipElement.classList.add("tooltip");
+    tipElement.innerHTML = tip;
+    document.body.appendChild(tipElement);
+}
 
 //  ### IMPORTS
 import * as THREE from 'three';
@@ -333,6 +344,20 @@ const updateRightPanel = function (item) {
         });
         lightBrightness.appendChild(lightBrightnessInput);
         inspector.appendChild(lightBrightness);
+        // interactionEvent (if it has one)
+        if (item.userData.interactionEvent != undefined) {
+            const interactionEvent = document.createElement("div");
+            interactionEvent.classList.add("inspector-element");
+            interactionEvent.innerHTML = "<h3>Interaction Event</h3>";
+            const interactionEventInput = document.createElement("input");
+            interactionEventInput.type = "text";
+            interactionEventInput.value = item.userData.interactionEvent;
+            interactionEventInput.addEventListener("input", function () {
+                item.userData.interactionEvent = interactionEventInput.value;
+            });
+            interactionEvent.appendChild(interactionEventInput);
+            inspector.appendChild(interactionEvent);
+        }
         // finalize
         scale.appendChild(scaleX);
         scale.appendChild(scaleY);
@@ -446,7 +471,6 @@ transformControls.attach(selectedObjects);
 document.body.addEventListener('keydown', function (event) {
     if (event.key == "s") {
         console.log(scene);
-        console.log(selectedObjects.children);
     }
     if (event.key == "f")
     {
@@ -500,10 +524,19 @@ transformControls.addEventListener('dragging-changed', function (event) {
                         }
                     });
                 }
-                // round the scale to the nearest EVEN whole number
-                selectedObjects.scale.x = clamp(Math.floor(selectedObjects.scale.x), 1, Number.MAX_SAFE_INTEGER);
-                selectedObjects.scale.y = clamp(Math.floor(selectedObjects.scale.y), 1, Number.MAX_SAFE_INTEGER);
-                selectedObjects.scale.z = clamp(Math.floor(selectedObjects.scale.z), 1, Number.MAX_SAFE_INTEGER);
+                // round the WORLD scale to the nearest EVEN whole number
+                const cacheSelectedObjects = [];
+                selectedObjects.children.forEach(child => {
+                    cacheSelectedObjects.push(child);
+                });
+                clearSelectedObjects();
+                cacheSelectedObjects.forEach(child => {
+                    child.scale.x = Math.round(child.scale.x);
+                    child.scale.y = Math.round(child.scale.y);
+                    child.scale.z = Math.round(child.scale.z);
+                    attachHandles(child, true);
+                });
+                // round the position of the selectedObjects to the nearest whole number
                 selectedObjects.position.x = Math.floor(selectedObjects.position.x);
                 selectedObjects.position.y = Math.floor(selectedObjects.position.y);
                 selectedObjects.position.z = Math.floor(selectedObjects.position.z);
@@ -575,7 +608,6 @@ const clearSelectedObjects = function () {
     transformControls.visible = false;
     for (let i = 0; i < selectedObjects.children.length; i++) {
         const child = selectedObjects.children[i];
-        console.log(child.name, child.rotation.x, child.rotation.y, child.rotation.z)
         // get world pos
         const newPos = new THREE.Vector3();
         newPos.setFromMatrixPosition(child.matrixWorld);
@@ -593,13 +625,31 @@ const clearSelectedObjects = function () {
     updateLeftPanel();
 }
 clearSelectedObjects();
+const removeFromSelection = function (item) {
+    // do clearSelectedObjects() and then add back all the items except the one we want to remove
+    const oldSelectedObjects = Array.from(selectedObjects.children);
+    clearSelectedObjects();
+    oldSelectedObjects.forEach(oldSelectedObject => {
+        if (oldSelectedObject !== item) {
+            attachHandles(oldSelectedObject);
+        }
+    });
+}
 const attachHandles = function (item, dontResetSelections=false) {
     // bug fix for double-click attach:
     if (!retachAvailable) return;
     // make sure we dont select the ground floor
     if (item.userData.isGroundFloor) return;
     // if we already have it selected, forget about it!
-    if (selectedObjects.children.includes(item)) return;
+    if (selectedObjects.children.includes(item)) {
+        // remove the item from the selection
+        removeFromSelection(item);
+        // if we have nothing selected, hide the transform controls
+        if (selectedObjects.children.length == 0) {
+            transformControls.visible = false;
+        }
+        return;
+    }
     // if we are holding shift, add to the selection
     if (isHoldingShift == false && dontResetSelections == false) {
         clearSelectedObjects();
@@ -611,7 +661,7 @@ const attachHandles = function (item, dontResetSelections=false) {
     });
     cacheSelectedObjects.push(item);
     clearSelectedObjects();
-    selectedObjects.scale.copy(item.scale);
+    // selectedObjects.scale.copy(item.scale);
     selectedObjects.position.copy(item.position);
 
     cacheSelectedObjects.forEach(child => {
@@ -728,12 +778,6 @@ document.body.addEventListener('keydown', function (event) {
             case 't':
                 transformControls.setMode("scale");
                 break;
-            case 'd':
-                console.log("SO Scale: " + selectedObjects.scale.x, selectedObjects.scale.y, selectedObjects.scale.z);
-                console.log("Individual Scales:");
-                selectedObjects.children.forEach(object => {
-                    console.log("\t" + object.name + ": " + object.scale.x, object.scale.y, object.scale.z);
-                });
         }
     }
     // CTRL Commands
@@ -767,7 +811,13 @@ document.body.addEventListener('keydown', function (event) {
                             }
                         }
                         // also copy the userdata from the old object
-                        clone.userData = old.userData;
+                        clone.userData.isLight = old.userData.isLight;
+                        clone.userData.isEnemyNPC = old.userData.isEnemyNPC;
+                        clone.userData.lightBrightness = old.userData.lightBrightness;
+                        clone.userData.isCutaway = old.userData.isCutaway;
+                        clone.userData.existInGame = old.userData.existInGame;
+                        clone.userData.materialType = old.userData.materialType;
+
                         addToScene(clone);
                         attachHandles(clone, true);
                         MAPOBJECTS.push(clone);
@@ -775,16 +825,24 @@ document.body.addEventListener('keydown', function (event) {
                 }
                 break;
             case 'a':
-                if (transformControls.object != undefined) {
-                    // select all objects
-                    clearSelectedObjects();
-                    for (let i = 0; i < MAPOBJECTS.length; i++) {
-                        const thisObj = MAPOBJECTS[i];
-                        if (thisObj.userData.existInGame == true) {
-                            attachHandles(thisObj, true);
+                if (event.altKey)
+                {
+                    if (transformControls.object != undefined) {
+                        // select all objects
+                        clearSelectedObjects();
+                        for (let i = 0; i < MAPOBJECTS.length; i++) {
+                            const thisObj = MAPOBJECTS[i];
+                            if (thisObj.userData.existInGame == true) {
+                                attachHandles(thisObj, true);
+                            }
                         }
                     }
                 }
+                else
+                {
+                    sendTooltip("To select all world objects, click <code>CTRL + ALT + A</code>")
+                }
+                break;
             case 'w':
                 // prevent default browser behavior
                 event.preventDefault();
@@ -887,22 +945,32 @@ const contextMenuClick = function (action) {
                     side: THREE.DoubleSide
                 })
             );
+            const cubePosition = new THREE.Vector3();
+            cubePosition.copy(camera.position);
+            cubePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20));
+            cube.position.copy(cubePosition);
+
             cube.userData.existInGame = true;
             cube.userData.materialType = "smooth";
             cube.userData.isLight = false;
             cube.userData.lightBrightness = 0;
+            cube.userData.interactionEvent = "none";
+
             cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
             addToScene(cube);
             MAPOBJECTS.push(cube);
             break;
         case "Create Point Light":
-            createPointLight(new THREE.Vector3(0, 0, 0), randomColor(), 10000);
+            const pointLightPosition = new THREE.Vector3();
+            pointLightPosition.copy(camera.position);
+            pointLightPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20));
+            createPointLight(pointLightPosition, randomColor(), 10000);
             break;
         case "Create NPC Enemy":
             // set EnemyNPCPosition to be right IN FRONT of the camera
             const enemyNPCPosition = new THREE.Vector3();
             enemyNPCPosition.copy(camera.position);
-            enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(200));
+            enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20));
 
             createEnemyNPC(enemyNPCPosition);
             break;
@@ -1037,7 +1105,9 @@ canvas.addEventListener("click", function (e) {
                 clearSelectedObjects();
                 return;
             }
+            console.log(intersects[index].object.scale.x, intersects[index].object.scale.y, intersects[index].object.scale.z);
             attachHandles(intersects[index].object);
+            console.log(intersects[index].object.scale.x, intersects[index].object.scale.y, intersects[index].object.scale.z);
             // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
             const list = document.querySelector("#scene-objects-list");
             for (let i = 0; i < list.children.length; i++) {
@@ -1091,13 +1161,11 @@ const saveProject = function () {
                 },
                 "isLight": mapObject.userData.isLight,
                 "lightBrightness": mapObject.userData.lightBrightness,
-                "isEnemyNPC": mapObject.userData.isEnemyNPC
+                "isEnemyNPC": mapObject.userData.isEnemyNPC,
+                "interactionEvent": mapObject.userData.interactionEvent
             });
         }
     });
-
-
-
 
     metaData.cameraData = {
         "cameraPosition": {
@@ -1154,8 +1222,11 @@ const saveProject = function () {
             data: JSON.stringify(metaData.mapMakerSave)
         });
         // END CUSTOM DATA
-        ipc.send('savefile-end-custom-data');
-        // ipc.send('init-new-savefile');
+        // wait 250ms for the file to be written
+        setTimeout(() => {
+            ipc.send('savefile-end-custom-data');
+            console.log("Written Successfully.");
+        }, 250);
 
         console.log("Written Successfully.");
     });
@@ -1221,15 +1292,15 @@ const importProject = function () {
                         newBox.material.map.wrapT = THREE.RepeatWrapping;
                         newBox.name = capitalizeFirstLetter(mapMakerObject.material + " Box ID:" + Math.floor(Math.random() * 1000000));
                         newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
+
                         newBox.userData.materialType = mapMakerObject.material;
                         newBox.userData.isCutaway = mapMakerObject.isCutaway;
-                        if (mapMakerObject.isCutaway) {
-                            newBox.material = cutawayMaterial;
-                        }
-                        console.log(mapMakerObject.isLight);
+                        if (mapMakerObject.isCutaway) newBox.material = cutawayMaterial;
                         newBox.userData.existInGame = true;
                         newBox.userData.isLight = mapMakerObject.isLight;
                         newBox.userData.lightBrightness = mapMakerObject.lightBrightness;
+                        newBox.userData.interactionEvent = mapMakerObject.interactionEvent ? mapMakerObject.interactionEvent : "none";
+
                         addToScene(newBox);
                         MAPOBJECTS.push(newBox);
                         newBox.scale.x = mapMakerObject.size.x;
@@ -1248,6 +1319,7 @@ const importProject = function () {
 
             updateLeftPanel();
             // scene.add(selectedObjects);
+            sendTooltip("Map Imported Successfully!");
         }
     }
     input.click();
@@ -1476,6 +1548,40 @@ document.querySelector("#import-button").addEventListener("click", function () {
         input::-webkit-inner-spin-button {
             -webkit-appearance: none !important;
             margin: 0 !important;
+        }
+
+        
+        .tooltip {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            padding: 20px 10px;
+            background: deepskyblue;
+            border: 1px solid lightblue;
+            border-radius: 5px;
+            animation: slideUp 3s ease-in-out;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes slideUp {
+            0% {
+                opacity: 0;
+                transform: translateY(0%);
+            }
+
+            25% {
+                opacity: 1;
+            }
+
+            75% {
+                opacity: 1;
+                transform: translateY(0%);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-100px);
+            }
         }
     </style>
 </body>

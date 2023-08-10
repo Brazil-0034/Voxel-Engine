@@ -1,0 +1,251 @@
+<head>
+    <style>
+        * {
+            margin: 0;
+        }
+
+        body {
+            font-family: Montserrat;
+            background: #2C5769;
+            box-shadow: inset 0px 0px 45px 17px rgba(143, 143, 143, 0.75);
+        }
+
+        #middle-column {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 70%;
+            background: #e2e2e2;
+            box-shadow: 0px 0px 45px 17px rgba(100, 100, 100, 0.5);
+            overflow-y: scroll;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        #middle-column-header-banner {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translate(-50%, 100%);
+            width: 80%;
+            height: 5%;
+            background: #AEAEAE;
+
+            display: flex;
+            align-items: center;
+            justify-content: left;
+            padding: 0px 10px;
+
+            font-size: 20px;
+            font-weight: bolder;
+            color: #fff;
+            text-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0px 0px 45px 17px rgba(100, 100, 100, 0.5);
+        }
+
+        #top-image {
+            position: absolute;
+            top: 0%;
+            left: 50%;
+            transform: translate(-50%, 42.5%);
+            max-width: 275px;
+        }
+
+        /* alternatinv background colors for ul/li */
+        ul li:nth-child(odd) {
+            background: #e2e2e2;
+        }
+
+        ul li:nth-child(even) {
+            background: #ededed;
+        }
+
+        li {
+            padding: 10px;
+            font-size: 18px;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0px;
+            margin: 0;
+            overflow: auto;
+        }
+
+        #ad {
+            background: #1BBFD4;
+            font-weight: bolder;
+        }
+
+        #ad a {
+            background: -webkit-linear-gradient(45deg, #fff 0 85%, #1BBFD4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+    <script>
+        setInterval(function () {
+            var jumble = document.querySelector("#jumble");
+            var chars = "123456789%_!"
+            var result = "";
+            for (var i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            jumble.innerHTML = result;
+        }, 100);
+    </script>
+</head>
+
+<body>
+    <img id="top-image" src="seemail.gif" />
+    <div id="middle-column-header-banner">You Have Mail!</div>
+    <div id="middle-column">
+        <a href="emailHub.html">
+            <- Go Back</a><br /><br />
+
+
+                <!-- EMAIL PAGE CONTENTS HERE (since webview-in-webview no longer works) -->
+                <!-- source: ty geeksforgeeks (for being an excellent website in general but also) for the wavy text -->
+
+                <head>
+                    <style>
+                        body {
+                            /* fun gradient background light */
+                            background: radial-gradient(circle, greenyellow, lightgreen, lightblue, lightpink, lightblue, lightgreen, greenyellow);
+                            text-shadow: 0px 0px 20px rgba(0, 0, 0, 1);
+                            color: white;
+                        }
+
+                        p {
+                            background: rgba(0, 0, 0, 0.25);
+                            /* wavy dashed border */
+                            border: 2px dashed transparent;
+                            border-image: linear-gradient(to right, lightgreen, lightpink, lightblue) 1;
+                            border-image-slice: 1;
+                            padding: 20px;
+                        }
+
+                        img {
+                            background: radial-gradient(circle, greenyellow, lightgreen, lightblue, lightpink, lightblue, lightgreen, greenyellow);
+                        }
+
+                        .wavy {
+                            position: relative;
+                        }
+
+                        .wavy span {
+                            position: relative;
+                            display: inline-block;
+                            font-weight: bolder;
+                            animation: animate 2s ease-in-out infinite;
+                            animation-delay: calc(0.1s * var(--i));
+                        }
+
+                        @keyframes animate {
+                            0% {
+                                transform: translateY(0px);
+                                color: lightgreen;
+                            }
+
+                            50% {
+                                transform: translateY(10px);
+                                color: lightpink;
+                            }
+
+                            100% {
+                                transform: translateY(0px);
+                                color: lightblue;
+                            }
+                        }
+                    </style>
+                    <script>
+                        setInterval(function () {
+                            var jumble = document.querySelector("#jumble");
+                            var chars = "123456789%_!"
+                            var result = "";
+                            for (var i = 0; i < 4; i++) {
+                                result += chars.charAt(Math.floor(Math.random() * chars.length));
+                            }
+                            jumble.innerHTML = result;
+                        }, 100);
+                    </script>
+                </head>
+
+                <body style="font-family: Montserrat;">
+                    <img src="easydrugs.png" width="400px" />
+                    <p>
+                        Hey There Friendo! <br /><br />
+                        Looking for some prescription-free pills to help you <b><i>relax?</i></b> <br />
+                        Spent a long day at the labor camp and can't wait to <b><i>unwind?</i></b> <br /><br />
+                        Look no further! <br /><br />
+                        Spend your <b>LaborCoin&trade;</b> wisely on <b>Easy-Drugs Inc.</b> Products! <br />
+                        Try any of our <b>300+</b> flavors of pure imported goodness. <br /><br />
+                        Our products are sold under-the-table at corner stores in <b>ALL MAJOR DISTRICTS!</b> <br />
+                        Just ask for the
+                        <span class="wavy">
+                            <span style="--i:0">"</span>
+                            <span style="--i:1">S</span>
+                            <span style="--i:2">p</span>
+                            <span style="--i:3">e</span>
+                            <span style="--i:4">c</span>
+                            <span style="--i:5">i</span>
+                            <span style="--i:6">a</span>
+                            <span style="--i:7">l</span>
+                            <span style="--i:8"> </span>
+                            <span style="--i:9">M</span>
+                            <span style="--i:10">e</span>
+                            <span style="--i:11">n</span>
+                            <span style="--i:12">u</span>
+                            <span style="--i:13">"</span>
+                        </span>
+                        and you'll be on your way to a <b>good time!</b> <br /><br /><br />
+
+                        <code>This advertisement was sponsored by <b>Verified Legal Business <i>#<span id="jumble">4516</span></i></code></b>
+                    </p>
+                </body>
+
+
+
+    </div>
+</body>
+
+<!-- scrollbar -->
+<style>
+    *::-webkit-scrollbar {
+        width: 10px;
+        width: 10px;
+    }
+
+    *::-webkit-scrollbar-track {
+        border-radius: 5px;
+        background-color: #DFE9EB;
+        border: 2px solid #FFFFFF;
+    }
+
+    *::-webkit-scrollbar-track:hover {
+        background-color: #DFE9EB;
+    }
+
+    *::-webkit-scrollbar-track:active {
+        background-color: #DFE9EB;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        border-radius: 5px;
+        background-color: #38B6FF;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+        background-color: #2592FF;
+    }
+
+    *::-webkit-scrollbar-thumb:active {
+        background-color: #2592FF;
+    }
+</style>

@@ -2,13 +2,13 @@
   "name": "vanilla",
   "version": "1.0.0",
   "description": "A minimal Electron application",
-  "main": "./src/main.js",
+  "main": "./src/electron/main.js",
   "author": "example.com",
   "homepage": "https://www.electronjs.org",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --ext .js .",
-    "dev": "electron .",
+    "dev": "electron . --enable-precise-memory-info",
     "webgpu-test": "electron . --enable-unsafe-webgpu",
     "postinstall": "electron-builder install-app-deps",
     "build:win": "electron-builder --win --config",
@@ -16,13 +16,10 @@
     "build:linux": "electron-builder --linux --config"
   },
   "dependencies": {
-    "@6c65726f79/custom-titlebar": "^0.9.1",
     "@electron-toolkit/preload": "^1.0.3",
-    "@electron-toolkit/utils": "^1.0.2",
-    "tweakpane": "^3.1.9"
+    "@electron-toolkit/utils": "^1.0.2"
   },
   "devDependencies": {
-    "@electron/notarize": "^1.2.3",
     "electron": "^22.3.4",
     "electron-builder": "^23.6.0"
   }

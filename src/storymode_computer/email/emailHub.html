@@ -1,0 +1,358 @@
+<!-- source: ty geeksforgeeks (for being an excellent website in general but also) for the wavy text -->
+<head>
+    <style>
+        * {
+            margin: 0;
+        }
+
+        body {
+            font-family: Montserrat;
+            background: #2C5769;
+            box-shadow: inset 0px 0px 45px 17px rgba(143, 143, 143, 0.75);
+        }
+
+        #middle-column {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 70%;
+            background: #e2e2e2;
+            box-shadow: 0px 0px 45px 17px rgba(100,100,100,0.5);
+            overflow: hidden;
+        }
+
+        #middle-column-header-banner {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translate(-50%, 100%);
+            width: 80%;
+            height: 5%;
+            background: #AEAEAE;
+
+            display: flex;
+            align-items: center;
+            justify-content: left;
+            padding: 0px 10px;
+
+            font-size: 20px;
+            font-weight: bolder;
+            color: #fff;
+            text-shadow: 0px 0px 10px rgba(0,0,0,0.5);
+            box-shadow: 0px 0px 45px 17px rgba(100,100,100,0.5);
+        }
+
+        #top-image {
+            position: absolute;
+            top: 0%;
+            left: 50%;
+            transform: translate(-50%, 42.5%);
+            max-width: 275px;
+        }
+
+        /* alternatinv background colors for ul/li */
+        ul li:nth-child(odd) {
+            background: #e2e2e2;
+        }
+
+        ul li:nth-child(even) {
+            background: #ededed;
+        }
+
+        li {
+            padding: 10px;
+            font-size: 14px;
+            -webkit-user-select: none;
+            transition: 0.1s;
+        }
+
+        a {
+            color: inherit;
+            cursor: pointer;
+        }
+        
+        ul {
+            list-style-type: none;
+            padding: 0px;
+            margin: 0;
+            overflow-y: scroll;
+            height: max(300px,100%);
+        }
+
+        #ad {
+            background: #1BBFD4;
+            font-weight: bolder;
+        }
+
+        #ad a{
+            background: -webkit-linear-gradient(45deg, #fff 0 85%, #1BBFD4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #left-part, #right-part {
+            display: inline-block;
+        }
+
+        #left-part {
+            float: left;
+            width: 30%;
+        }
+
+        #right-part {
+            float: right;
+            width: 70%;
+        }
+
+        .email {
+            margin: 20px;
+            background: rgb(222, 222, 222);
+            overflow-y: scroll;
+            height: 90%;
+            display: none;
+        }
+
+        li #adlabel {
+            font-weight: bolder;
+            color: yellow !important
+        }
+    </style>
+    <script>
+        setInterval(function() {
+            var jumble = document.querySelector("#jumble");
+            if (jumble != undefined)
+            {
+                var chars = "123456789%_!"
+                var result = "";
+                for (var i = 0; i < 4; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                jumble.innerHTML = result;
+            }
+        }, 200);
+    </script>
+</head>
+
+<body>
+    <img id="top-image" src="seemail.gif" />
+    <div id="middle-column-header-banner">You Have Mail!</div>
+    <div id="middle-column">
+        <div id="left-part">
+            <ul>
+                <li>Good to see you breathing.</li>
+                <li>Notice of Exoneration</li>
+                <li><a href="jobOffer.html"><b>OFFICIAL: </b>Job Offer Inside</a></li>
+                <li><a href="dangerouslyLow.html">Notice: Dangerously Low Social Credit&trade;</a></li>
+                <li><a href="socialCredit.html">Notice: You have lost Social Credit&trade;</a></li>
+                <li><a href="newsDigest.html">Your Monthly News Digest</a></li>
+                <li><a onclick="activateEmail(this.parentElement, 'social-credit')">Notice: You have lost Social Credit&trade;</a></li>
+                <li id="ad"><span id="adlabel">Advertisement: </span><a onclick="activateEmail(this.parentElement, 'drugs-ad')">Have you tried Mind Melters? Enjoy over 300 flavors of ...</a></li>
+                <li style="display:none"></li>
+                <li><a onclick="activateEmail(this.parentElement, 'welcome-email')">Welcome to SeeMail&trade;!</a></li>
+            </ul>
+        </div>
+        <div id="right-part">
+            <div class="email" id="welcome-email">
+                <div style="font-family: Montserrat; color: #000000;">
+                    <h2 style="color:#1BBFD4">Welcome to SeeMail!&trade;</h2><br />
+                    <p>
+                        Dear Verified Citizen,<br /><br />
+                        SeeMail&trade; is your government's #1 <b>trusted & reliable</b> email service. <br />
+                        You will receive official government messages through the SeeMail website. <br />
+                        You can even chat with your coworkers and friends! <br /><br />
+                        SeeMail activity is monitored, and may affect your <i><b>Social Credit&trade;</b> score.</i>
+                        <br /><br />
+                        <u>Any violation of state law on SeeMail&trade; will be punished to the highest extent of the law. </u><br /><br />
+                        <b>When using SeeMail&trade;, know that:</b>
+                        <ol>
+                            <li>The <b>Internet Safety Act</b> dictates that any user-submitted online content can be censored by any citizen. You are encouraged to flag and censor any content deemed offensive to the majority, including content slandering the ruling party. Pervasive use of the Internet Safety Act can benifit your <b>Social Credit</b>&trade; score.</li>
+                            <li>The <b>Anonymous Re-Education Safety Program</b> allows you to anonymously flag other citizens if they are displaying signs of dissent. A report can trigger a safe re-education visit from the <i>State Police Force</i>. Do your part and help keep our community safe, by reporting antagonistic behavior immediately.</li>
+                            <li>The <b>Happy Social Living Act</b> mandates that every internet user have a <b>minimum</b> of four "friends" who are communicated with on a regular basis. Failing to reach the minimum number of "friends", or failing to engage in regular conversation, can result in hefty re-ocurring <b>Social Credit&trade;</b> fines until rectified.</li>
+                            <li>The <b>Internet Intellectual Balance Act</b> states that individuals with an <i>intelligence quotient</i> of <b>less than 80</b> or <b>greater than 120</b> are disallowed from engaging with online messaging services, including email and public forums.</li>
+                        </ol>
+                        <br />
+                        We appreciate your compliance with state law. Thank you for using <b>SeeMail&trade;</b>!
+                    </p>
+                </div>
+            </div>
+
+            <div class="email" id="drugs-ad">
+                <style>
+                    #drug-msg {
+                        /* fun gradient background light */
+                        text-shadow: 0px 0px 20px rgba(0, 0, 0, 1);
+                        color: white;
+                    }
+
+                    #drug-msg p {
+                        background: rgba(133, 35, 142, 0.75);
+                        /* wavy dashed border */
+                        border: 2px dashed transparent;
+                        border-image: linear-gradient(to right, rgb(238, 144, 225), lightpink, lightblue) 1;
+                        border-image-slice: 1;
+                        padding: 20px;
+                    }
+
+                    #drug-msg img {
+                        background: linear-gradient(to right, rgb(238, 144, 225), lightpink, lightblue);
+                    }
+
+                    .wavy {
+                        position: relative;
+                    }
+
+                    .wavy span {
+                        position: relative;
+                        display: inline-block;
+                        font-weight: bolder;
+                        animation: animate 2s ease-in-out infinite;
+                        animation-delay: calc(0.1s * var(--i));
+                    }
+
+                    @keyframes animate {
+                        0% {
+                            transform: translateY(0px);
+                            color: lightgreen;
+                        }
+
+                        50% {
+                            transform: translateY(10px);
+                            color: lightpink;
+                        }
+
+                        100% {
+                            transform: translateY(0px);
+                            color: lightblue;
+                        }
+                    }
+                </style>
+                <script>
+                    setInterval(function () {
+                        var jumble = document.querySelector("#jumble");
+                        var chars = "123456789%_!"
+                        var result = "";
+                        for (var i = 0; i < 4; i++) {
+                            result += chars.charAt(Math.floor(Math.random() * chars.length));
+                        }
+                        jumble.innerHTML = result;
+                    }, 100);
+                </script>
+
+                <div id="drug-msg" style="background:url('cat.gif')">
+                    <center><img src="easydrugs.png" width="400px" style="border-radius: 5px; margin: 10px;" /></center>
+                    <p>
+                        <img src="cat4.gif" style="max-width: 200px;" /><br /><br />
+                        Hey There Friendo! <br /><br />
+                        Looking for some prescription-free pills to help you <b><i>relax?</i></b> <br />
+                        Spent a long day at the labor camp and can't wait to <b><i>unwind?</i></b> <br /><br />
+                        Look no further! <br /><br />
+                        Spend your <b>LaborCoin&trade;</b> wisely on <b>Easy-Drugs Inc.</b> Products! <br />
+                        <img src="cat2.gif" style="width:100px" /><br/>
+                        Try any of our <b>300+</b> flavors of pure imported goodness. <br /><br />
+                        Our products are sold under-the-table at corner stores in <b>ALL MAJOR DISTRICTS!</b> <br /><br />
+                        Just ask for the
+                        <span class="wavy">
+                            <span style="--i:0">"</span>
+                            <span style="--i:1">S</span>
+                            <span style="--i:2">p</span>
+                            <span style="--i:3">e</span>
+                            <span style="--i:4">c</span>
+                            <span style="--i:5">i</span>
+                            <span style="--i:6">a</span>
+                            <span style="--i:7">l</span>
+                            <span style="--i:8"> </span>
+                            <span style="--i:9">M</span>
+                            <span style="--i:10">e</span>
+                            <span style="--i:11">n</span>
+                            <span style="--i:12">u</span>
+                            <span style="--i:13">"</span>
+                        </span>
+                        and you'll be on your way to a <b>good time!</b> <br /><br /><br />
+                        <img src="cat3.gif" style="width:180px" /><br/><br />
+
+                        <code>This advertisement was sponsored by <b>Verified Legal Business <i>#<span id="jumble">4516</span></i></code></b>
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="email" id="social-credit">
+                
+                <body style="font-family: Montserrat;">
+                    <h1 style="color: red">OFFICIAL NOTICE</h1>
+                    <p>
+                        You have lost <span style="color:red;background:black">100</span> Social Credit&trade;
+                        points.<br />
+                        This deduction is the result of <code style="color: red"><b>Failure to submit payment</b></code>
+                        to <code style="color: red"><b>District #4516 State Hospital</b></code><br /><br />
+
+                        Citizens must perform their civic duty and pay their fees on time. <br />
+                        Failure to submit <code>1</code> more payment will result in an immediate expulsion to a labor
+                        camp.
+                    </p>
+                </body>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        activateEmail = function(sender, id) {
+            // for each element of class "email-message", set its visibility to none. then, set the visibility of the element with id id to block
+            var emails = document.getElementsByClassName("email");
+            for (var i = 0; i < emails.length; i++) {
+                emails[i].style.display = "none";
+            }
+            const emailElement = document.getElementById(id);
+            if (emailElement.style.display == "none") {
+                var senders = document.getElementsByTagName("li");
+                for (var i = 0; i < senders.length; i++) {
+                    senders[i].style.filter = "none";
+                }
+                emailElement.style.display = "block";
+                sender.style.filter = "contrast(75%)";
+            }
+            else {
+                emailElement.style.display = "none";
+                sender.style.filter = "none";
+            }
+        }
+    </script>
+</body>
+
+<!-- scrollbar -->
+<style>
+	*::-webkit-scrollbar {
+		width: 10px;
+		width: 10px;
+	}
+
+	*::-webkit-scrollbar-track {
+		border-radius: 5px;
+		background-color: #DFE9EB;
+		border: 2px solid #FFFFFF;
+	}
+
+	*::-webkit-scrollbar-track:hover {
+		background-color: #DFE9EB;
+	}
+
+	*::-webkit-scrollbar-track:active {
+		background-color: #DFE9EB;
+	}
+
+	*::-webkit-scrollbar-thumb {
+		border-radius: 5px;
+		background-color: #38B6FF;
+	}
+
+	*::-webkit-scrollbar-thumb:hover {
+		background-color: #2592FF;
+	}
+
+	*::-webkit-scrollbar-thumb:active {
+		background-color: #2592FF;
+	}
+</style>

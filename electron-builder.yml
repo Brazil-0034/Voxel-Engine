@@ -1,27 +1,19 @@
-appId: com.electron.app
-productName: vanilla
+appId: works.nowaythis
+productName: WreckMesh
 directories:
   buildResources: build
 files:
   - '!**/.vscode/*'
-  - '!{.eslintignore,.eslintrc.js,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{README.md}'
 asarUnpack:
   - resources/**
-afterSign: build/notarize.js
 win:
-  executableName: vanilla
+  executableName: WreckMesh
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-mac:
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
@@ -29,8 +21,8 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
-  category: Utility
+  maintainer: works.nowaythis
+  category: Game
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false

@@ -43,13 +43,11 @@ function createWindow() {
             fs.mkdirSync('../maps/' + thisSaveName)
         }
 
-        // DELETE ALL FILES IN THIS DIRECTORY
+        // WIPE THE SAVEFILE TO OVERWRITE
         fs.readdir('../maps/' + thisSaveName, (err, files) => {
             if (err) throw err
             for (const file of files) {
-                fs.unlinkSync(path.join('../maps/' + thisSaveName, file), (err) => {
-                    if (err) throw err
-                })
+                fs.writeFileSync(path.join('../maps/' + thisSaveName, file), '', function(){console.log('Wiped File, ready to save ...')})
             }
 
             // send "ready-to-save"
@@ -84,23 +82,6 @@ function createWindow() {
         saveFileData += `}`
         metadata = saveFileData
         writeFile('metadata', metadata)
-    })
-
-    ipc.on('savefile-add-voxel-chunk', function (event, arg) {
-        // arg format:
-        // [chunkNumber, totalChunks, chunkData]
-        const data = arg.voxels // string as json chunk
-
-        var voxelSaveData = `{"voxels":`
-
-        // add this chunk to the save file
-        voxelSaveData += data
-
-        voxelSaveData += `}`
-
-        // write the file as this chunk #
-        writeFile('chunk' + chunkCounter, voxelSaveData)
-        chunkCounter++
     })
 
     const writeFile = function (fileName, data) {
