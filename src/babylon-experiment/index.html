@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title>Babylon.js sample code</title>
+
+    <!-- Babylon.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+    <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+    <script src="https://cdn.babylonjs.com/recast.js"></script>
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+    <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+    <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+    <!-- <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script> -->
+
+	<!-- WreckMesh -->
+	<script src="discreteVectorField.js"></script>
+	<script src="canvasPixelReader.js"></script>
+    <script src="voxelChunk.js"></script>
+	<script src="worldModelBuilder.js"></script>
+	<script src="worldGenerator.js"></script>
+
+    <!-- STATS -->
+	<script>javascript: (function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script>
+
+    <style>
+        html,
+        body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+            /* mobile webkit */
+            touch-action: none;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="render-canvas"></canvas>
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        const USERSETTINGS = {
+            debugMode: false,
+            baseFOV: 45
+        }
+
+        const LEVELDATA = {
+            numCoverBoxes: 0,
+            numVoxels: 0
+        }
+
+        // on press 'k' log the numVoxels
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'k') {
+                console.log(LEVELDATA.numVoxels);
+            }
+        });
+
+        const canvas = document.getElementById("render-canvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                // if the scene exists and has a camera ...
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    // we render it!!
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        // Initialize Render ENgine
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var camera = null;
+        const playerHeight = 60;
+
+        // Initialize World Constants
+    	// This initializes the voxelField used for physics calculations
+    	// This engine uses a two-fold representation of voxel data.
+    	// One is stored in main memory (RAM), and the other is stored in GPU memory (vRAM)
+    	// the GPU memory is used to render and display millions of voxels in as few draw calls as possible (the higher squareChunkSize, the fewer)
+    	// the CPU memory is used to store the positions of these voxels, and use them for physics (such as raycasting, explosions, etc)
+    	const voxelField = new DiscreteVectorField();
+
+        // Start World Generation
+        const initializeBackend = function () {
+            window.initFunction = async function () {
+                var asyncEngineCreation = async function () {
+                    var engine = new BABYLON.WebGPUEngine(canvas);
+                    await engine.initAsync();
+                    return engine;
+                }
+                window.engine = await asyncEngineCreation();
+                if (!engine) throw 'engine should not be null.';
+                startRenderLoop(engine, canvas);
+                window.scene = createScene();
+                generateWorld('savedata');
+            };
+            initFunction().then(() => {
+                sceneToRender = scene
+            });
+        }
+        initializeBackend();
+
+        const createScene = function () {
+            let scene = new BABYLON.Scene(engine);
+            scene.debugLayer.show();
+
+            // create a hemi light
+            let light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+
+            scene.gravity = new BABYLON.Vector3(0, -.75, 0);
+            scene.collisionsEnabled = true;
+            scene.enablePhysics();
+
+            camera = new BABYLON.UniversalCamera("MainCamera", new BABYLON.Vector3(0, 60, 0), scene);
+            camera.inertia = 0;
+            camera.speed = 20;
+            camera.angularSensibility = 500;
+
+            camera.setTarget(BABYLON.Vector3.Zero());
+
+            camera.applyGravity = true;
+            camera.ellipsoid = new BABYLON.Vector3(1, 30, 1);
+            camera.checkCollisions = true;
+            camera.attachControl(canvas, true);
+
+            //Controls  WASD
+            camera.keysUp.push(87);
+            camera.keysDown.push(83);
+            camera.keysRight.push(68);
+            camera.keysLeft.push(65);
+
+            //Controls...Mouse
+            //We start without being locked.
+            let isLocked = false;
+
+            // On click event, request pointer lock
+            scene.onPointerDown = function (evt) {
+
+                //true/false check if we're locked, faster than checking pointerlock on each single click.
+                if (!isLocked) {
+                    canvas.requestPointerLock = canvas.requestPointerLock || canvas.msRequestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+                    if (canvas.requestPointerLock) {
+                        canvas.requestPointerLock();
+                    }
+                }
+
+            };
+
+
+            // Event listener when the pointerlock is updated (or removed by pressing ESC for example).
+            const pointerlockchange = function () {
+                var controlEnabled = document.mozPointerLockElement || document.webkitPointerLockElement || document.msPointerLockElement || document.pointerLockElement || null;
+
+                // If the user is already locked
+                if (!controlEnabled) {
+                    //camera.detachControl(canvas);
+                    isLocked = false;
+                } else {
+                    //camera.attachControl(canvas);
+                    isLocked = true;
+                }
+            };
+
+            // Attach events to the document
+            document.addEventListener("pointerlockchange", pointerlockchange, false);
+            document.addEventListener("mspointerlockchange", pointerlockchange, false);
+            document.addEventListener("mozpointerlockchange", pointerlockchange, false);
+            document.addEventListener("webkitpointerlockchange", pointerlockchange, false);
+
+            return scene;
+        };
+
+        // Resize Handler
+        window.addEventListener("resize", function () {
+            if (engine) engine.resize();
+        });
+    </script>
+</body>
+
+</html>

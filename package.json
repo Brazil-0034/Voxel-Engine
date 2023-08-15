@@ -1,5 +1,5 @@
 {
-  "name": "vanilla",
+  "name": "wreckmesh",
   "version": "1.0.0",
   "description": "A minimal Electron application",
   "main": "./src/electron/main.js",
@@ -16,11 +16,22 @@
     "build:linux": "electron-builder --linux --config"
   },
   "dependencies": {
+    "@babylonjs/core": "^6.16.0",
     "@electron-toolkit/preload": "^1.0.3",
-    "@electron-toolkit/utils": "^1.0.2"
+    "@electron-toolkit/utils": "^1.0.2",
+    "babylonjs": "^6.16.0",
+    "cannon": "^0.6.2"
   },
   "devDependencies": {
-    "electron": "^22.3.4",
+    "electron": "^25.5.0",
     "electron-builder": "^23.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowaythisworks/Voxel-Engine.git"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nowaythisworks/Voxel-Engine/issues"
   }
 }

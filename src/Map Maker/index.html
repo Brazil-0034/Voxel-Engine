@@ -143,7 +143,7 @@ const DEFAULTOBJECTS = [];
 const MAPOBJECTS = [];
 var scene = new THREE.Scene();
 scene.name = "New Scene"
-const camera = new THREE.PerspectiveCamera(80, canvas.width / canvas.height, 15, 5000);
+const camera = new THREE.PerspectiveCamera(80, canvas.width / canvas.height, 1, 5000);
 camera.position.x = -276.5656251980899;
 camera.position.y = 225.36512419213917;
 camera.position.z = 274.28691501840778;
@@ -153,7 +153,7 @@ camera.rotation.z = -0.5135108191734854;
 DEFAULTOBJECTS.push(camera);
 
 // LIGHTING
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
 DEFAULTOBJECTS.push(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
@@ -192,7 +192,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setPixelRatio(window.devicePixelRatio);
-THREE.ColorManagement.legacyMode = false
+// THREE.ColorManagement.legacyMode = false
 // renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -277,30 +277,31 @@ const updateRightPanel = function (item) {
     if (item.isObject3D == true) {
         // Position (X, Y, Z) in a row
         const position = document.createElement("div");
-        const itemPosition = new THREE.Vector3();
-        item.getWorldPosition(itemPosition);
         position.classList.add("inspector-element");
         position.innerHTML = "<h3>Position</h3>";
         const positionX = document.createElement("input");
         positionX.type = "number";
-        positionX.value = itemPosition.x;
+        positionX.value = selectedObjects.position.x;
         positionX.style.width = "75px";
         positionX.addEventListener("input", function () {
-            itemPosition.x = positionX.value;
+            positionX.value = positionX.value.replace(/\D/g,'')
+            selectedObjects.position.x = positionX.value;
         });
         const positionY = document.createElement("input");
         positionY.type = "number";
-        positionY.value = itemPosition.y;
+        positionY.value = selectedObjects.position.y;
         positionY.style.width = "75px";
         positionY.addEventListener("input", function () {
-            itemPosition.y = positionY.value;
+            positionY.value = positionY.value.replace(/\D/g,'')
+            selectedObjects.position.y = positionY.value;
         });
         const positionZ = document.createElement("input");
         positionZ.type = "number";
-        positionZ.value = itemPosition.z;
+        positionZ.value = selectedObjects.position.z;
         positionZ.style.width = "75px";
         positionZ.addEventListener("input", function () {
-            itemPosition.z = positionZ.value;
+            positionZ.value = positionZ.value.replace(/\D/g,'')
+            selectedObjects.position.z = positionZ.value;
         });
         position.appendChild(positionX);
         position.appendChild(positionY);
@@ -376,17 +377,19 @@ const updateRightPanel = function (item) {
             const newMaterial = document.createElement("button");
             newMaterial.innerHTML = filename;
             newMaterial.addEventListener("click", function () {
-                item.material = new THREE.MeshBasicMaterial({
-                    color: 0xffffff,
-                    roughness: 0.9,
-                    metalness: 0.1,
-                    map: new THREE.TextureLoader().load('../textures/' + filename + '.png')
+                selectedObjects.children.forEach(childObject => {
+                    childObject.material = new THREE.MeshBasicMaterial({
+                        color: item.material.color,
+                        roughness: 0.9,
+                        metalness: 0.1,
+                        map: new THREE.TextureLoader().load('../textures/' + filename + '.png')
+                    });
+        		    childObject.material.map.encoding = THREE.sRGBEncoding;
+                    childObject.material.map.magFilter = THREE.NearestFilter;
+                    childObject.material.map.wrapS = THREE.RepeatWrapping;
+                    childObject.material.map.wrapT = THREE.RepeatWrapping;
+                    childObject.userData.materialType = filename;
                 });
-    		    item.material.map.encoding = THREE.sRGBEncoding;
-                item.material.map.magFilter = THREE.NearestFilter;
-                item.material.map.wrapS = THREE.RepeatWrapping;
-                item.material.map.wrapT = THREE.RepeatWrapping;
-                item.userData.materialType = filename;
             });
             material.appendChild(newMaterial);
         }
@@ -404,7 +407,9 @@ const updateRightPanel = function (item) {
         materialColor.type = "color";
         materialColor.value = item.material.color.getHexString();
         materialColor.addEventListener("input", function () {
-            item.material.color.set(materialColor.value);
+            selectedObjects.children.forEach(childObject => {
+                childObject.material.color.set(materialColor.value);
+            });
         });
 
         material.appendChild(materialColor);
@@ -474,12 +479,9 @@ document.body.addEventListener('keydown', function (event) {
     }
     if (event.key == "f")
     {
-        const newPosition = new THREE.Vector3();
-        newPosition.copy(selectedObjects.children[0].position);
-        newPosition.addScalar(controls.getDistance());
-        console.log(newPosition);
-        camera.position.copy(newPosition);
-        controls.update();
+        controls.target.copy(selectedObjects.position);
+        console.log(controls.target);
+        console.log(camera.position, camera.rotation);
     }
 });
 var retachAvailable = true;
@@ -530,16 +532,19 @@ transformControls.addEventListener('dragging-changed', function (event) {
                     cacheSelectedObjects.push(child);
                 });
                 clearSelectedObjects();
+                const multipleCheck = function(n) { return 2.0 * Math.ceil(n / 2.0) }
                 cacheSelectedObjects.forEach(child => {
-                    child.scale.x = Math.round(child.scale.x);
-                    child.scale.y = Math.round(child.scale.y);
-                    child.scale.z = Math.round(child.scale.z);
+                    // the scale MUST be a multiple-of-two greater than 0
+                    child.scale.x = clamp(multipleCheck(child.scale.x), 2, Infinity);
+                    child.scale.y = clamp(multipleCheck(child.scale.y), 2, Infinity);
+                    child.scale.z = clamp(multipleCheck(child.scale.z), 2, Infinity);
+                    // round the position of the child to the nearest whole number
+                    child.position.x = Math.round(child.position.x);
+                    child.position.y = Math.round(child.position.y);
+                    child.position.z = Math.round(child.position.z);
                     attachHandles(child, true);
                 });
                 // round the position of the selectedObjects to the nearest whole number
-                selectedObjects.position.x = Math.floor(selectedObjects.position.x);
-                selectedObjects.position.y = Math.floor(selectedObjects.position.y);
-                selectedObjects.position.z = Math.floor(selectedObjects.position.z);
                 selectedObjects.children.forEach(sceneObject => {
                     realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.z);
                     if (sceneObject.userData.isLight == true) {
@@ -769,10 +774,12 @@ document.body.addEventListener('keydown', function (event) {
                 }
                 else
                 {
-                    // swap X and Z scale
-                    const temp = selectedObjects.scale.x;
-                    selectedObjects.scale.x = selectedObjects.scale.z;
-                    selectedObjects.scale.z = temp;
+                    // swap X and Z scale of all selected objects
+                    selectedObjects.children.forEach(childObject => {
+                        const temp = childObject.scale.x;
+                        childObject.scale.x = childObject.scale.z;
+                        childObject.scale.z = temp;
+                    });
                 }
                 break;
             case 't':
@@ -1526,6 +1533,16 @@ document.querySelector("#import-button").addEventListener("click", function () {
             outline: 2px solid #2e2e2e;
             color: var(--font-color);
             padding-top: 5px;
+        }
+
+        input[type=color] {
+            /* reset */
+            padding: 0;
+            margin: 0;
+            border: none;
+            background: none;
+            border-radius: 0;
+            outline: none;
         }
 
         button {
