@@ -333,6 +333,18 @@ const updateRightPanel = function (item) {
         scaleZ.addEventListener("input", function () {
             selectedObjects.scale.z = scaleZ.value;
         });
+        // isLight
+        const isLight = document.createElement("div");
+        isLight.classList.add("inspector-element");
+        isLight.innerHTML = "<h3>Is Light</h3>";
+        const isLightInput = document.createElement("input");
+        isLightInput.type = "checkbox";
+        isLightInput.checked = item.userData.isLight;
+        isLightInput.addEventListener("input", function () {
+            item.userData.isLight = isLightInput.checked;
+        });
+        isLight.appendChild(isLightInput);
+        inspector.appendChild(isLight);
         // light brightness
         const lightBrightness = document.createElement("div");
         lightBrightness.classList.add("inspector-element");
@@ -496,8 +508,8 @@ const realignTexture = function(sceneObject, scaleX, scaleZ) {
     scaleX = Math.abs(scaleX);
     scaleZ = Math.abs(scaleZ);
     const squareChunkSize = 64;
-    sceneObject.material.map.repeat.x = scaleX / (squareChunkSize/2);
-    sceneObject.material.map.repeat.y = scaleZ / (squareChunkSize/2);
+    sceneObject.material.map.repeat.x = 4//scaleX / (squareChunkSize/2);
+    sceneObject.material.map.repeat.y = 4//scaleZ / (squareChunkSize/2);
     sceneObject.material.map.needsUpdate = true;
     console.log("Realigned texture with dimensions: " + sceneObject.material.map.repeat.x + "," + sceneObject.material.map.repeat.y);
 }
@@ -899,26 +911,6 @@ document.body.addEventListener('keydown', function (event) {
     }
 });
 
-const createPointLight = function(position, color, lightBrightness) {
-    const lightCube = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 5, 3),
-        new THREE.MeshBasicMaterial({
-            color: color,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.75
-        })
-    );
-    lightCube.position.copy(position);
-    lightCube.userData.existInGame = true;
-    lightCube.userData.materialType = "smooth";
-    lightCube.userData.isLight = true;
-    lightCube.userData.lightBrightness = lightBrightness;
-    lightCube.name = "Point Light - " + Math.floor(Math.random() * 1000);
-    addToScene(lightCube);
-    MAPOBJECTS.push(lightCube);
-}
-
 const createEnemyNPC = function(position, rotation=new THREE.Vector3(0,0,Math.PI/2)) {
     const enemyNPC = new THREE.Mesh(
         new THREE.ConeGeometry(5,15,3),
@@ -967,12 +959,6 @@ const contextMenuClick = function (action) {
             addToScene(cube);
             MAPOBJECTS.push(cube);
             break;
-        case "Create Point Light":
-            const pointLightPosition = new THREE.Vector3();
-            pointLightPosition.copy(camera.position);
-            pointLightPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20));
-            createPointLight(pointLightPosition, randomColor(), 10000);
-            break;
         case "Create NPC Enemy":
             // set EnemyNPCPosition to be right IN FRONT of the camera
             const enemyNPCPosition = new THREE.Vector3();
@@ -1010,8 +996,7 @@ const invokeContextMenu = function (e) {
     if (clickedElement.id == "left-panel" || clickedElement.id == "editor-canvas") {
         options.push("[] Add Geometry");
         options.push("Create Hollow Box");
-        options.push("[] Add Lighting");
-        options.push("Create Point Light");
+        options.push("[] Add Characters");
         options.push("Create NPC Enemy");
     }
     if (clickedElement.parentElement.id == "scene-objects-list") {
@@ -1114,7 +1099,6 @@ canvas.addEventListener("click", function (e) {
             }
             console.log(intersects[index].object.scale.x, intersects[index].object.scale.y, intersects[index].object.scale.z);
             attachHandles(intersects[index].object);
-            console.log(intersects[index].object.scale.x, intersects[index].object.scale.y, intersects[index].object.scale.z);
             // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
             const list = document.querySelector("#scene-objects-list");
             for (let i = 0; i < list.children.length; i++) {
@@ -1270,14 +1254,7 @@ const importProject = function () {
 
             mapMakerSaveData.forEach(mapMakerObject => {
                 if (mapMakerObject.type == "box") {
-                    if (mapMakerObject.isLight == true) {
-                        createPointLight(
-                            new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
-                            new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
-                            mapMakerObject.lightBrightness
-                        );
-                    }
-                    else if (mapMakerObject.isEnemyNPC && mapMakerObject.isEnemyNPC == true)
+                    if (mapMakerObject.isEnemyNPC && mapMakerObject.isEnemyNPC == true)
                     {
                         createEnemyNPC(
                             new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
