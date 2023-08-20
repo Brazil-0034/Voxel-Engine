@@ -253,24 +253,6 @@
 		style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;">
 	</div>
 <script type="module">
-	const getPixelsFromImage = function(image) {
-	    const canvas = document.createElement('canvas');
-	    const context = canvas.getContext('2d', {
-	        willReadfrequently: true
-	    });
-	    const pixels = [];
-	    
-	    canvas.width = image.width;
-	    canvas.height = image.height;
-	    context.drawImage(image, 0, 0);
-	    for (let x = 0; x < canvas.width; x++) {
-	        pixels[x] = [];
-	        for (let y = 0; y < canvas.height; y++) {
-	            pixels[x][y] = context.getImageData(x, y, 1, 1).data;
-	        }
-	    }
-	    return pixels;
-	}
 
 	// choose a loader gif at random
 	document.querySelector('#loader').src = 'img/loader-' + (Math.floor(Math.random() * 3) + 1) + '.gif'
@@ -299,6 +281,8 @@
 	import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 	// FBXLoader
 	import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+	// ConvexHull
+	import { ConvexHull } from 'three/addons/math/ConvexHull.js';
 
 	// ipc renderer
 	const { ipcRenderer } = require('electron');
@@ -318,6 +302,27 @@
 	const LEVELDATA = {
 		numCoverBoxes: 0,
 		numVoxels: 0
+	}
+
+	let isCrouching = false;
+
+	const getPixelsFromImage = function(image) {
+	    const canvas = document.createElement('canvas');
+	    const context = canvas.getContext('2d', {
+	        willReadfrequently: true
+	    });
+	    const pixels = [];
+	    
+	    canvas.width = image.width;
+	    canvas.height = image.height;
+	    context.drawImage(image, 0, 0);
+	    for (let x = 0; x < canvas.width; x++) {
+	        pixels[x] = [];
+	        for (let y = 0; y < canvas.height; y++) {
+	            pixels[x][y] = context.getImageData(x, y, 1, 1).data;
+	        }
+	    }
+	    return pixels;
 	}
 
 	// ###
@@ -405,12 +410,16 @@
 		idleAnimation // this too
 		dieAnimation
 		mixer // 3js anim mixer (per-npc until instanced skinning makes its way into main branch)
-		fovCone // for state updating
+		fovConeMesh // for vision calculation
+		fovConeHull // for vision calculation
+
+		knowsWherePlayerIs // self explanatory
 
 		// This will build the NPC (setting idle/run animation and loading model into scene)
 		constructor(npcName, texturePath, position, rotation, speed, health) {
 			this.speed = speed;
 			this.health = health;
+			this.knowsWherePlayerIs = false;
 			const basePath = 'character_models/' + npcName + '/';
 			globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
 				// STEP 1: ASSIGN MATERIALS
@@ -448,16 +457,23 @@
 				this.idleAnimation.play();
 
 				// create a "Field of View" cone in front of the head
-				const fovGeometry = new THREE.ConeGeometry(3, 8, 4);
-				const fovMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, side: THREE.DoubleSide });
-				this.fovCone = new THREE.Mesh(fovGeometry, fovMaterial);
-				this.fovCone.rotation.set(rotation.x, rotation.y - Math.PI / 2, rotation.z + Math.PI / 2);
-				this.fovCone.scale.multiplyScalar(100);
-				this.fovCone.position.set(position.x, 60, position.z);
-				scene.add(this.fovCone);
-				this.sceneObject.attach(this.fovCone);
+				this.fovConeMesh = new THREE.Mesh(
+					new THREE.ConeGeometry(4, 8, 4),
+					new THREE.MeshBasicMaterial({
+						visible: false
+					})
+				);
+				this.fovConeMesh.rotation.set(rotation.x, rotation.y - Math.PI / 2, rotation.z + Math.PI / 2);
+				this.fovConeMesh.scale.multiplyScalar(100);
+				this.fovConeMesh.position.set(position.x, 60, position.z);
+				scene.add(this.fovConeMesh);
+				
+				this.fovConeHull = new ConvexHull();
+				this.fovConeHull.setFromObject(this.fovConeMesh);
+
+				this.sceneObject.attach(this.fovConeMesh);
 				// translate it forward relative to the head (sceneObject)
-				this.fovCone.translateY(-4000);
+				this.fovConeMesh.translateY(-4000);
 
 
 				// And lastly... add it to the scene!
@@ -474,6 +490,7 @@
 		}
 
 		depleteHealth(amount) {
+			this.knowsWherePlayerIs = true;
 			this.health -= amount;
 			if (this.health <= 0) {
 				deathSound.rate(clamp(Math.random() + 0.8, 0, 1))
@@ -491,33 +508,71 @@
 			// lerp the color to 0xffffff
 			this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
 
+			if (this.knowsWherePlayerIs == false && Math.random() < 0.1) // 1 in ten frames ... good enough i guess
+			{
+				this.fovConeHull.setFromObject(this.fovConeMesh);
+				if (this.fovConeHull.containsPoint(camera.position)) {
+					if (Math.random() < 0.25)
+					{
+						
+						const playerDirection = new THREE.Vector3();
+						camera.getWorldDirection(playerDirection);
+						playerDirection.negate();
+						const intersection = voxelField.raycast(this.sceneObject.position, playerDirection, weaponRange);
+						// Determine which voxels in chunk are to be destroyed
+						if (intersection != null) {
+
+							const intersectPosition = new THREE.Vector3(
+								intersection.x,
+								intersection.y,
+								intersection.z
+							)
+
+							if (this.sceneObject.position.distanceTo(camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
+							{
+								this.knowsWherePlayerIs = true;
+								console.log("FOUND YOU!!!");
+							}
+
+						}
+					}
+				}
+				// else
+				// {
+				// 	this.knowsWherePlayerIs = false;
+				// }
+			}
+
 			if (this.health > 0) {
-				// Look towards the nearest player (camera) smoothly, using the lerp(a, b, t) function
-				const targetRotation = Math.atan2(camera.position.x - this.sceneObject.position.x, camera.position.z - this.sceneObject.position.z);
-				// prevent spinning by flipping the rotation value
-				if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
-					if (targetRotation > this.sceneObject.rotation.y) {
-						this.sceneObject.rotation.y += Math.PI * 2;
+				if (this.knowsWherePlayerIs == true)
+				{
+					// Look towards the nearest player (camera) smoothly, using the lerp(a, b, t) function
+					const targetRotation = Math.atan2(camera.position.x - this.sceneObject.position.x, camera.position.z - this.sceneObject.position.z);
+					// prevent spinning by flipping the rotation value
+					if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
+						if (targetRotation > this.sceneObject.rotation.y) {
+							this.sceneObject.rotation.y += Math.PI * 2;
+						}
+						else {
+							this.sceneObject.rotation.y -= Math.PI * 2;
+						}
+					}
+					this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
+
+					// If too far, move closer
+					const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
+					if (distanceToCamera > 150) {
+						const direction = new THREE.Vector3();
+						camera.getWorldDirection(direction);
+						direction.y = 0;
+						direction.normalize();
+						this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
+						this.runAnimation.play();
 					}
 					else {
-						this.sceneObject.rotation.y -= Math.PI * 2;
+						this.runAnimation.stop();
+						this.idleAnimation.play();
 					}
-				}
-				this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
-
-				// If too far, move closer
-				const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
-				if (distanceToCamera > 150) {
-					const direction = new THREE.Vector3();
-					camera.getWorldDirection(direction);
-					direction.y = 0;
-					direction.normalize();
-					this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
-					this.runAnimation.play();
-				}
-				else {
-					this.runAnimation.stop();
-					this.idleAnimation.play();
 				}
 			}
 		}
@@ -527,9 +582,9 @@
 			this.mixer.stopAllAction();
 			this.dieAnimation.play();
 			// remove the debug cone
-			this.sceneObject.remove(this.fovCone);
-			this.fovCone.geometry.dispose();
-			this.fovCone.material.dispose();
+			this.sceneObject.remove(this.fovConeMesh);
+			this.fovConeMesh.geometry.dispose();
+			this.fovConeMesh.material.dispose();
 			// stop the animation after it finishes (with a frame delay relevant to 85fps)
 			setTimeout(() => {
 				this.mixer.timeScale = 0;
@@ -572,6 +627,21 @@
 	let zoomFOV = defaultFOV - 20;
 	let targetFOV = defaultFOV;
 	const camera = new THREE.PerspectiveCamera(targetFOV, window.innerWidth / window.innerHeight, 15, 5000);
+
+	// WORLD SPHERE (BACKDROP COLOR)
+	const worldSphere = new THREE.Mesh(
+		new THREE.SphereGeometry(5000, 16, 8),
+		new THREE.MeshBasicMaterial(
+			{
+				color: new THREE.Color(0xffffff),
+				side: THREE.DoubleSide,
+				map: globalTextureLoader.load("textures/smooth.png")
+			}
+		)
+	)
+	worldSphere.material.map.wrapS = worldSphere.material.map.wrapT = THREE.RepeatWrapping;
+	worldSphere.material.map.repeat.set(10, 10);
+	scene.add(worldSphere);
 	
 	// DEBUG PANEL GUI
 	const gui = new dat.GUI({ name: 'Developer Panel' });
@@ -631,7 +701,7 @@
 	// LIGHTING
 	// Initializes the THREE.js lighting
 	const ambientLight = new THREE.AmbientLight(0xffffff, 1);
-	// scene.add(ambientLight);
+	scene.add(ambientLight);
 
 	// Two opposing directional lights. The opposing light is dimmer. Both lights are angled against each other.
 	// const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
@@ -643,7 +713,7 @@
 
 	// PLAYER CAMERA
 	// Initializes the local player's camera, rendered to the canvas
-	const playerMoveSpeed = 175;
+	const playerMoveSpeed = 225;
 	const controls = new PointerLockControls(camera, renderer.domElement);
 	scene.add(controls.getObject());
 
@@ -853,7 +923,7 @@
 	// (Only one map can be loaded at once... unless?)
 	// TODO - origin offsets for multiple map loading?
 	//  ^ this is very unncessary but could be useful for features like streaming
-	const crouchDepth = 7.5;
+	const crouchDepth = 15;
 	const crouchSpeed = 7.5;
 	let playerHeight = 60;
 	const crouchYPosition = playerHeight - crouchDepth;
@@ -900,16 +970,18 @@
 				camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
 
 				const groundData = JSON.parse(arg.metaData).groundData;
+				const groundColor = new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b);
+				worldSphere.material.color = groundColor;
 				groundSize = groundData.groundSize;
 				if (groundData) {
 					const groundFloor = new THREE.Mesh(
 						new THREE.BoxGeometry(groundSize.x, 1, groundSize.y),
 						new THREE.MeshBasicMaterial({
-							color: new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b),
+							color: groundColor,
 						})
 					);
 					groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
-					scene.add(groundFloor);
+					// scene.add(groundFloor);
 				}
 
 				const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
@@ -950,11 +1022,11 @@
 
 						// Lights
 						let light = null;
-						console.log(mapObject.isLight == true);
 						if (mapObject.isLight && mapObject.isLight == true) {
 							// create a point light at this position with mapObject.lightBrightness
 							light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
 							light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
+							light.decay = 1.1;
 							scene.add(light);
 						}
 
@@ -1008,6 +1080,10 @@
 	// on click of "F", set visible = false for all models
 	const buildWorldModelFromBox = function (scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
 		let buildFront = true, buildBack = true, buildLeft = true, buildRight = true, buildTop = true, buildBottom = true;
+
+		if (scale.x > 2) scale.x -= 1;
+		if (scale.y > 2) scale.y -= 1;
+		if (scale.z > 2) scale.z -= 1;
 
 		// Interactions
 		if (interactionEvent != "none" || USERSETTINGS.blockoutMode == true) {
@@ -1103,6 +1179,10 @@
 					)
 				);
 
+				instancedWorldModel.instanceMatrix.needsUpdate = true;
+				scene.add(instancedWorldModel);
+				instancedModelIndex.push(instancedWorldModel);
+
 				if (scale.x < squareChunkSize && scale.y < squareChunkSize && scale.z < squareChunkSize) {
 					// If the chunk is smaller than the maximum chunk size, we can just add it to the scene
 					// handle emissives
@@ -1112,17 +1192,12 @@
 					// push to registry & add to scene
 					instancedModelIndex.push(instancedWorldModel);
 					instancedWorldModel.visible = true;
-					scene.add(instancedWorldModel);
 					return;
 				}
 				
 				instancedWorldModel.visible = false;
 
 				debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
-
-				instancedWorldModel.instanceMatrix.needsUpdate = true;
-				scene.add(instancedWorldModel);
-				instancedModelIndex.push(instancedWorldModel);
 				// createa  wireframe box to visualize the frustum box
 				// const frustumBoxHelper = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0xffff00);
 				// scene.add(frustumBoxHelper);
@@ -1737,9 +1812,11 @@
 		// Particles
 		particleHandler.update(delta);
 		// Player Motion
+		worldSphere.position.copy(camera.position);
+		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
 		if (controls.isLocked == true)
 		{
-			let isCrouching = isKeyPressed["control"];
+			isCrouching = isKeyPressed["control"];
 			if (isCapsLockPressed) {
 				timeModifier = 0.25;
 
@@ -1750,6 +1827,12 @@
 
 				bloomPass.threshold = lerp(bloomPass.threshold, 0.45, delta * 0.25);
 				bloomPass.radius = lerp(bloomPass.radius, 0, delta * 0.25);
+			}
+
+			if (isKeyPressed["r"]) {
+				camera.position.set(0,60,0);
+				camera.rotation.copy(new THREE.Euler(0,0,0));
+				weaponModel.position.copy(weaponTarget.position);
 			}
 
 			let zAxis = 0;
@@ -2201,7 +2284,7 @@ if (isKeyPressed['6']) {
 			// disable any attached light
 			if (currentModel.attachedLight != undefined) // TODO: this check may be unnecessary
 			{
-				scene.remove(currentModel.attachedLight)
+				currentModel.attachedLight.visible = false;
 			}
 
 			// build a list of each destroyed voxel

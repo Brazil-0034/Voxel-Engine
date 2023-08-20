@@ -8,6 +8,7 @@ export class Particle {
     direction
     color
     speed
+    targetSpeed
     lifetime
 
     constructor(particleMesh, position, direction, color, speed) {
@@ -17,7 +18,8 @@ export class Particle {
         this.rotation.setFromUnitVectors(new THREE.Vector3(0,(Math.random() < 0.5 ? 1 : -1), 0), direction.clone().normalize());
         this.direction = direction.multiplyScalar(speed);
         this.color = color;
-        this.speed = speed;
+        this.targetSpeed = speed;
+        this.speed = 0.25;
         this.instanceBufferPosition = particleMesh.addParticle(this);
         this.lifetime = 0;
     }
@@ -52,10 +54,12 @@ export class ParticleMesh extends THREE.InstancedMesh {
         for (let i = 0; i < this.particlesList.length; i++)
         {
             let particle = this.particlesList[i];
-            particle.position.x += particle.direction.x * delta;
-            particle.position.y += (particle.direction.y - (particle.lifetime * 1.5)) * delta;
-            particle.position.z += particle.direction.z * delta;
+            particle.position.x += particle.direction.x * delta * particle.speed;
+            particle.position.y += (particle.direction.y - (particle.lifetime * 1.5)) * delta * particle.speed;
+            particle.position.z += particle.direction.z * delta * particle.speed;
             particle.lifetime += 1;
+
+            if (particle.speed < particle.targetSpeed) particle.speed += 1 * delta;
 
             // delay scaling until after a little while
             if (particle.lifetime < 1000 * delta) particle.scale.set(1,1,1);

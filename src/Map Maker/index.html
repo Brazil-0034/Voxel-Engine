@@ -267,12 +267,14 @@ animate();
 
 //  ### SIMPLE FUNCTIONS
 
-const updateRightPanel = function (item) {
+const updateRightPanel = function (item, clear=false) {
     document.querySelector("#selection-name").innerHTML = item.name;
 
     // for each property in the object, create an input field in #object-inspector-elements
     const inspector = document.querySelector("#object-inspector-elements");
     inspector.innerHTML = "";
+
+    if (clear) return;
 
     if (item.isObject3D == true) {
         // Position (X, Y, Z) in a row
@@ -285,7 +287,7 @@ const updateRightPanel = function (item) {
         positionX.style.width = "75px";
         positionX.addEventListener("input", function () {
             positionX.value = positionX.value.replace(/\D/g,'')
-            selectedObjects.position.x = positionX.value;
+            selectedObjects.position.x = parseInt(positionX.value);
         });
         const positionY = document.createElement("input");
         positionY.type = "number";
@@ -293,7 +295,7 @@ const updateRightPanel = function (item) {
         positionY.style.width = "75px";
         positionY.addEventListener("input", function () {
             positionY.value = positionY.value.replace(/\D/g,'')
-            selectedObjects.position.y = positionY.value;
+            selectedObjects.position.y = parseInt(positionY.value);
         });
         const positionZ = document.createElement("input");
         positionZ.type = "number";
@@ -301,7 +303,7 @@ const updateRightPanel = function (item) {
         positionZ.style.width = "75px";
         positionZ.addEventListener("input", function () {
             positionZ.value = positionZ.value.replace(/\D/g,'')
-            selectedObjects.position.z = positionZ.value;
+            selectedObjects.position.z = parseInt(positionZ.value);
         });
         position.appendChild(positionX);
         position.appendChild(positionY);
@@ -341,7 +343,9 @@ const updateRightPanel = function (item) {
         isLightInput.type = "checkbox";
         isLightInput.checked = item.userData.isLight;
         isLightInput.addEventListener("input", function () {
-            item.userData.isLight = isLightInput.checked;
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.isLight = isLightInput.checked;
+            });
         });
         isLight.appendChild(isLightInput);
         inspector.appendChild(isLight);
@@ -353,7 +357,9 @@ const updateRightPanel = function (item) {
         lightBrightnessInput.type = "number";
         lightBrightnessInput.value = item.userData.lightBrightness;
         lightBrightnessInput.addEventListener("input", function () {
-            item.userData.lightBrightness = lightBrightnessInput.value;
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.lightBrightness = lightBrightnessInput.value;
+            });
         });
         lightBrightness.appendChild(lightBrightnessInput);
         inspector.appendChild(lightBrightness);
@@ -366,7 +372,9 @@ const updateRightPanel = function (item) {
             interactionEventInput.type = "text";
             interactionEventInput.value = item.userData.interactionEvent;
             interactionEventInput.addEventListener("input", function () {
-                item.userData.interactionEvent = interactionEventInput.value;
+                selectedObjects.children.forEach(childObject => {
+                    childObject.userData.interactionEvent = interactionEventInput.value;
+                });
             });
             interactionEvent.appendChild(interactionEventInput);
             inspector.appendChild(interactionEvent);
@@ -377,8 +385,83 @@ const updateRightPanel = function (item) {
         scale.appendChild(scaleZ);
         inspector.appendChild(scale);
     }
+    if (item.userData.isEnemyNPC == true)
+    {
+        // [USERDATA] Movement Speed
+        // Set the default to 10
+        if (item.userData.movementSpeed == undefined) {
+            item.userData.movementSpeed = 1;
+        }
+        const movementSpeed = document.createElement("div");
+        movementSpeed.classList.add("inspector-element");
+        movementSpeed.innerHTML = "<h3>Movement Speed</h3>";
+        const movementSpeedInput = document.createElement("input");
+        movementSpeedInput.type = "number";
+        movementSpeedInput.value = item.userData.movementSpeed;
+        movementSpeedInput.addEventListener("input", function () {
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.movementSpeed = movementSpeedInput.value;
+            });
+        });
+        movementSpeed.appendChild(movementSpeedInput);
+        inspector.appendChild(movementSpeed);
+        // [USERDATA] Enemy Behaviour (Passive or Normal)
+        // Set the default to Normal
+        if (item.userData.enemyBehaviour == undefined) {
+            item.userData.enemyBehaviour = "normal";
+        }
+        const enemyBehaviour = document.createElement("div");
+        enemyBehaviour.classList.add("inspector-element");
+        enemyBehaviour.innerHTML = "<h3>Enemy Behaviour</h3>";
+        const enemyBehaviourInput = document.createElement("select");
+        enemyBehaviourInput.innerHTML = "<option value='normal'>Normal</option><option value='passive'>Passive</option>";
+        enemyBehaviourInput.value = item.userData.enemyBehaviour;
+        enemyBehaviourInput.addEventListener("input", function () {
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.enemyBehaviour = enemyBehaviourInput.value;
+            });
+        });
+        enemyBehaviour.appendChild(enemyBehaviourInput);
+        inspector.appendChild(enemyBehaviour);
+        // [USERDATA] Enemy Health
+        // Set the default to 100
+        if (item.userData.enemyHealth == undefined) {
+            item.userData.enemyHealth = 100;
+        }
+        const enemyHealth = document.createElement("div");
+        enemyHealth.classList.add("inspector-element");
+        enemyHealth.innerHTML = "<h3>Enemy Health</h3>";
+        const enemyHealthInput = document.createElement("input");
+        enemyHealthInput.type = "number";
+        enemyHealthInput.value = item.userData.enemyHealth;
+        enemyHealthInput.addEventListener("input", function () {
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.enemyHealth = enemyHealthInput.value;
+            });
+        });
+        enemyHealth.appendChild(enemyHealthInput);
+        inspector.appendChild(enemyHealth);
+        // [USERDATA] Enemy Type (Swat, Thug, )
+        // Set the default to Swat
+        if (item.userData.enemyType == undefined) {
+            item.userData.enemyType = "swat";
+        }
+        const enemyType = document.createElement("div");
+        enemyType.classList.add("inspector-element");
+        enemyType.innerHTML = "<h3>Enemy Type</h3>";
+        const enemyTypeInput = document.createElement("select");
+        enemyTypeInput.innerHTML = "<option value='swat'>Swat</option><option value='thug'>Thug</option>";
+        enemyTypeInput.value = item.userData.enemyType;
+        enemyTypeInput.addEventListener("input", function () {
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.enemyType = enemyTypeInput.value;
+            });
+        });
+        enemyType.appendChild(enemyTypeInput);
+        inspector.appendChild(enemyType);
+    }
     // For each material (if any) - this only applies to 3D objects in the world, so it can have properties such as cutaway as well
-    if (item.material != undefined) {
+    if (item.material != undefined && item.userData.isEnemyNPC != true) {
         // for each material
         // Material
         const material = document.createElement("div");
@@ -412,6 +495,7 @@ const updateRightPanel = function (item) {
         addMaterial('wood')
         addMaterial('bricks')
         addMaterial('cobblestone')
+        addMaterial('wallpaper')
         addMaterial('debug')
 
         // global color override
@@ -544,12 +628,15 @@ transformControls.addEventListener('dragging-changed', function (event) {
                     cacheSelectedObjects.push(child);
                 });
                 clearSelectedObjects();
-                const multipleCheck = function(n) { return 2.0 * Math.ceil(n / 2.0) }
+                const multipleCheck = function(n) { return Math.round(n / 2) * 2 }
                 cacheSelectedObjects.forEach(child => {
                     // the scale MUST be a multiple-of-two greater than 0
-                    child.scale.x = clamp(multipleCheck(child.scale.x), 2, Infinity);
-                    child.scale.y = clamp(multipleCheck(child.scale.y), 2, Infinity);
-                    child.scale.z = clamp(multipleCheck(child.scale.z), 2, Infinity);
+                    if (child.userData.isEnemyNPC == false)
+                    {
+                        child.scale.x = clamp(multipleCheck(child.scale.x), 2, Infinity);
+                        child.scale.y = clamp(multipleCheck(child.scale.y), 2, Infinity);
+                        child.scale.z = clamp(multipleCheck(child.scale.z), 2, Infinity);
+                    }
                     // round the position of the child to the nearest whole number
                     child.position.x = Math.round(child.position.x);
                     child.position.y = Math.round(child.position.y);
@@ -559,12 +646,6 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 // round the position of the selectedObjects to the nearest whole number
                 selectedObjects.children.forEach(sceneObject => {
                     realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.z);
-                    if (sceneObject.userData.isLight == true) {
-                        // set their WORLD scale to 1
-                        sceneObject.scale.x = 1 / selectedObjects.scale.x;
-                        sceneObject.scale.y = 1 / selectedObjects.scale.y;
-                        sceneObject.scale.z = 1 / selectedObjects.scale.z;
-                    }
                 });
             }
             updateRightPanel(lastAttachedObject);
@@ -652,6 +733,17 @@ const removeFromSelection = function (item) {
         }
     });
 }
+
+const removeHandles = function(item) {
+    const tempSelObjs = Array.from(selectedObjects.children);
+    clearSelectedObjects();
+    tempSelObjs.forEach(selectedObject => {
+        if (selectedObject !== item) {
+            attachHandles(selectedObject);
+        }
+    });
+}
+
 const attachHandles = function (item, dontResetSelections=false) {
     // bug fix for double-click attach:
     if (!retachAvailable) return;
@@ -779,20 +871,28 @@ document.body.addEventListener('keydown', function (event) {
             // case 'e':
             //     transformControls.setMode("rotate");
             //     break;
+            case 'e':
+                console.log(lastAttachedObject.rotation.y);
+                break;
             case 'r':
-                if (lastAttachedObject.userData.isEnemyNPC == true)
-                {
-                    lastAttachedObject.rotation.y += Math.PI / 4;
-                }
-                else
-                {
-                    // swap X and Z scale of all selected objects
-                    selectedObjects.children.forEach(childObject => {
+                // swap X and Z scale of all selected objects
+                selectedObjects.children.forEach(childObject => {
+                    if (childObject.userData.isEnemyNPC == true)
+                    {
+                        // rotate it 45 degrees
+                        removeHandles(childObject);
+                        childObject.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), Math.PI/4);
+                        attachHandles(childObject);
+                    }
+                    else
+                    {
+                        removeHandles(childObject);
                         const temp = childObject.scale.x;
                         childObject.scale.x = childObject.scale.z;
                         childObject.scale.z = temp;
-                    });
-                }
+                        attachHandles(childObject);
+                    }
+                });
                 break;
             case 't':
                 transformControls.setMode("scale");
@@ -911,7 +1011,7 @@ document.body.addEventListener('keydown', function (event) {
     }
 });
 
-const createEnemyNPC = function(position, rotation=new THREE.Vector3(0,0,Math.PI/2)) {
+const createEnemyNPC = function(position, rotation=0) {
     const enemyNPC = new THREE.Mesh(
         new THREE.ConeGeometry(5,15,3),
         new THREE.MeshBasicMaterial({
@@ -921,7 +1021,10 @@ const createEnemyNPC = function(position, rotation=new THREE.Vector3(0,0,Math.PI
             opacity: 0.75
         })
     );
-    enemyNPC.rotation.set(rotation.x, rotation.y, rotation.z);
+    enemyNPC.rotation.x = 0;
+    enemyNPC.rotation.y = rotation;
+    enemyNPC.rotation.z = Math.PI/2;
+    enemyNPC.updateMatrixWorld();
     enemyNPC.position.copy(position);
     enemyNPC.userData.existInGame = true;
     enemyNPC.userData.isEnemyNPC = true;
@@ -929,6 +1032,7 @@ const createEnemyNPC = function(position, rotation=new THREE.Vector3(0,0,Math.PI
     enemyNPC.name = "Enemy NPC - " + Math.floor(Math.random() * 1000);
     addToScene(enemyNPC);
     MAPOBJECTS.push(enemyNPC);
+    return enemyNPC;
 }
 
 // ### CONTEXT MENU
@@ -946,7 +1050,7 @@ const contextMenuClick = function (action) {
             );
             const cubePosition = new THREE.Vector3();
             cubePosition.copy(camera.position);
-            cubePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20));
+            cubePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
             cube.position.copy(cubePosition);
 
             cube.userData.existInGame = true;
@@ -956,6 +1060,7 @@ const contextMenuClick = function (action) {
             cube.userData.interactionEvent = "none";
 
             cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
+            realignTexture(cube, cube.scale.x, cube.scale.z);
             addToScene(cube);
             MAPOBJECTS.push(cube);
             break;
@@ -963,7 +1068,7 @@ const contextMenuClick = function (action) {
             // set EnemyNPCPosition to be right IN FRONT of the camera
             const enemyNPCPosition = new THREE.Vector3();
             enemyNPCPosition.copy(camera.position);
-            enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(20));
+            enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
 
             createEnemyNPC(enemyNPCPosition);
             break;
@@ -1095,9 +1200,9 @@ canvas.addEventListener("click", function (e) {
             }
             if (!intersects[index]) {
                 clearSelectedObjects();
+                updateRightPanel(null, true);
                 return;
             }
-            console.log(intersects[index].object.scale.x, intersects[index].object.scale.y, intersects[index].object.scale.z);
             attachHandles(intersects[index].object);
             // add "active" to the <li> in left-panel with the object's name, and remove it from all other objects
             const list = document.querySelector("#scene-objects-list");
@@ -1236,7 +1341,7 @@ const capitalizeFirstLetter = function (string) {
 // we will ask the user for a file, and load it into the scene
 const importProject = function () {
     console.log("Importing...")
-    clearSelectedObjects();
+    // clearSelectedObjects();
 
     // ask for a file
     var input = document.createElement('input');
@@ -1254,11 +1359,11 @@ const importProject = function () {
 
             mapMakerSaveData.forEach(mapMakerObject => {
                 if (mapMakerObject.type == "box") {
-                    if (mapMakerObject.isEnemyNPC && mapMakerObject.isEnemyNPC == true)
+                    if (mapMakerObject.isEnemyNPC == true)
                     {
                         createEnemyNPC(
-                            new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
-                            new THREE.Vector3(mapMakerObject.rotation.x, mapMakerObject.rotation.y, mapMakerObject.rotation.z)
+                            new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z), mapMakerObject.rotation.y
+                            // new THREE.Vector3(mapMakerObject.rotation.x, mapMakerObject.rotation.y, mapMakerObject.rotation.z)
                         );
                     }
                     else
