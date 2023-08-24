@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 export class WeaponHandler {
     // MAIN
-    LEVELDATA
+    LEVELHANDLER
 
     // AMMO
     weaponRemainingAmmo
@@ -28,7 +28,7 @@ export class WeaponHandler {
 
     constructor(LEVELDATA) {
 
-        this.LEVELDATA = LEVELDATA;
+        this.LEVELHANDLER = LEVELDATA;
         
 		this.weaponRemainingAmmo = 0;
 		this.defaultRemainingAmmo = 0;
@@ -42,7 +42,7 @@ export class WeaponHandler {
 
 	// This will add the player's weapon model to the scene
 	generateWeaponModel(basePath) {
-        let LEVELDATA = this.LEVELDATA;
+        let LEVELDATA = this.LEVELHANDLER;
         let WEAPONHANDLER = this;
 		// First, load the weapon metadata from the .json file
 		let jsonLoader = new THREE.FileLoader();
@@ -102,5 +102,54 @@ export class WeaponHandler {
 			}
         );
     }
+
+	throwWeapon(voxelField) {
+		console.log("Throwing Weapon...")
+		// Raycast and throw it!!
+		const cameraDir = new THREE.Vector3(0, 0, 0);
+		this.LEVELHANDLER.camera.getWorldDirection(cameraDir);
+		const intersect = voxelField.raycast(this.LEVELHANDLER.camera.position, cameraDir, 1000);
+		if (intersect != null) {
+			// Generate a Weapon Clone
+			const weaponClone = this.weaponModel.clone();
+			this.weaponModel.children[0].visible = false;
+			weaponClone.children[0].material = this.weaponModel.children[0].material.clone();
+			weaponClone.children[0].material.depthTest = true;
+			weaponClone.children[0].rotation.x = Math.PI/2;
+			weaponClone.children[0].rotation.z = Math.PI/2;
+			weaponClone.scale.multiplyScalar(0.5);
+			weaponClone.position.copy(this.LEVELHANDLER.camera.position);
+			weaponClone.rotation.set(0, 0, 0);
+			this.LEVELHANDLER.addThrownWeapon(weaponClone);
+			const intersectPosition = new THREE.Vector3(intersect.x, intersect.y, intersect.z);
+			// Raycast for Enemies
+			let enemiesToKill = [];
+			const NPCs = this.LEVELHANDLER.NPCBank.map((NPC) => NPC.sceneObject.children[0]);
+			const raycaster = new THREE.Raycaster();
+			raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+			console.log(NPCs);
+			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+			intersects.forEach((intersect) => {
+				if (intersect.distance > this.LEVELHANDLER.camera.position.distanceTo(intersectPosition)) return;
+				enemiesToKill.push(intersect.object.npcHandler);
+			});
+			// Prevent Shooting
+			this.weaponRemainingAmmo = 0;
+			// Lastly, fire the interval ...
+			let n;
+			n = setInterval(() => {
+				if (weaponClone.position.distanceTo(intersectPosition) > 5) {
+					weaponClone.position.lerp(intersectPosition, 0.25);
+					weaponClone.rotation.y += 0.25;
+				} else {
+					enemiesToKill.forEach((enemy) => {
+						console.log(enemy);
+						enemy.depleteHealth(100);
+					});
+					clearInterval(n);
+				}
+			}, 10);
+		}
+	}
 
 }

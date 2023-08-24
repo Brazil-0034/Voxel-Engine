@@ -38,6 +38,7 @@ export class LevelHandler {
 
 	// Data about Weapons
 	WEAPONHANDLER
+	thrownWeaponBank
 
 	constructor(scene, camera) {
 		this.scene = scene;
@@ -53,5 +54,18 @@ export class LevelHandler {
 		this.globalModelLoader = new FBXLoader();
 
 		this.NPCBank = [];
+		this.thrownWeaponBank = [];
+	}
+
+	clearGarbage() {
+		this.thrownWeaponBank.forEach((thrownWeapon) => {
+			this.scene.remove(thrownWeapon);
+			thrownWeapon.children[0].material.dispose();
+		});
+	}
+
+	addThrownWeapon(thrownWeapon) {
+		this.scene.add(thrownWeapon);
+		this.thrownWeaponBank.push(thrownWeapon);
 	}
 }

@@ -166,7 +166,7 @@
 			bottom: 35px;
 			left: 35px;
 			z-index: 1000;
-			font-size: 18px;
+			font-size: 12px;
 			color: yellow;
 			font-weight: bold;
 			padding: 10px 30px;
@@ -195,14 +195,6 @@
 
 		#NUMCOVERBOXESViz {
 			color: lightcyan;
-		}
-
-		#devpanel {
-			z-index: 10000;
-			position: absolute;
-			top: 0;
-			right: 0;
-			background: white !important;
 		}
 
 		#fullframe {
@@ -296,6 +288,8 @@
 	import { resetGameState } from './GameStateControl.js'; // Level Data
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
 	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
+	import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
+	import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
 	// ELECTRON
 	const { ipcRenderer } = require('electron');
 
@@ -304,7 +298,7 @@
 	// ##########
 	const LEVELHANDLER = new LevelHandler(
 		new THREE.Scene(),
-		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 15, 5000)
+		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
 	);
 	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
 
@@ -323,7 +317,7 @@
 	)
 	worldSphere.material.map.wrapS = worldSphere.material.map.wrapT = THREE.RepeatWrapping;
 	worldSphere.material.map.repeat.set(10, 10);
-	LEVELHANDLER.scene.add(worldSphere);
+	// LEVELHANDLER.scene.add(worldSphere);
 
 	// ##########
 	// RENDERER SETUP
@@ -344,6 +338,28 @@
 	LEVELHANDLER.renderer.setClearColor(0xffffff)
 	THREE.ColorManagement.enabled = true;
 	THREE.ColorManagement.legacyMode = false;
+
+	// ##########
+	// ENVIRONMENT LIGHTING SETUP
+	// ##########
+	// const lightProbe = new THREE.LightProbe();
+	// LEVELHANDLER.scene.add(lightProbe);
+	// const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 256 );
+	// const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
+	// cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);
+	// lightProbe.copy(LightProbeGenerator.fromCubeRenderTarget(LEVELHANDLER.renderer, cubeRenderTarget));
+	// LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
+	// const cubemap = new THREE.CubeTextureLoader().load(
+	// 	[
+	// 		'../opensource/cherry_skybox/left.png',
+	// 		'../opensource/cherry_skybox/right.png',
+	// 		'../opensource/cherry_skybox/up.png',
+	// 		'../opensource/cherry_skybox/down.png',
+	// 		'../opensource/cherry_skybox/front.png',
+	// 		'../opensource/cherry_skybox/back.png',
+	// 	]
+	// )
+	// LEVELHANDLER.background = cubemap;
 
 	// ##########
 	// POST PROCESSING
@@ -562,7 +578,9 @@
 	// VOXEL OBJECT DATA
 	let voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
 	const voxelMaterial = new THREE.MeshLambertMaterial({
-		color: 0xffffff
+		color: 0xffffff,
+		// metalness: 0.5,
+		// roughness: 1
 	});
 
 	// ##########
@@ -1230,12 +1248,6 @@
 		LEVELHANDLER.scene.add(newLine);
 	}
 
-	const throwWeapon = function() {
-		console.log("Throwing Weapon...")
-		WEAPONHANDLER.weaponModel.children[0].visible = false;
-	}
-
-
 	const playerMotion = {
 		xAxis: 0,
 		zAxis: 0,
@@ -1448,8 +1460,6 @@
 							for (let i = 0; i < intersects.length; i++) {
 								const mainObj = intersects[i].object;
 								if (mainObj.npcHandler.health > 0) {
-									// Adjust Color
-									mainObj.material.color.r = 20 - (Math.random() * 5);
 									// Register Hit
 									mainObj.npcHandler.depleteHealth(WEAPONHANDLER.weaponDamage);
 								}
@@ -1465,10 +1475,6 @@
 								isAttackAvailable = true;
 							}, WEAPONHANDLER.fireRate);
 						}
-					}
-					else
-					{
-						throwWeapon();
 					}
 					break;
 				case "explosive":
@@ -1486,7 +1492,7 @@
 		}
 
 		if (isKeyPressed["e"]) {
-			throwWeapon();
+			WEAPONHANDLER.throwWeapon(voxelField);
 		}
 
 // DEBUG PANEL (in console)

@@ -123,6 +123,8 @@ export class NPC {
 
     depleteHealth(amount) {
         // this.knowsWherePlayerIs = true;
+		// Adjust Color
+		this.npcObject.material.color.r = 20 - (Math.random() * 5);
         this.health -= amount;
         if (this.health <= 0) {
             this.deathSound.rate(clamp(Math.random() + 0.8, 0, 1))
@@ -234,6 +236,7 @@ export class NPC {
     kill() {
         // disable all animation
         this.mixer.stopAllAction();
+        this.health = 0;
         this.dieAnimation.play();
         // this.npcObject.material.color = new THREE.Color(0x00ff00);
         // this.sceneObject.remove(this.npcObject);

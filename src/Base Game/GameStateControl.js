@@ -18,7 +18,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER, killStartPos
 		LEVELHANDLER.scene.add(killLine);
 	}
 	// Reset Player ...
-	LEVELHANDLER.camera.position.set(0,60,0);
+	LEVELHANDLER.camera.position.set(0,LEVELHANDLER.playerHeight,0);
 	LEVELHANDLER.camera.rotation.copy(new THREE.Euler(0,0,0));
 	// LEVELHANDLER.camera.rotation.x = Math.PI/4;
 	// Reset Weapon
@@ -36,4 +36,6 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER, killStartPos
 		thisNPC.idleAnimation.play();
 		thisNPC.mixer.timeScale = 1;
 	})
+	// Clean Garbage
+	LEVELHANDLER.clearGarbage();
 }
