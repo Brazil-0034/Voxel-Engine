@@ -171,6 +171,7 @@ export class VoxelChunk extends THREE.InstancedMesh {
 	coverBox
 	isCovered
 	LEVELHANDLER
+	connectedBox
 
 	constructor(geometry, material, count, LEVELHANDLER) {
 		super(geometry, material, count);
@@ -196,7 +197,32 @@ export class VoxelChunk extends THREE.InstancedMesh {
 			})
 			this.isCovered = false;
 			this.visible = true;
+			this.connectedBox.voxelChunks.forEach(chunk => {
+				if (chunk.isSideChunk == true) {
+					chunk.uncover();
+				}
+			});
 		}
+	}
+}
+
+/**
+ * 
+ * A Box is a cuboid consisting of any number of VoxelChunks.
+ * It is used to handle the uncovering of boxes that may have more than one chunk (often having side-chunks unless they are a perfect multiple of two)
+ * 
+ */
+
+export class BoxData {
+	voxelChunks
+
+	constructor() {
+		this.voxelChunks = [];
+	}
+
+	addChunk(chunk) {
+		this.voxelChunks.push(chunk);
+		chunk.connectedBox = this;
 	}
 }
 

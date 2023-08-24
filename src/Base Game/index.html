@@ -291,7 +291,7 @@
 	import { USERSETTINGS, LevelHandler } from './LevelHandler.js'; // user settings and level info
 	import { lerp, clamp } from './EngineMath.js'; // math functions
 	import { getPixelsFromImage } from './CanvasPixelReader.js'; // for image operations
-	import { VoxelChunk, VoxelFace, voxelField, cutawayField, addToCutawayStack } from './VoxelStructures.js'; // data structures for handling voxels
+	import { BoxData, VoxelChunk, VoxelFace, voxelField, cutawayField, addToCutawayStack } from './VoxelStructures.js'; // data structures for handling voxels
 	import { NPC } from './NPC.js'; // non-player characters (NPCs)
 	import { resetGameState } from './GameStateControl.js'; // Level Data
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
@@ -587,6 +587,8 @@
 		if (scale.y > 2) scale.y -= 1;
 		if (scale.z > 2) scale.z -= 1;
 
+		const chunkConnector = new BoxData();
+
 		// Interactions
 		if (interactionEvent != "none" || USERSETTINGS.blockoutMode == true) {
 			// box (for raycasting)
@@ -689,6 +691,8 @@
 				LEVELHANDLER.scene.add(instancedWorldModel);
 				instancedModelIndex.push(instancedWorldModel);
 
+				chunkConnector.addChunk(instancedWorldModel);
+				instancedWorldModel.isSideChunk = false;
 				if (scale.x < squareChunkSize && scale.y < squareChunkSize && scale.z < squareChunkSize) {
 					// If the chunk is smaller than the maximum chunk size, we can just add it to the scene
 					// push to registry & add to scene
@@ -769,11 +773,13 @@
 								// CENTERS:
 								// default (0,0) bottom left
 								coverBox.material.map.center.set(1, 1);
+								instancedWorldModel.isSideChunk = true;
 							}
 							if (coverBox.scale.x < squareChunkSize) {
 								// CENTERS:
 								// default (0,0) bottom left
 								coverBox.material.map.center.set(0, 1);
+								instancedWorldModel.isSideChunk = true;
 							}
 
 							coverBox.rotation.x = -Math.PI / 2;
@@ -805,6 +811,7 @@
 									// default (0,0) bottom left
 									coverBox.material.map.center.set(1, 0);
 								}
+								instancedWorldModel.isSideChunk = true;
 							}
 
 							coverBox.material.map.rotation = Math.PI / 2;
@@ -837,6 +844,7 @@
 									// default (0,0) bottom left
 									coverBox.material.map.center.set(1, 0);
 								}
+								instancedWorldModel.isSideChunk = true;
 							}
 
 							coverBox.rotation.y = Math.PI;
@@ -1309,7 +1317,7 @@
 				const camForwardDirection = new THREE.Vector3();
 				LEVELHANDLER.camera.getWorldDirection(camForwardDirection);
 				camForwardDirection.y = 0;
-				if (voxelField.raycast(footPosition, camForwardDirection, collisionRadius) != null) playerMotion.zAxis = 0;
+				if (voxelField.raycast(footPosition, camForwardDirection, collisionRadius) != null) playerMotion.zAxis *= -0.0001;
 			}
 			// REAR COLLISION CHECKS
 			if (playerMotion.zAxis > 0) {
@@ -1317,7 +1325,7 @@
 				LEVELHANDLER.camera.getWorldDirection(camBackwardDirection);
 				camBackwardDirection.negate();
 				camBackwardDirection.y = 0;
-				if (voxelField.raycast(footPosition, camBackwardDirection, collisionRadius) != null) playerMotion.zAxis = 0;
+				if (voxelField.raycast(footPosition, camBackwardDirection, collisionRadius) != null) playerMotion.zAxis *= -0.0001;
 			}
 			// LEFT COLLISION CHECKS
 			if (playerMotion.xAxis < 0) {
@@ -1325,7 +1333,7 @@
 				LEVELHANDLER.camera.getWorldDirection(camLeftDirection);
 				camLeftDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
 				camLeftDirection.y = 0;
-				if (voxelField.raycast(footPosition, camLeftDirection, collisionRadius) != null) playerMotion.xAxis = 0;
+				if (voxelField.raycast(footPosition, camLeftDirection, collisionRadius) != null) playerMotion.xAxis *= -0.0001;
 			}
 			// RIGHT COLLISION CHECKS
 			if (playerMotion.xAxis > 0) {
@@ -1334,7 +1342,7 @@
 				camRightDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
 				camRightDirection.negate();
 				camRightDirection.y = 0;
-				if (voxelField.raycast(footPosition, camRightDirection, collisionRadius) != null) playerMotion.xAxis = 0;
+				if (voxelField.raycast(footPosition, camRightDirection, collisionRadius) != null) playerMotion.xAxis *= -0.0001;
 			}
 			// Movement
 			controls.moveRight(playerMotion.stepSize * playerMotion.xAxis * sprinting);

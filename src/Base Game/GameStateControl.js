@@ -20,7 +20,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER, killStartPos
 	// Reset Player ...
 	LEVELHANDLER.camera.position.set(0,60,0);
 	LEVELHANDLER.camera.rotation.copy(new THREE.Euler(0,0,0));
-	LEVELHANDLER.camera.rotation.x = Math.PI/4;
+	// LEVELHANDLER.camera.rotation.x = Math.PI/4;
 	// Reset Weapon
 	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
 	WEAPONHANDLER.weaponModel.position.copy(WEAPONHANDLER.weaponTarget.position);
