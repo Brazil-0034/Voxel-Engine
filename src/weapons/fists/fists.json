@@ -5,6 +5,7 @@
         "helpText": "[Left Click] Punch",
         "fireRate": 150,
         "weaponDamage": 150,
+        "totalAmmo": 9999999,
         "damageRange": 4,
         "minimumDistance": 100,
         "followSpeed": 512,

@@ -114,9 +114,17 @@ class PointerLockControls extends EventDispatcher {
 
 // event listeners
 
+let timesPerSecond = 0;
+setInterval(() => {
+	// console.log(timesPerSecond);
+	timesPerSecond = 0;
+}, 1000);
+
 function onMouseMove( event ) {
 
 	if ( this.isLocked === false ) return;
+
+	timesPerSecond++;
 
 	const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
 	const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;

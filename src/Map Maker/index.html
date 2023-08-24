@@ -177,7 +177,7 @@ const human = new THREE.Mesh(
 human.type="human"
 human.material.map.magFilter = THREE.NearestFilter;
 human.material.map.minFilter = THREE.NearestFilter;
-human.scale.set(17.77, 60);
+human.scale.set(11.10625, 40);
 human.position.y = human.scale.y/2;
 const playerSpawn = new THREE.Group();
 playerSpawn.add(human);
@@ -623,14 +623,10 @@ transformControls.addEventListener('dragging-changed', function (event) {
                     });
                 }
                 // round the WORLD scale to the nearest EVEN whole number
-                const cacheSelectedObjects = [];
-                selectedObjects.children.forEach(child => {
-                    cacheSelectedObjects.push(child);
-                });
-                clearSelectedObjects();
                 const multipleCheck = function(n) { return Math.round(n / 2) * 2 }
-                cacheSelectedObjects.forEach(child => {
+                selectedObjects.children.forEach(child => {
                     // the scale MUST be a multiple-of-two greater than 0
+                    removeHandles(child);
                     if (child.userData.isEnemyNPC == false)
                     {
                         child.scale.x = clamp(multipleCheck(child.scale.x), 2, Infinity);
@@ -719,7 +715,7 @@ const clearSelectedObjects = function () {
         child.scale.set(newScale.x, newScale.y, newScale.z);
         clearSelectedObjects();
     }
-    selectedObjects.rotation.set(0, 0, 0);
+    // selectedObjects.rotation.set(0, 0, 0);
     updateLeftPanel();
 }
 clearSelectedObjects();
@@ -742,6 +738,9 @@ const removeHandles = function(item) {
             attachHandles(selectedObject);
         }
     });
+    if (selectedObjects.children.length == 0) {
+        selectedObjects.scale.set(1, 1, 1);
+    }
 }
 
 const attachHandles = function (item, dontResetSelections=false) {
@@ -880,9 +879,9 @@ document.body.addEventListener('keydown', function (event) {
                     if (childObject.userData.isEnemyNPC == true)
                     {
                         // rotate it 45 degrees
-                        removeHandles(childObject);
-                        childObject.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), Math.PI/4);
-                        attachHandles(childObject);
+                        childObject.rotateOnWorldAxis(new THREE.Vector3(0,1,0), THREE.MathUtils.degToRad(45));
+                        console.log(childObject.rotation.order, selectedObjects.rotation.order)
+                        console.log(childObject.rotation.x.toFixed(2), childObject.rotation.y.toFixed(2), childObject.rotation.z.toFixed(2))
                     }
                     else
                     {
@@ -1004,7 +1003,6 @@ document.body.addEventListener('keydown', function (event) {
                 // prevent default browser behavior
                 event.preventDefault();
                 // invoke context menu
-                console.log(1);
                 invokeContextMenu();
                 break;
         }
@@ -1057,6 +1055,8 @@ const contextMenuClick = function (action) {
             cube.userData.materialType = "smooth";
             cube.userData.isLight = false;
             cube.userData.lightBrightness = 0;
+            cube.userData.isCutaway = false;
+            cube.userData.isEnemyNPC = false;
             cube.userData.interactionEvent = "none";
 
             cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);

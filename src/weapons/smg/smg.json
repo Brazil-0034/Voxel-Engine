@@ -4,6 +4,7 @@
         "name": "UZI",
         "helpText": "[Left Click] Shoot",
         "fireRate": 50,
+        "totalAmmo": 30,
         "weaponDamage": 15,
         "damageRange": 3,
         "minimumDistance": 500,

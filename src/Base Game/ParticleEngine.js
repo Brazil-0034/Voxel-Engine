@@ -62,7 +62,7 @@ export class ParticleMesh extends THREE.InstancedMesh {
             if (particle.speed < particle.targetSpeed) particle.speed += 1 * delta;
 
             // delay scaling until after a little while
-            if (particle.lifetime < 1000 * delta) particle.scale.set(1,1,1);
+            if (particle.lifetime < 2000 * delta) particle.scale.set(1,1,1);
 
             // rotate on x and z axis based on lifetime
             particle.rotation.setFromEuler(new THREE.Euler(particle.lifetime * 0.01, 0, particle.lifetime * 0.01));

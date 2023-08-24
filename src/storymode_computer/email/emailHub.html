@@ -88,12 +88,7 @@
         #ad {
             background: #1BBFD4;
             font-weight: bolder;
-        }
-
-        #ad a{
-            background: -webkit-linear-gradient(45deg, #fff 0 85%, #1BBFD4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: white;
         }
 
         #left-part, #right-part {
@@ -142,43 +137,72 @@
 <body>
     <div id="top-image">
         <img src="seemail.gif" /><br/>
-        <h5 style="text-align:center;color:white;margin-top:10px;">A product of the State Government</h5>
+        <h5 style="text-align:center;color:white;margin-top:10px;">SeeMail is a product of the State Government</h5>
     </div>
     <div id="middle-column-header-banner">You Have Mail!</div>
     <div id="middle-column">
         <div id="left-part">
             <ul>
-                <li>Good to see you breathing.</li>
-                <li>Notice of Exoneration</li>
-                <li><a onclick="activateEmail(this.parentElement, 'news-digest')">Your Monthly News Digest</a></li>
-                <li><a onclick="activateEmail(this.parentElement, 'social-credit')">Notice: Social Credit&trade; Deduction</a></li>
-                <li id="ad"><span id="adlabel">Advertisement: </span><a onclick="activateEmail(this.parentElement, 'drugs-ad')">Have you tried Mind Melters? Enjoy over 300 flavors of ...</a></li>
-                <li style="display:none"></li>
-                <li><a onclick="activateEmail(this.parentElement, 'welcome-email')" id="first">Welcome to SeeMail&trade;!</a></li>
+                <!-- <li><a onclick="activateEmail(this.parentElement, 'news-digest')">Your Monthly News Digest</a></li> -->
+                <!-- <li><a onclick="activateEmail(this.parentElement, 'social-credit')">Notice: social credit&trade; Deduction</a></li> -->
+                <li><a onclick="activateEmail(this.parentElement, 'welcome-email')">Welcome to SeeMail!</a></li>
+                <li id="ad"><span id="adlabel">Official: </span><a onclick="activateEmail(this.parentElement, 'welcome-to-state')" id="first">Welcome to San Francisco!</a></li>
             </ul>
         </div>
         <div id="right-part">
             <div class="email" id="welcome-email">
                 <div style="font-family: Montserrat; color: #000000;">
-                    <h2 style="color:#1BBFD4">Welcome to SeeMail!&trade;</h2><br />
+                    <h2 style="color:#1BBFD4">Welcome to SeeMail!</h2><br />
                     <p>
                         Dear Verified Citizen,<br /><br />
-                        SeeMail&trade; is your government's #1 <b>trusted & reliable</b> email service. <br />
+                        SeeMail is your government's #1 <b>trusted & reliable</b> email service. <br />
                         You will receive official government messages through the SeeMail website. <br />
                         You can even chat with your coworkers and friends! <br /><br />
-                        SeeMail activity is monitored, and may affect your <i><b>Social Credit&trade;</b> score.</i>
+                        SeeMail activity is monitored, and may affect your <i><b>social credit&trade;</b> score.</i>
                         <br /><br />
-                        <u>Any violation of state law on SeeMail&trade; will be punished to the highest extent of the law. </u><br /><br />
-                        <b>When using SeeMail&trade;, know that:</b>
+                        <u>Any violation of state law on SeeMail will be punished to the highest extent of the law. </u><br /><br />
+                        <b>When using SeeMail, know that:</b>
                         <ol>
                             <li>The <b>Internet Safety Act</b> dictates that any user-submitted content online can be censored by any citizen. You are encouraged to flag and censor any content deemed offensive to the majority. Patrol the internet and keep it safe for everyone!</li>
                             <li>The <b>Anonymous Safe Re-Education Program</b> allows you to anonymously flag any citizen if they are displaying signs of dissent. A report can trigger a safe re-education visit from the <i>State Department of Rehabilitation</i>. Do your part and help keep our community safe by reporting dangerous behavior immediately.</li>
-                            <li>The <b>Happy Living Act</b> mandates that every internet user have a <b>minimum</b> of four "friends" who are communicated with on a regular basis. Failing to reach the minimum number of "friends", or failing to engage in regular conversation, can result in hefty re-ocurring <b>Social Credit&trade;</b> fines until rectified.</li>
-                            <li>The <b>Internet Intellectual Balance Act</b> states that individuals with an intelligence quotient (IQ) score <b>greater than 100</b> are disallowed from engaging with online messaging services, including email and public forums, and are instead required to apply for roles in government.</li>
+                            <li>The <b>Happy Living Act</b> mandates that every internet user have a <b>minimum</b> of four "friends" who are communicated with on a regular basis. Failing to reach the minimum number of "friends", or failing to engage in regular conversation, can result in hefty re-ocurring <b>social credit&trade;</b> fines until rectified.</li>
+                            <!-- <li>The <b>Internet Intellectual Balance Act</b> states that individuals with an intelligence quotient (IQ) score <b>greater than 100</b> are disallowed from engaging with online messaging services, including email and public forums, and are instead required to apply for roles in government.</li> -->
                         </ol>
                         <br />
-                        We appreciate your compliance with state law. Thank you for using <b>SeeMail&trade;</b>!
+                        We appreciate your compliance with state law. Thank you for using <b>SeeMail</b>!
                     </p>
+                </div>
+            </div>
+
+            <div class="email" id="welcome-to-state" >
+                <img src="sfsg.png" style="max-width: 250px; border-radius: 15px;" /><br /><br />
+                <code>
+                    26 September<br/>
+                    San Francisco State Government<br/>
+                    Department of Migrant Affairs<br/>
+                    State Capitol, 1st Floor<br/>
+                    Capitol City, San Francisco<br/><br/>
+                </code>
+                
+                <h2>Welcome to San Francisco!</h2><br />
+                <p>
+                    Dear &nbsp;<code style="font-size:125%">Migrant #26481</code>,<br /><br />
+                    The Department of Migrant Affairs is pleased to welcome you to the great State of San Francisco.<br /><br />
+                    Your request for immigration to the State of San Francisco has been approved, under the condition that you find licensed employment within 30 days of arrival.<br /><br />
+                    Failure to find employment within 30 days of arrival will result in an indefinite relocation to a state labor camp.<br /><br />
+                    Your housing assignment is <code style="font-size:125%">District #47 Building #219 Room #37</code>.<br /><br />
+                    We wish you the best of luck in your new life in San Francisco!<br /><br />
+                    Best Regards,<br/>
+                    <i>San Francisco State Government</i><br />
+                </p>
+
+                <div style="width: 95%">
+                    <div style="float: left;">
+                        <!-- <img src="sfsg.png" style="max-width: 250px; border-radius: 15px;" /><br /><br /><br /> -->
+                    </div>
+                    <div style="float: right">
+                        <img src="doma.png" style="max-width: 140px;" /><br/><br/>
+                    </div>
                 </div>
             </div>
 
@@ -252,7 +276,7 @@
                         Looking for some prescription-free pills to help you <b><i>relax?</i></b> <br />
                         Spent a long day at the labor camp and can't wait to <b><i>unwind?</i></b> <br /><br />
                         Look no further! <br /><br />
-                        Spend your <b>LaborCoin&trade;</b> wisely on <b>Easy-Drugs Inc.</b> Products! <br />
+                        Spend your <b>LaborCoin</b> wisely on <b>Easy-Drugs Inc.</b> Products! <br />
                         <img src="cat2.gif" style="width:100px" /><br/>
                         Try any of our <b>300+</b> flavors of pure imported goodness. <br /><br />
                         Our products are sold under-the-table at corner stores in <b>ALL MAJOR DISTRICTS!</b> <br /><br />
@@ -287,7 +311,7 @@
                 <body style="font-family: Montserrat;">
                     <h1 style="color: red"><b>OFFICIAL NOTICE</b></h1>
                     <p>
-                        You have lost <span style="color:red;background:black">100</span> Social Credit&trade;
+                        You have lost <span style="color:red;background:black">100</span> social credit&trade;
                         points.<br />
                         This deduction is the result of <code style="color: red; font-size: 150%"><b>Failure to submit payment</b></code>
                         to <code style="color: red; font-size: 150%"><b>State Hospital #4516</b></code><br /><br />
@@ -356,68 +380,15 @@
             <div class="email" id="dangerously-low">
                 <h1 style="color: red">Notice: Dangerously Low Social Credit</h1>
                 <p>
-                    You have <span style="color:red;background:black">0</span> <b>Social Credit&trade;</b>
+                    You have <span style="color:red;background:black">0</span> <b>social credit&trade;</b>
                     points.<br />
-                    Falling below <span style="color:red;background:black">0</span> <b>Social Credit&trade;</b>
+                    Falling below <span style="color:red;background:black">0</span> <b>social credit&trade;</b>
                     points will result in an immediate expulsion to a labor camp.<br /><br />
 
-                    Citizens must perform their civic duty and retain a high <b>Social Credit&trade;</b> score.
+                    Citizens must perform their civic duty and retain a high <b>social credit&trade;</b> score.
                     <br />
                     Failing to meet this requirement will result in a lifetime in a labor camp.
                 </p>
-            </div>
-
-            <div class="email" id="job-offer">
-                
-                <p>
-                    <div style="background: rgb(187, 187, 187)">
-                        <b>From:</b> <code>Interim District Supervisor #4516</code><br />
-                        <b>To: </b> <code>You</code><br /><br />
-                        Psst ...<br /><br />
-                        I see you're a few feet away from the deep end.<br />
-                        Lose a few more social credit points, and you're overseas mining for the rest of your life.<br /><br />
-                        Listen, I can help you. I'm running a little operation here.<br />
-                        My name is Pierre. I'm a district supervisor and I have a friends in high places.<br />
-                        Don't worry, this message is official, so it's not monitored. We can speak freely here.<br /><br />
-                        I saw on your record that you used to do security for government officials. That means you have a gun,
-                        right? Well, listen.<br /><br />
-                        I've had a problem lately.
-                        A big problem.<br /><br />
-                        Those pesky Freedom Syndicate members have been conspiring against me.<br />
-                        Last week they left a hole in my front door and a note saying they mean business.<br /><br />
-                        All I need you to do is take care of the problem. Do that, and I'll make your social credit problem go
-                        away.<br />
-                        Hell, I'll even throw in a few LaborCoins too.<br />
-                        If you're interested, let me know. If not ... I hope you enjoy your time in the mines.
-                        <br /><br />You'll be there for a long time.<br />
-                        <hr />
-                    </div>
-                    <div style="background: rgb(228, 228, 228)">
-                        <b>From: </b> <code>You</code><br />
-                        <b>To:</b> <code>Interim District Supervisor #4516</code><br /><br />
-                        I'm interested. Send me the details.
-                        <hr />
-                    </div>
-                    <div style="background: rgb(187, 187, 187)">
-                        <b>From:</b> <code>Interim District Supervisor #4516</code><br />
-                        <b>To: </b> <code>You</code><br /><br />
-                        Excellent. I knew you'd make the right choice.<br />
-                        I'll make it simple.<br /><br />
-                        Three nights from now, I need you to visit room <code>#413</code> at the
-                        <code>Misty Pines Motel</code>.<br />
-                        I don't know how many will be there. I just need you to take care of the problem.<br />
-                        When it's done, let me know.<br /><br />
-                        Just know, there aren't many citizens on the brink of deportation who are armed like you.<br /><br />
-                        Please don't fuck this up.<br /><br />
-                    </div>
-                    <div style="background: rgb(228, 228, 228)">
-                        <b>From: </b> <code>You</code><br />
-                        <b>To:</b> <code>Interim District Supervisor #4516</code><br /><br />
-                        I won't.
-                        <hr />
-                    </div>
-                    </p>
-                
             </div>
         </div>
     </div>

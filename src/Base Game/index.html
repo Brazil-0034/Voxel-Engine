@@ -25,6 +25,15 @@
 			/* forces hardware acceleration */
 		}
 
+		.on-drugs {
+			animation: trippin 1.5s cubic-bezier(0.075, 0.82, 0.165, 1) 0ms infinite alternate;
+		}
+
+		@keyframes trippin {
+			from {filter: hue-rotate(0)}
+			to {filter: hue-rotate(360deg)}
+		}
+
 		#crosshair-overlay {
 			position: absolute;
 			top: 50%;
@@ -79,7 +88,10 @@
 			top: 50%;
 			left: 50%;
 			transform: translate(-50%, -50%);
-			max-width: 20%
+			letter-spacing: -5px;
+			font-weight: bold;
+			color: rgb(246, 255, 0);
+			font-size: 750%;
 		}
 
 		#loader-bg {
@@ -89,7 +101,8 @@
 			width: 100%;
 			height: 100%;
 			background: black;
-			z-index: 1000;
+			animation-fill-mode: forwards;
+			z-index: 2000;
 		}
 
 		@keyframes fade-out {
@@ -204,7 +217,7 @@
 <body>
 	<!-- LOADER -->
 	<div id="loader-bg">
-		<img id="loader" src="img/black_dot.png" />
+		<div id="loader">LOADING</div>
 	</div>
 
 	<!-- DEBUG BOX -->
@@ -236,458 +249,114 @@
 	<script type="importmap">
 			{
 				"imports": {
-					"three": "./opensource/threejs/build/three.module.js",
-					"three/addons/": "./opensource/threejs/examples/jsm/",
-					"three/nodes": "./opensource/threejs/examples/jsm/nodes/Nodes.js"
+					"three": "../opensource/threejs/build/three.module.js",
+					"three/addons/": "../opensource/threejs/examples/jsm/",
+					"three/nodes": "../opensource/threejs/examples/jsm/nodes/Nodes.js"
 				}
 			}
 	</script>
 	<!-- AUDIO ENGINE IMPORT -->
-	<script src="opensource/howler/howler.js"></script>
+	<script src="../opensource/howler/howler.js"></script>
+	<!-- PHYSICS ENGINE IMPORT -->
+	<scrit src="../opensource/oimo.min.js"></scrit>
 	<!-- INSPECTOR PANEL IMPORT -->
-	<script src="opensource/dat.gui.min.js"></script>
+	<script src="../opensource/dat.gui.min.js"></script>
 	<!-- STATS.JS -->
-	<script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script>
+	<script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); stats.dom.style.zIndex = 1000; requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script>
 	<!-- DOT CROSSHAIR -->
 	<div id="middle-crosshair"
 		style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;">
 	</div>
 <script type="module">
 
-	// choose a loader gif at random
-	document.querySelector('#loader').src = 'img/loader-' + (Math.floor(Math.random() * 3) + 1) + '.gif'
-
+	// ##########
+	// MODULE IMPORTS
+	// ##########
+	// THREE
 	import * as THREE from 'three';
 	import { mix, range, normalWorld, oscSine, timerLocal } from 'three/nodes';
-	import { ParticleMesh, Particle } from './particleEngine.js';
-
-	
 	// import WebGPU from 'three/addons/capabilities/WebGPU.js';
 	// import WebGPURenderer from 'three/addons/renderers/webgpu/WebGPURenderer.js';
-
-	// pointerlock controls
 	import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-	// effectcomposer, renderpass, shaderpass
 	import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 	import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 	import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-	// SAO
 	import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
-	// N8AO - ty n8
-	import { N8AOPass } from "./opensource/N8AO.js"
-	// UNREAL BLOOM
+	import { N8AOPass } from "../opensource/N8AO.js"
 	import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-	// OUTPUTPASS
 	import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-	// FBXLoader
-	import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-	// ConvexHull
 	import { ConvexHull } from 'three/addons/math/ConvexHull.js';
-
-	// ipc renderer
+	// WRECKMESH
+	import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
+	import { USERSETTINGS, LevelHandler } from './LevelHandler.js'; // user settings and level info
+	import { lerp, clamp } from './EngineMath.js'; // math functions
+	import { getPixelsFromImage } from './CanvasPixelReader.js'; // for image operations
+	import { VoxelChunk, VoxelFace, voxelField, cutawayField, addToCutawayStack } from './VoxelStructures.js'; // data structures for handling voxels
+	import { NPC } from './NPC.js'; // non-player characters (NPCs)
+	import { resetGameState } from './GameStateControl.js'; // Level Data
+	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
+	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
+	// ELECTRON
 	const { ipcRenderer } = require('electron');
 
-	// This is my JavaScript-based Voxel game (engine)
-	const USERSETTINGS = {
-		// LEVEL / DEBUG SETTINGS
-		debugMode: false,
-		blockoutMode: false,
-		// GRAPHICS SETTINGS
-		useSpriteParticles: true,
-		particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
-		// DISPLAY SETTINGS
-		baseFOV: 45
-	}
-
-	const LEVELDATA = {
-		numCoverBoxes: 0,
-		numVoxels: 0
-	}
-
-	let isCrouching = false;
-
-	const getPixelsFromImage = function(image) {
-	    const canvas = document.createElement('canvas');
-	    const context = canvas.getContext('2d', {
-	        willReadfrequently: true
-	    });
-	    const pixels = [];
-	    
-	    canvas.width = image.width;
-	    canvas.height = image.height;
-	    context.drawImage(image, 0, 0);
-	    for (let x = 0; x < canvas.width; x++) {
-	        pixels[x] = [];
-	        for (let y = 0; y < canvas.height; y++) {
-	            pixels[x][y] = context.getImageData(x, y, 1, 1).data;
-	        }
-	    }
-	    return pixels;
-	}
-
-	// ###
-	// DEBUG UI
-	// ###
-
-	const lerp = function (a, b, t) {
-		return a + (b - a) * t;
-	}
-
-	/**
-	 * 
-	 * A VoxelChunk is how WreckMesh renders voxels.
-	 * It inherits from InstancedMesh with some additional properties for rendering and physics.
-	 * It is a unified class for all mesh operations in WreckMesh.
-	 * 
-	 * @param frustumBox: THREE.Box3 - The bounding box of the chunk, used for frustum culling.
-	 * @param velocities: THREE.Vector3[] - The velocities of each voxel in the chunk. [Physics Processing Only]
-	 */
-	class VoxelChunk extends THREE.InstancedMesh {
-		frustumBox
-		isActivated
-		deadVoxels
-		coverBox
-		isCovered
-
-		constructor(geometry, material, count) {
-			super(geometry, material, count);
-			this.frustumBox = new THREE.Box3();
-			this.deadVoxels = [];
-			this.isCovered = false;
-			this.coverBox = []
-		}
-
-		addCoverBox(coverBox) {
-			this.isCovered = true;
-			this.coverBox.push(coverBox);
-		}
-
-		uncover() {
-			if (this.isCovered == true) {
-				this.coverBox.forEach(box => {
-					scene.remove(box);
-					box.material.map.dispose();
-					box.material.dispose();
-					box.geometry.dispose();
-				})
-				this.isCovered = false;
-				this.visible = true;
-			}
-		}
-	}
-
-	const VoxelFace = Object.freeze({
-		TOP: "top",
-		BOTTOM: "bottom",
-		LEFT: "left",
-		RIGHT: "right",
-		FRONT: "front",
-		BACK: "back"
-	});
-
-	const SFXVolume = 0.05;
+	// ##########
+	// GLOBAL HANDLERS
+	// ##########
+	const LEVELHANDLER = new LevelHandler(
+		new THREE.Scene(),
+		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 15, 5000)
+	);
+	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
 
 	// ##########
-	// NPC ENGINE
-	// ##########
-	// Global File Loaders:
-	const globalModelLoader = new FBXLoader();
-	const globalTextureLoader = new THREE.TextureLoader();
-	const NPCBank = [];
-	const deathSound = new Howl({
-		src: ['sfx/kill_ding.wav'],
-		volume: SFXVolume * 7.5
-	});
-	// This will be the main system for spawning and handling NPC behavior
-	class NPC {
-		sceneObject // the scene object of the npc - includes the mesh, bones, etc
-		npcObject // just the mesh object of the npc (children[0] of sceneObject)
-
-		health // health of NPC remaining
-		speed // how fast he move -->
-
-		runAnimation // u alr know
-		idleAnimation // this too
-		dieAnimation
-		mixer // 3js anim mixer (per-npc until instanced skinning makes its way into main branch)
-		fovConeMesh // for vision calculation
-		fovConeHull // for vision calculation
-
-		knowsWherePlayerIs // self explanatory
-
-		// This will build the NPC (setting idle/run animation and loading model into scene)
-		constructor(npcName, texturePath, position, rotation, speed, health) {
-			this.speed = speed;
-			this.health = health;
-			this.knowsWherePlayerIs = false;
-			const basePath = 'character_models/' + npcName + '/';
-			globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
-				// STEP 1: ASSIGN MATERIALS
-				this.sceneObject = object;
-				this.npcObject = object.children[0];
-				this.npcObject.npcHandler = this;
-				this.sceneObject.traverse(function (childObject) {
-					if (childObject.isMesh) {
-						// childObject.castShadow = true;
-						// childObject.receiveShadow = true;
-						childObject.material = new THREE.MeshPhongMaterial({
-							map: globalTextureLoader.load(basePath + npcName + '.png'),
-							shininess: 0,
-							specular: 0x000000
-						});
-					}
-				});
-
-				// STEP 2: ASSIGN TRANSFORMS
-				this.sceneObject.position.copy(position);
-				this.sceneObject.rotation.set(rotation.x, rotation.y, rotation.z);
-				this.sceneObject.scale.multiplyScalar(0.1);
-
-				// STEP 3: APPLY ANIMATIONS
-				this.mixer = new THREE.AnimationMixer(this.sceneObject);
-				// load run animation
-				globalModelLoader.load(basePath + npcName + '_run.fbx', object => {
-					this.runAnimation = this.mixer.clipAction(object.animations[0]);
-				});
-				globalModelLoader.load(basePath + npcName + '_die_' + Math.floor(Math.random() * 3) + '.fbx', object => {
-					this.dieAnimation = this.mixer.clipAction(object.animations[0]);
-					this.dieAnimation.setLoop(THREE.LoopOnce);
-				});
-				this.idleAnimation = this.mixer.clipAction(this.sceneObject.animations[0]);
-				this.idleAnimation.play();
-
-				// create a "Field of View" cone in front of the head
-				this.fovConeMesh = new THREE.Mesh(
-					new THREE.ConeGeometry(4, 8, 4),
-					new THREE.MeshBasicMaterial({
-						visible: false
-					})
-				);
-				this.fovConeMesh.rotation.set(rotation.x, rotation.y - Math.PI / 2, rotation.z + Math.PI / 2);
-				this.fovConeMesh.scale.multiplyScalar(100);
-				this.fovConeMesh.position.set(position.x, 60, position.z);
-				scene.add(this.fovConeMesh);
-				
-				this.fovConeHull = new ConvexHull();
-				this.fovConeHull.setFromObject(this.fovConeMesh);
-
-				this.sceneObject.attach(this.fovConeMesh);
-				// translate it forward relative to the head (sceneObject)
-				this.fovConeMesh.translateY(-4000);
-
-
-				// And lastly... add it to the scene!
-				if (Math.random() > 0.5) this.sceneObject.scale.x *= -1;
-				scene.add(this.sceneObject);
-
-				// add a helper to the bounding sphere
-				// compute bounding sphere
-				this.npcObject.geometry.computeBoundingSphere();
-				this.npcObject.geometry.boundingSphere.set(this.npcObject.position, 512);
-			});
-
-			NPCBank.push(this);
-		}
-
-		depleteHealth(amount) {
-			this.knowsWherePlayerIs = true;
-			this.health -= amount;
-			if (this.health <= 0) {
-				deathSound.rate(clamp(Math.random() + 0.8, 0, 1))
-				deathSound.play();
-				this.kill();
-			}
-		}
-
-		// This will update the NPC's behavior (every frame)
-		update(delta) {
-			if (!this.sceneObject || !this.mixer || !this.runAnimation || !this.idleAnimation || !this.dieAnimation) return;
-
-			// Update the animation mixer keyframe step
-			this.mixer.update(delta);
-			// lerp the color to 0xffffff
-			this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
-
-			if (this.knowsWherePlayerIs == false && Math.random() < 0.1) // 1 in ten frames ... good enough i guess
-			{
-				this.fovConeHull.setFromObject(this.fovConeMesh);
-				if (this.fovConeHull.containsPoint(camera.position)) {
-					if (Math.random() < 0.25)
-					{
-						
-						const playerDirection = new THREE.Vector3();
-						camera.getWorldDirection(playerDirection);
-						playerDirection.negate();
-						const intersection = voxelField.raycast(this.sceneObject.position, playerDirection, weaponRange);
-						// Determine which voxels in chunk are to be destroyed
-						if (intersection != null) {
-
-							const intersectPosition = new THREE.Vector3(
-								intersection.x,
-								intersection.y,
-								intersection.z
-							)
-
-							if (this.sceneObject.position.distanceTo(camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
-							{
-								this.knowsWherePlayerIs = true;
-								console.log("FOUND YOU!!!");
-							}
-
-						}
-					}
-				}
-				// else
-				// {
-				// 	this.knowsWherePlayerIs = false;
-				// }
-			}
-
-			if (this.health > 0) {
-				if (this.knowsWherePlayerIs == true)
-				{
-					// Look towards the nearest player (camera) smoothly, using the lerp(a, b, t) function
-					const targetRotation = Math.atan2(camera.position.x - this.sceneObject.position.x, camera.position.z - this.sceneObject.position.z);
-					// prevent spinning by flipping the rotation value
-					if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
-						if (targetRotation > this.sceneObject.rotation.y) {
-							this.sceneObject.rotation.y += Math.PI * 2;
-						}
-						else {
-							this.sceneObject.rotation.y -= Math.PI * 2;
-						}
-					}
-					this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
-
-					// If too far, move closer
-					const distanceToCamera = this.sceneObject.position.distanceTo(camera.position);
-					if (distanceToCamera > 150) {
-						const direction = new THREE.Vector3();
-						camera.getWorldDirection(direction);
-						direction.y = 0;
-						direction.normalize();
-						this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
-						this.runAnimation.play();
-					}
-					else {
-						this.runAnimation.stop();
-						this.idleAnimation.play();
-					}
-				}
-			}
-		}
-
-		kill() {
-			// disable all animation
-			this.mixer.stopAllAction();
-			this.dieAnimation.play();
-			// remove the debug cone
-			this.sceneObject.remove(this.fovConeMesh);
-			this.fovConeMesh.geometry.dispose();
-			this.fovConeMesh.material.dispose();
-			// stop the animation after it finishes (with a frame delay relevant to 85fps)
-			setTimeout(() => {
-				this.mixer.timeScale = 0;
-				// keep the NPC stats in memory but prevent updating
-				this.update = () => { return };
-			}, ((this.dieAnimation._clip.duration * 1000) - 12) * 1 / timeModifier);
-			// this.npcObject.material.color = new THREE.Color(0x00ff00);
-			// this.sceneObject.remove(this.npcObject);
-			// this.npcObject.geometry.dispose();
-			// this.npcObject.material.dispose();
-		}
-	}
-
-	// Sets the help text on the bottom center of the player's screen
-	const setHelpText = (text) => { document.querySelector("#help-text").innerHTML = text }
-	const interactionText = document.querySelector("#interaction-text");
-	const setInteractionText = (text) => {
-		if (document.querySelector("#popup-window").style.display == "block") {
-			interactionText.style.display = "none";
-			setHelpText("Press [F] to Close")
-		}
-		else interactionText.style.display = "block";
-
-		interactionText.innerHTML = "Press [F]: " + text;
-		if (text == "") {
-			interactionText.classList.remove("fade-in");
-			interactionText.style.opacity = 0;
-		}
-		else {
-			interactionText.classList.add("fade-in");
-		}
-	}
-
-	// SCENE SETUP
-	const scene = new THREE.Scene();
-	// scene.fog = new THREE.Fog(0xcccccc, 10, 1000);
-
-	// CAMERA SETUP
-	let defaultFOV = USERSETTINGS.baseFOV;
-	let zoomFOV = defaultFOV - 20;
-	let targetFOV = defaultFOV;
-	const camera = new THREE.PerspectiveCamera(targetFOV, window.innerWidth / window.innerHeight, 15, 5000);
-
 	// WORLD SPHERE (BACKDROP COLOR)
+	// ##########
 	const worldSphere = new THREE.Mesh(
 		new THREE.SphereGeometry(5000, 16, 8),
 		new THREE.MeshBasicMaterial(
 			{
 				color: new THREE.Color(0xffffff),
 				side: THREE.DoubleSide,
-				map: globalTextureLoader.load("textures/smooth.png")
+				map: LEVELHANDLER.globalTextureLoader.load("../textures/smooth.png")
 			}
 		)
 	)
 	worldSphere.material.map.wrapS = worldSphere.material.map.wrapT = THREE.RepeatWrapping;
 	worldSphere.material.map.repeat.set(10, 10);
-	scene.add(worldSphere);
-	
-	// DEBUG PANEL GUI
-	const gui = new dat.GUI({ name: 'Developer Panel' });
-	var gui_postProcessingFolder = gui.addFolder('Post Processing');
+	LEVELHANDLER.scene.add(worldSphere);
 
+	// ##########
 	// RENDERER SETUP
+	// ##########
 	// Initializes the THREE.js renderer
-	const renderer = new THREE.WebGLRenderer({
-		// antialias: true
-	});
-	renderer.powerPreference = "high-performance";
-	renderer.debug.checkShaderErrors = false;
-	// THREE.ColorManagement.legacyMode = false
-	renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
-	renderer.outputEncoding = THREE.sRGBEncoding;
-	renderer.outputColorSpace = THREE.SRGBColorSpace;
-	renderer.info.autoReset = false;
-	renderer.logarithmicDepthBuffer = true;
-	renderer.setSize(window.innerWidth, window.innerHeight);
-	renderer.setPixelRatio(window.devicePixelRatio);
-	document.body.appendChild(renderer.domElement);
-	renderer.domElement.style.zIndex = "-1";
-	renderer.shadowMap.enabled = false
-	// renderer.shadowMap.type = THREE.PCFSoftShadowMap
-	renderer.setClearColor(0xffffff)
+	LEVELHANDLER.renderer.powerPreference = "high-performance";
+	LEVELHANDLER.renderer.debug.checkShaderErrors = false;
+	LEVELHANDLER.renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
+	LEVELHANDLER.renderer.outputEncoding = THREE.sRGBEncoding;
+	LEVELHANDLER.renderer.outputColorSpace = THREE.SRGBColorSpace;
+	LEVELHANDLER.renderer.info.autoReset = false;
+	LEVELHANDLER.renderer.logarithmicDepthBuffer = true;
+	LEVELHANDLER.renderer.setSize(window.innerWidth, window.innerHeight);
+	LEVELHANDLER.renderer.setPixelRatio(window.devicePixelRatio);
+	document.body.appendChild(LEVELHANDLER.renderer.domElement);
+	LEVELHANDLER.renderer.domElement.style.zIndex = "-1";
+	LEVELHANDLER.renderer.shadowMap.enabled = false
+	LEVELHANDLER.renderer.setClearColor(0xffffff)
+	THREE.ColorManagement.enabled = true;
+	THREE.ColorManagement.legacyMode = false;
 
-	const composer = new EffectComposer(renderer);
-
-	const n8aopass = new N8AOPass(scene, camera, window.innerWidth, window.innerHeight);
-	gui_postProcessingFolder.open();
-	let currentQualityMode = { qualityMode: "Performance" };
-	gui_postProcessingFolder.add(currentQualityMode, 'qualityMode', ["Performance", "Low", "Medium", "High", "Ultra"]).onChange(function (value) {
-		n8aopass.setQualityMode(value);
-	});
+	// ##########
+	// POST PROCESSING
+	// ##########
+	const composer = new EffectComposer(LEVELHANDLER.renderer);
+	const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
+	n8aopass.setQualityMode("Performance");
 	n8aopass.configuration.intensity = 4;
 	n8aopass.configuration.radius = 10;
 	n8aopass.configuration.halfRes = true;
 	n8aopass.configuration.gammaCorrection = false;
 	composer.addPass(n8aopass);
-
 	const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
-	// enabled
-	// bloomPass.enabled = false;
-	gui_postProcessingFolder.add(bloomPass, 'enabled').onChange(function (value) {
-		bloomPass.enabled = value;
-	});
 	composer.addPass(bloomPass);
 
 
@@ -695,33 +364,25 @@
 	// Hours of research and there is no way around this awful bundling system
 	// The most popular language in the world feels like its in its infancy
 	// what shitholes designed this??
-
 	// ^ note from the future: i dont remembe why i wrote this or why i was so angry. the code it references seems to be missing now.
 
-	// LIGHTING
+	// ##########
+	// DEFAULT AMBIENT LIGHTING
+	// ##########
 	// Initializes the THREE.js lighting
 	const ambientLight = new THREE.AmbientLight(0xffffff, 1);
-	scene.add(ambientLight);
+	LEVELHANDLER.scene.add(ambientLight);
 
-	// Two opposing directional lights. The opposing light is dimmer. Both lights are angled against each other.
-	// const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
-	// directionalLight.position.set(1, 1, 1);
-	// scene.add(directionalLight);
-	// const opposingDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
-	// opposingDirectionalLight.position.set(-1, -1, -1);
-	// scene.add(opposingDirectionalLight);
+	// ##########
+	// DOM CONTROLS HANDLING
+	// ##########
+	const controls = new PointerLockControls(LEVELHANDLER.camera, LEVELHANDLER.renderer.domElement);
+	LEVELHANDLER.scene.add(controls.getObject());
+	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => lockControls());
 
-	// PLAYER CAMERA
-	// Initializes the local player's camera, rendered to the canvas
-	const playerMoveSpeed = 225;
-	const controls = new PointerLockControls(camera, renderer.domElement);
-	scene.add(controls.getObject());
-
-	// This locks the pointer into the screen, so the player can move the camera without the pointer leaving the screen
-	renderer.domElement.addEventListener('mousedown', () => lockControls());
-
-	// MOTION CONTROLS
-	// This is the code that handles the player's motion
+	// ##########
+	// DOM INPUT MANAGEMENT
+	// ##########
 	const isKeyPressed = {};
 	let isCapsLockPressed = false;
 	document.addEventListener('keydown', (e) => {
@@ -734,189 +395,21 @@
 		}
 	});
 
-	// This is a function that can clamp two numbers within a range.
-	// For some reason, it doesn't seem to exist in Vanilla JS? so we must write one ourselves:
-	const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
-
 	// FILESYSTEM CONSTANTS
 	// These mark locations in the local file system that store the map and current weapon
 	const modelURL = 'savedata';
-	const weaponURL = 'weapons/' + 'smg/smg';
+	const weaponURL = '../weapons/' + 'smg/smg';
+	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
 	const interactableObjects = [];
 	// This stores any JSON data that is loaded from the file system, on the main thread.
 	// Since only one thread can access the file system at a time, it is convenient to store the data here.
 	// TODO - this explanation sucks. just pass it between functions. too many globals.
-
-	// WEAPON DATA
-	// These objects store data on the currently selected weapon, globally.
-	// They are global so we can access them from anywhere in the script, if necessary.
-	var weaponRange = 500,
-		weaponPosition,
-		weaponRotation,
-		weaponRealWorldScaleMultiplier,
-		weaponPlacementOffset,
-		weaponHelpText,
-		weaponType,
-		adsPosition,
-		adsRotation,
-		weaponDamage,
-		weaponFollowSpeed,
-		fireRate, // time in ms in between attacks()
-		destroyedChunkRange, // max distance for voxel destruction from intersection
-		percentMissedHits // minimum % that must be destroyed
 
 	const instancedWorldSafetyOffset = new THREE.Vector3(-10000, -10000, -10000); // to account for memory issues when rendering the dead point ... i know it's messy, but it is the most widely compatible solution. sue me.
 
 	// This stores every individual displaced voxel that is currently being simulated.
 	// TODO: Add gc to this, dead voxels still exist in the array. This will lead to memory problems in big maps.
 	let destroyedVoxels = [];
-
-	// This represents a cubic volume where every position with a voxel is labeled as 1, and every position ignoring a voxel is 0.
-	// The volume is infinite and stores 1s and 0s in a 3D array, along with other relevant information for voxel transformations.
-	class blockData {
-		value
-		position
-		chunk
-		indexInChunk
-		face
-
-		constructor(value, position, chunk, indexInChunk, face) {
-			this.value = value;
-			this.position = position;
-			this.chunk = chunk;
-			this.indexInChunk = indexInChunk;
-			this.face = face;
-		}
-	}
-	class DiscreteVectorField {
-		constructor() {
-			this.field = [];
-			this.indexInChunkes = {};
-		}
-
-		setChunkMinIndex(chunkName, index) {
-			if (!this.indexInChunkes[chunkName]) {
-				this.indexInChunkes[chunkName] = {
-					minIndex: 0,
-					maxIndex: 0
-				};
-			}
-			this.indexInChunkes[chunkName].minIndex = index;
-		}
-
-		setChunkMaxIndex(chunkName, index) {
-			if (!this.indexInChunkes[chunkName]) {
-				this.indexInChunkes[chunkName] = {
-					minIndex: 0,
-					maxIndex: 0
-				};
-			}
-			this.indexInChunkes[chunkName].maxIndex = index;
-		}
-
-		getChunkMinIndex(chunkName) {
-			return this.indexInChunkes[chunkName].minIndex || 0;
-		}
-
-		getChunkMaxIndex(chunkName) {
-			return this.indexInChunkes[chunkName].maxIndex || 0;
-		}
-
-		// Sets the value of the vector field at the given position
-		set(x, y, z, value, indexInChunk, chunk, face = null) {
-			x = Math.round(x);
-			y = Math.round(y);
-			z = Math.round(z);
-			if (!this.field[x]) {
-				this.field[x] = [];
-			}
-			if (!this.field[x][y]) {
-				this.field[x][y] = [];
-			}
-			if (!this.field[x][y][z]) {
-				this.field[x][y][z] = []
-			}
-			this.field[x][y][z] = new blockData(
-				value,
-				new THREE.Vector3(x, y, z),
-				chunk,
-				indexInChunk,
-				face
-			);
-			if (value == 0) {
-				// for holeBorder processing
-				chunk.deadVoxels.push([x, y, z]);
-				if (chunk.material.emissiveIntensity > 0) chunk.material.emissiveIntensity = 0;
-			}
-		}
-
-		// Retrieves the value of the vector field at the given position
-		// 0 if none
-		get(x, y, z) {
-			if (this.field[x] && this.field[x][y] && this.field[x][y][z]) {
-				return this.field[x][y][z];
-			}
-			return null;
-		}
-
-		// Shoots a "ray" with direction, origin, and length
-		// Returns the first position where the ray intersects a voxel
-		// Origin: Starting Position
-		// Direction: Normalized Vector (ex. [0, 1, 0] is up from the origin)
-		// Length: The maximum number of steps to take. If the ray does not intersect a voxel, return null
-		raycast(origin, direction, length) {
-			let x = Math.round(origin.x);
-			let y = Math.round(origin.y);
-			let z = Math.round(origin.z);
-
-			const sqrMagnitude = Math.sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
-
-			direction.x /= sqrMagnitude;
-			direction.y /= sqrMagnitude;
-			direction.z /= sqrMagnitude;
-			for (let i = 0; i < length; i++) {
-				const stepVoxel = this.get(Math.floor(x), Math.floor(y), Math.floor(z));
-				if (stepVoxel != null && stepVoxel.value == 1) {
-					return {
-						x: Math.floor(x),
-						y: Math.floor(y),
-						z: Math.floor(z),
-						index: stepVoxel.indexInChunk,
-						chunk: stepVoxel.chunk
-					};
-				}
-				x += direction.x;
-				y += direction.y;
-				z += direction.z;
-			}
-			return null; // TODO: js hates nulls, switch to 0 or change get() to return null as well
-		}
-
-		// pretty useless implementation
-		// TODO: make this useful???
-		toString() {
-			let str = '';
-			for (let x in this.field) {
-				for (let y in this.field[x]) {
-					for (let z in this.field[x][y]) {
-						if (this.field[x][y][z].value === 1) {
-							str += '1';
-						} else {
-							str += '0';
-						}
-					}
-					str += ' ';
-				}
-			}
-			return str;
-		}
-	}
-	// This initializes the voxelField used for physics calculations
-	// This engine uses a two-fold representation of voxel data.
-	// One is stored in main memory (RAM), and the other is stored in GPU memory (vRAM)
-	// the GPU memory is used to render and display millions of voxels in as few draw calls as possible (the higher squareChunkSize, the fewer)
-	// the CPU memory is used to store the positions of these voxels, and use them for physics (such as raycasting, explosions, etc)
-	const voxelField = new DiscreteVectorField();
 
 	// This starts building the map, loaded from modelURL (at the top of the file)
 	// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
@@ -925,25 +418,10 @@
 	//  ^ this is very unncessary but could be useful for features like streaming
 	const crouchDepth = 15;
 	const crouchSpeed = 7.5;
-	let playerHeight = 60;
-	const crouchYPosition = playerHeight - crouchDepth;
-
-	// CUTAWAYS: These allow map builders to make "cuts" in the map, using either cuboids or spheres
-	// They act as a pre-filter for the world builder, masking out sections voxels should NOT be placed at
-	const cutawayField = new DiscreteVectorField();
-	const addToCutawayStack = function (scale, position) {
-		console.log("Added a cutaway at " + position.x + ", " + position.y + ", " + position.z + " with scale " + scale);
-		for (let x = position.x - (scale.x / 2); x < position.x + (scale.x / 2); x++) {
-			for (let y = position.y - (scale.y / 2); y < position.y + (scale.y / 2); y++) {
-				for (let z = position.z - (scale.z / 2); z < position.z + (scale.z / 2); z++) {
-					cutawayField.set(x, y, z, 1);
-				}
-			}
-		}
-	}
+	const crouchYPosition = LEVELHANDLER.playerHeight - crouchDepth;
 
 	let groundSize;
-	let engineDoneLoadingWorld = false;
+	let itemsBuiltSoFar = 0, itemsToBuild = 0;
 	const generateWorld = function (modelURL) {
 
 		// send IPC message 'list-maps' and wait for response (sends eventResponse)
@@ -966,8 +444,8 @@
 					position: JSON.parse(arg.metaData).cameraData.cameraPosition,
 					rotation: JSON.parse(arg.metaData).cameraData.cameraRotation
 				};
-				camera.position.set(mapCameraData.position.x, playerHeight, mapCameraData.position.z);
-				camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
+				LEVELHANDLER.camera.position.set(mapCameraData.position.x, LEVELHANDLER.playerHeight, mapCameraData.position.z);
+				LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
 
 				const groundData = JSON.parse(arg.metaData).groundData;
 				const groundColor = new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b);
@@ -986,13 +464,29 @@
 
 				const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
 				const mapLights = JSON.parse(arg.metaData).lightData;
+				const mod = 1; // scale modifier
+
+				// Filter 0: Count Boxes
+				mapObjects.forEach(mapObject => {
+					if (mapObject.type == "box" && mapObject.isCutaway != true && mapObject.isEnemyNPC != true) {
+						itemsToBuild++;
+					}
+				});
+				if (itemsToBuild == 0) removeLoader();
 
 				// Filter 1: Cutaways
 				// These must be processed BEFORE boxes, but by nature can exist in save files in random order
 				mapObjects.forEach(mapObject => {
 					if (mapObject.type == "box" && mapObject.isCutaway == true) {
-						addToCutawayStack(mapObject.size, mapObject.position);
-						mapObjects.splice(mapObjects.indexOf(mapObject), 1);
+						const cutawaySize = mapObject.size;
+						cutawaySize.x /= mod;
+						cutawaySize.y /= mod;
+						cutawaySize.z /= mod;
+						const cutawayPosition = mapObject.position;
+						cutawayPosition.x /= mod;
+						cutawayPosition.y /= mod;
+						cutawayPosition.z /= mod;
+						addToCutawayStack(cutawaySize, cutawayPosition);
 					}
 				});
 
@@ -1001,7 +495,8 @@
 				mapObjects.forEach(mapObject => {
 					if (mapObject.type == "box") {
 
-						const mod = 1;
+						if (mapObject.isCutaway && mapObject.isCutaway == true) return;
+
 						const scale = mapObject.size;
 						scale.x /= mod;
 						scale.y /= mod;
@@ -1010,9 +505,6 @@
 						position.x /= mod;
 						position.y /= mod;
 						position.z /= mod;
-						position.x = (position.x);
-						position.y = (position.y);
-						position.z = (position.z);
 						const color = mapObject.color;
 
 						// shift position (to center it)
@@ -1026,15 +518,15 @@
 							// create a point light at this position with mapObject.lightBrightness
 							light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
 							light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
-							light.decay = 1.1;
-							scene.add(light);
+							light.decay = 0.7;
+							LEVELHANDLER.scene.add(light);
 						}
 
 						// Enemy NPCs
 						if (mapObject.isEnemyNPC && mapObject.isEnemyNPC == true) {
 							const thisNPC = new NPC(
 								'swat',
-								'character_models/swat_idle.png',
+								'../character_models/swat_idle.png',
 								new THREE.Vector3(position.x, position.y, position.z),
 								new THREE.Vector3(
 									0,
@@ -1042,21 +534,31 @@
 									0
 								),
 								100 + Math.random() * 100,
-								100);
+								25,
+								LEVELHANDLER,
+								voxelField,
+								WEAPONHANDLER,
+								new Howl({
+									src: ['../sfx/kill_ding.wav'],
+									volume: USERSETTINGS.SFXVolume * 7.5
+								})
+							);
 							return;
 						}
 						
 						buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.lightBrightness, mapObject.interactionEvent, light);
 					}
 				});
-				// get rid of the pump cover
-				engineDoneLoadingWorld = true;
-				document.querySelector("#loader-bg").style.animation = "fade-out 0.25s ease";
-				setTimeout(() => { document.querySelector("#loader-bg").remove() }, 250);
-				loaderRemoved = true;
 			});
 		});
 	}
+
+	const removeLoader = function() {
+		const loader = document.querySelector("#loader-bg");
+		loader.style.animation = "fade-out 1s ease";
+		setTimeout(() => { loader.parentNode.removeChild(loader) }, 1000);
+	}
+
 	// VOXEL OBJECT DATA
 	let voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
 	const voxelMaterial = new THREE.MeshLambertMaterial({
@@ -1067,7 +569,7 @@
 	// PARTICLE SETUP
 	// ##########
 	const particleHandler = new ParticleMesh(voxelGeometry, voxelMaterial, USERSETTINGS.particleQualityMode * 100);
-	scene.add(particleHandler);
+	LEVELHANDLER.scene.add(particleHandler);
 	particleHandler.frustumCulled = false;
 
 	// Maximum size for chunking
@@ -1095,7 +597,7 @@
 			interactionBox.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2), position.z + (scale.z / 2));
 			interactionBox.scale.set(scale.x, scale.y, scale.z);
 			interactionBox.visible = USERSETTINGS.blockoutMode;
-			scene.add(interactionBox);
+			LEVELHANDLER.scene.add(interactionBox);
 
 			interactionBox.interactionEvent = interactionEvent;
 
@@ -1103,7 +605,7 @@
 		}
 		if (USERSETTINGS.blockoutMode) return;
 
-		const texturePath = 'textures/' + material + '.png';
+		const texturePath = '../textures/' + material + '.png';
 		const manager = new THREE.LoadingManager();
 		let pixelData;
 		manager.onLoad = function () {
@@ -1138,14 +640,20 @@
 			}
 			resetChunkBounds();
 
+			// color of tha box (both instance and cover)
+			const boxColor = new THREE.Color(colorData.r, colorData.g, colorData.b);
+
 			let instancedWorldModel, localVoxelIterator;
 			const resetInstancedWorldModel = function () {
 				// Setup the model ...
 				instancedWorldModel = new VoxelChunk(
 					voxelGeometry,
 					voxelMaterial.clone(),
-					squareChunkSize * squareChunkSize
+					squareChunkSize * squareChunkSize,
+					LEVELHANDLER
 				);
+				instancedWorldModel.material.emissive = boxColor;
+				instancedWorldModel.material.emissiveIntensity = lightBrightness;
 				instancedWorldModel.visible = false;
 				instancedWorldModel.position.copy(instancedWorldSafetyOffset);
 				instancedWorldModel.name = chunkCounter.toString();
@@ -1159,8 +667,6 @@
 			resetInstancedWorldModel();
 
 			const finalizeChunk = function (voxelFace, isAbnormal = false) {
-				// color of coverbox
-				const boxColor = new THREE.Color(colorData.r, colorData.g, colorData.b);
 
 				// // For Frustum Culling...
 				instancedWorldModel.frustumBox = new THREE.Box3();
@@ -1180,15 +686,11 @@
 				);
 
 				instancedWorldModel.instanceMatrix.needsUpdate = true;
-				scene.add(instancedWorldModel);
+				LEVELHANDLER.scene.add(instancedWorldModel);
 				instancedModelIndex.push(instancedWorldModel);
 
 				if (scale.x < squareChunkSize && scale.y < squareChunkSize && scale.z < squareChunkSize) {
 					// If the chunk is smaller than the maximum chunk size, we can just add it to the scene
-					// handle emissives
-					instancedWorldModel.material = voxelMaterial.clone();
-					instancedWorldModel.material.emissive = boxColor;
-					instancedWorldModel.material.emissiveIntensity = lightBrightness;
 					// push to registry & add to scene
 					instancedModelIndex.push(instancedWorldModel);
 					instancedWorldModel.visible = true;
@@ -1241,108 +743,116 @@
 				// 	coverBox.material.color = new THREE.Color(0xff00ff);
 				// }
 
-				let subBox; // switch cases require parent block scoped variables? guess i don kno much about js ... or coding ... or life
-				// whose idea to make this in js was it anyway??
-				switch (voxelFace) {
-					default:
-						console.error("Invalid VoxelFace: " + voxelFace);
-						return;
-					case VoxelFace.TOP:
-						coverBox.position.y += 0.5
-					case VoxelFace.BOTTOM:
-						if (voxelFace == VoxelFace.BOTTOM) coverBox.position.y -= 0.5;
-						coverBox.scale.set(
-							instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
-							instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1
-						);
-						coverBox.material.map.repeat.multiply(
-							new THREE.Vector2(
-								(coverBox.scale.x / (squareChunkSize)),
-								(coverBox.scale.y / (squareChunkSize))
-							)
-						);
-						if (coverBox.scale.y < squareChunkSize) {
-							// CENTERS:
-							// default (0,0) bottom left
-							coverBox.material.map.center.set(1, 1);
-						}
-						if (coverBox.scale.x < squareChunkSize) {
-							// CENTERS:
-							// default (0,0) bottom left
-							coverBox.material.map.center.set(0, 1);
-						}
-
-						coverBox.rotation.x = -Math.PI / 2;
-
-						instancedWorldModel.addCoverBox(coverBox);
-						scene.add(coverBox);
-						break;
-					case VoxelFace.LEFT:
-						coverBox.position.x -= 0.5 - 0.01;
-					case VoxelFace.RIGHT:
-						if (voxelFace == VoxelFace.RIGHT) coverBox.position.x += 0.5 + 0.01;
-						// coverBox.position.y += 1;
-						coverBox.scale.set(
-							instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1,
-							instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
-						);
-						coverBox.material.map.repeat.multiply(
-							new THREE.Vector2(
-								(coverBox.scale.y / (squareChunkSize)),
-								-(coverBox.scale.x / (squareChunkSize))
-							)
-						);
-						if (coverBox.scale.x < squareChunkSize) {
-							// CENTERS:
-							// default (0,0) bottom left
-							coverBox.material.map.center.set(1, 1);
+				if (instancedWorldModel.useCoverBox != false)
+				{
+					let subBox; // switch cases require parent block scoped variables? guess i don kno much about js ... or coding ... or life
+					// whose idea to make this in js was it anyway??
+					switch (voxelFace) {
+						default:
+							console.error("Invalid VoxelFace: " + voxelFace);
+							return;
+						case VoxelFace.TOP:
+							coverBox.position.y += 0.5
+						case VoxelFace.BOTTOM:
+							if (voxelFace == VoxelFace.BOTTOM) coverBox.position.y -= 0.5;
+							coverBox.scale.set(
+								instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
+								instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1
+							);
+							coverBox.material.map.repeat.multiply(
+								new THREE.Vector2(
+									(coverBox.scale.x / (squareChunkSize)),
+									(coverBox.scale.y / (squareChunkSize))
+								)
+							);
 							if (coverBox.scale.y < squareChunkSize) {
 								// CENTERS:
 								// default (0,0) bottom left
-								coverBox.material.map.center.set(1, 0);
+								coverBox.material.map.center.set(1, 1);
 							}
-						}
-
-						coverBox.material.map.rotation = Math.PI / 2;
-						coverBox.rotation.y = Math.PI / 2;
-
-						instancedWorldModel.addCoverBox(coverBox);
-						scene.add(coverBox);
-						break;
-					case VoxelFace.FRONT:
-						coverBox.position.z -= 0.5 - 0.01;
-					case VoxelFace.BACK:
-						if (voxelFace == VoxelFace.BACK) coverBox.position.z += 0.5 + 0.01;
-						coverBox.scale.set(
-							instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
-							instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
-						);
-						coverBox.material.map.repeat.multiply(
-							new THREE.Vector2(
-								-(coverBox.scale.x / (squareChunkSize)),
-								-(coverBox.scale.y / (squareChunkSize))
-							)
-						);
-
-						if (coverBox.scale.x < squareChunkSize) {
-							// CENTERS:
-							// default (0,0) bottom left
-							coverBox.material.map.center.set(1, 1);
-							if (coverBox.scale.y < squareChunkSize) {
+							if (coverBox.scale.x < squareChunkSize) {
 								// CENTERS:
 								// default (0,0) bottom left
-								coverBox.material.map.center.set(1, 0);
+								coverBox.material.map.center.set(0, 1);
 							}
-						}
 
-						coverBox.rotation.y = Math.PI;
+							coverBox.rotation.x = -Math.PI / 2;
 
-						instancedWorldModel.addCoverBox(coverBox);
-						scene.add(coverBox);
-						break;
+							instancedWorldModel.addCoverBox(coverBox);
+							LEVELHANDLER.scene.add(coverBox);
+							break;
+						case VoxelFace.LEFT:
+							coverBox.position.x -= 0.5 - 0.01;
+						case VoxelFace.RIGHT:
+							if (voxelFace == VoxelFace.RIGHT) coverBox.position.x += 0.5 + 0.01;
+							// coverBox.position.y += 1;
+							coverBox.scale.set(
+								instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1,
+								instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
+							);
+							coverBox.material.map.repeat.multiply(
+								new THREE.Vector2(
+									(coverBox.scale.y / (squareChunkSize)),
+									-(coverBox.scale.x / (squareChunkSize))
+								)
+							);
+							if (coverBox.scale.x < squareChunkSize) {
+								// CENTERS:
+								// default (0,0) bottom left
+								coverBox.material.map.center.set(1, 1);
+								if (coverBox.scale.y < squareChunkSize) {
+									// CENTERS:
+									// default (0,0) bottom left
+									coverBox.material.map.center.set(1, 0);
+								}
+							}
+
+							coverBox.material.map.rotation = Math.PI / 2;
+							coverBox.rotation.y = Math.PI / 2;
+
+							instancedWorldModel.addCoverBox(coverBox);
+							LEVELHANDLER.scene.add(coverBox);
+							break;
+						case VoxelFace.FRONT:
+							coverBox.position.z -= 0.5 - 0.01;
+						case VoxelFace.BACK:
+							if (voxelFace == VoxelFace.BACK) coverBox.position.z += 0.5 + 0.01;
+							coverBox.scale.set(
+								instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
+								instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
+							);
+							coverBox.material.map.repeat.multiply(
+								new THREE.Vector2(
+									-(coverBox.scale.x / (squareChunkSize)),
+									-(coverBox.scale.y / (squareChunkSize))
+								)
+							);
+
+							if (coverBox.scale.x < squareChunkSize) {
+								// CENTERS:
+								// default (0,0) bottom left
+								coverBox.material.map.center.set(1, 1);
+								if (coverBox.scale.y < squareChunkSize) {
+									// CENTERS:
+									// default (0,0) bottom left
+									coverBox.material.map.center.set(1, 0);
+								}
+							}
+
+							coverBox.rotation.y = Math.PI;
+
+							instancedWorldModel.addCoverBox(coverBox);
+							LEVELHANDLER.scene.add(coverBox);
+							break;
+					}
+					// coverBox.visible = false;
+					LEVELHANDLER.numCoverBoxes++;
 				}
-				// coverBox.visible = false;
-				LEVELDATA.numCoverBoxes++;
+				else
+				{
+					instancedWorldModel.isCovered = false;
+					instancedWorldModel.visible = true;
+				}
 
 				// Reset Everything!!
 				resetChunkBounds();
@@ -1353,7 +863,11 @@
 			const setVoxel = function (voxelPosition, voxelFace, voxelColor) {
 				// set voxelColor based on the voxelFace
 				// first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
-				if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) return;
+				voxelPosition = voxelPosition.round();
+				if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) {
+					instancedWorldModel.useCoverBox = false;
+					return
+				}
 				const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
 				chunkMinPosition.min(voxelPosition);
 				chunkMaxPosition.max(voxelPosition);
@@ -1372,7 +886,7 @@
 				instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
 				localVoxelIterator++;
 				// check if we need to create a new chunk
-				LEVELDATA.numVoxels++;
+				LEVELHANDLER.numVoxels++;
 			}
 
 			// Create the ROOF (top) of the box:
@@ -1543,6 +1057,11 @@
 				}
 			}
 
+			itemsBuiltSoFar++;
+			document.querySelector("#loader").textContent = Math.round((itemsBuiltSoFar/itemsToBuild)*100) + "%";
+			console.log(itemsBuiltSoFar, itemsToBuild)
+			if (itemsBuiltSoFar >= itemsToBuild) removeLoader();
+
 		};
 		const loader = new THREE.TextureLoader(manager);
 		const texture = loader.load(texturePath, (texture) => {
@@ -1557,79 +1076,6 @@
 
 	generateWorld(modelURL); // finally, we load and generate the model!
 
-	// TODO i realize i wrote most of this while high out of my mind but this function chain might be the worst piece of code i've ever written
-	// like there are two wholly unnecessary, single-use function calls here for the same exact thing?
-	// maybe in a networked game it may be necessary ... maybe it's not so dumb after all ...
-	// ill look into it later.
-
-	var weaponModel;
-
-	var weaponTarget; // target position for instancedWeapon (for lerping :P)
-
-	// This will add the player's weapon model to the scene
-	const generateWeaponModel = function (basePath) {
-		// First, load the weapon metadata from the .json file
-		let jsonLoader = new THREE.FileLoader();
-		jsonLoader.load(
-			basePath + '.json',
-			function (json) {
-				let jsonModel = JSON.parse(json);
-
-				// Once the metadata is loaded, we must load in the fbx model of the weapon and assign attributes
-				globalModelLoader.load(
-					basePath + '.fbx',
-					function (object) {
-						weaponModel = object;
-						// Load in the texture for the weapon
-						weaponModel.children[0].material.map = globalTextureLoader.load(basePath + '.png');
-						// Adjust the scale from standard magicavoxel scaling
-						weaponModel.scale.divideScalar(15);
-						weaponModel.name = jsonModel.weaponData.name;
-						weaponModel.children[0].renderOrder = 999;
-						weaponModel.children[0].material.depthTest = false;
-						weaponTarget = new THREE.Mesh(
-							new THREE.BoxGeometry(1, 1, 1),
-							new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-						);
-						weaponTarget.material.visible = false; // uncomment to position weapon better
-						camera.add(weaponTarget);
-						// json reads for weapon data
-						weaponType = jsonModel.weaponData.type;
-						adsPosition = jsonModel.weaponData.adsPosition;
-						adsRotation = jsonModel.weaponData.adsRotation;
-						percentMissedHits = jsonModel.weaponData.basepotency;
-						destroyedChunkRange = jsonModel.weaponData.damageRange;
-						fireRate = jsonModel.weaponData.fireRate;
-						weaponDamage = jsonModel.weaponData.weaponDamage;
-						weaponFollowSpeed = jsonModel.weaponData.followSpeed;
-						weaponHelpText = jsonModel.weaponData.helpText;
-						// finally, add the weapon to the scene
-						scene.add(weaponModel);
-						weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
-						if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
-						weaponRange = jsonModel.weaponData.minimumDistance;
-						if (jsonModel.weaponData.realWorldScaleMultiplier != undefined) weaponRealWorldScaleMultiplier = jsonModel.weaponData.realWorldScaleMultiplier;
-						weaponTarget.position.copy(weaponPosition);
-
-						// add a clone of the weaponModel as a child of itself, shifted to the left by 5 units
-						// const weaponModelClone = weaponModel.clone();
-						// weaponModelClone.scale.multiplyScalar(15);
-						// weaponModelClone.position.z -= 865;
-						// weaponModel.add(weaponModelClone);
-
-						weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
-						weaponTarget.rotation.copy(weaponRotation);
-						if (weaponHelpText) setHelpText(weaponHelpText);
-					},
-					function (err) {
-						// console.log(err);
-					}
-				);
-			});
-	}
-
-	generateWeaponModel(weaponURL); // same as map, but for the weapon!
-
 	const triVoxelDroppedPieces = [];
 	const createTrivoxelAt = function (x, y, z, color) {
 		return;
@@ -1641,7 +1087,7 @@
 		// for some reason i named the destroyed pieces of a mesh 'trivoxels', prolly cuz they were originally triangular prisms.
 		// that has changed since, but the name still slaps.
 		triVoxel.name = "TRIVOXEL-" + Math.random();
-		scene.add(triVoxel);
+		LEVELHANDLER.scene.add(triVoxel);
 		x = parseInt(x);
 		y = parseInt(y);
 		z = parseInt(z);
@@ -1668,27 +1114,27 @@
 
 	const dropSounds = [
 		new Howl({
-			src: ['sfx/lego_drop.wav'],
-			volume: SFXVolume
+			src: ['../sfx/lego_drop.wav'],
+			volume: USERSETTINGS.SFXVolume
 		}),
 		new Howl({
-			src: ['sfx/lego_drop_2.wav'],
-			volume: SFXVolume * 3
+			src: ['../sfx/lego_drop_2.wav'],
+			volume: USERSETTINGS.SFXVolume * 3
 		}),
 		new Howl({
-			src: ['sfx/lego_drop_3.wav'],
-			volume: SFXVolume
+			src: ['../sfx/lego_drop_3.wav'],
+			volume: USERSETTINGS.SFXVolume
 		}),
 		new Howl({
-			src: ['sfx/lego_drop_4.wav'],
-			volume: SFXVolume
+			src: ['../sfx/lego_drop_4.wav'],
+			volume: USERSETTINGS.SFXVolume
 		})
 	]
 
 	const bigDropSounds = [
 		new Howl({
-			src: ['sfx/big_drop.wav'],
-			volume: SFXVolume * 7.5
+			src: ['../sfx/big_drop.wav'],
+			volume: USERSETTINGS.SFXVolume * 7.5
 		})
 	]
 
@@ -1709,12 +1155,12 @@
 					const voxelColor = new THREE.Color();
 					thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
 					const cameraDirection = new THREE.Vector3();
-					camera.getWorldDirection(cameraDirection);
+					LEVELHANDLER.camera.getWorldDirection(cameraDirection);
 					// // add some randomness to the direction (x and z only)
 					cameraDirection.x += (Math.random() - 0.5) / 2;
 					cameraDirection.z += (Math.random() - 0.5) / 2;
 					cameraDirection.y = -1/10;
-					new Particle(particleHandler, thisVoxel.position, cameraDirection.negate(), voxelColor, 50);
+					new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2), voxelColor, 50);
 				}
 			}
 		}
@@ -1741,29 +1187,18 @@
 	
 	*/
 
-	const elasticLerp = function (a, b, t) {
-		t = Math.min(Math.max(t, 0), 0.25);
-		t = (Math.sin(t * Math.PI * (0.2 + 2.5 * t * t * t)) * Math.pow(1 - t, 0.2) + t) * (1 + (0.1 * (1 - t)));
-		return a + (b - a) * t;
-	}
-
-
-	// ### RENDER LOOP ###
-	// this renders things. separate from the physics loop.
 	const clock = new THREE.Clock();
-	var defaultInstancedWeaponTargetPosition;
 	var crouchLerp = 0;
-	var loaderRemoved = false;
 	const raycaster = new THREE.Raycaster();
 
 	const hitSound = new Howl({
-		src: ['sfx/hit_ding.wav'],
-		volume: SFXVolume
+		src: ['../sfx/hit_ding.wav'],
+		volume: USERSETTINGS.SFXVolume
 	})
 
 	const shootSound = new Howl({
-		src: ['sfx/shoot.wav'],
-		volume: SFXVolume * 3
+		src: ['../sfx/shoot.wav'],
+		volume: USERSETTINGS.SFXVolume * 3
 	});
 
 	const moveTowards = function (vectorA, vectorB, step) {
@@ -1777,190 +1212,255 @@
 	const shootLine = function (vec) {
 		const newLine = new THREE.LineSegments(
 			new THREE.BufferGeometry().setFromPoints([
-				camera.position,
+				LEVELHANDLER.camera.position,
 				vec
 			]),
 			new THREE.LineBasicMaterial({
 				color: 0xcccccc
 			})
 		);
-		scene.add(newLine);
+		LEVELHANDLER.scene.add(newLine);
 	}
 
+	const throwWeapon = function() {
+		console.log("Throwing Weapon...")
+		WEAPONHANDLER.weaponModel.children[0].visible = false;
+	}
+
+
+	const playerMotion = {
+		xAxis: 0,
+		zAxis: 0,
+		acceleration: 0.25,
+		maxSpeed: 0.015,
+		stepSize: 125,
+		isCrouching: false
+	}
 	let timeModifier = 1.0;
 	let frameCounter = 0;
+	// ### RENDER LOOP ###
 	const render = function () {
 		// Frame Calculations
 		frameCounter++;
 		frameCounter = frameCounter % 60;
 		const delta = clock.getDelta() * timeModifier;
+		// Debug Visualizer
 		document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
-		document.querySelector("#DRAWCALLSViz").textContent = renderer.info.render.calls + " calls";
-		let numVoxels = LEVELDATA.numVoxels;
-		// add commas to the number
+		document.querySelector("#DRAWCALLSViz").textContent = LEVELHANDLER.renderer.info.render.calls + " calls";
+		let numVoxels = LEVELHANDLER.numVoxels;
 		numVoxels = numVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 		document.querySelector("#NUMVOXELSViz").textContent = numVoxels + " voxels";
-		document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELDATA.numCoverBoxes + " covers";
-		document.querySelector("#XViz").textContent = "X:" + Math.round(camera.position.x);
-		document.querySelector("#YViz").textContent = "Y:" + Math.round(camera.position.y);
-		document.querySelector("#ZViz").textContent = "Z:" + Math.round(camera.position.z);
-		// frameInfo.frameTime = delta;
-		// Update NPC Motion
-		NPCBank.forEach(npc => {
+		document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELHANDLER.numCoverBoxes + " covers";
+		document.querySelector("#XViz").textContent = "X:" + Math.round(LEVELHANDLER.camera.position.x);
+		document.querySelector("#YViz").textContent = "Y:" + Math.round(LEVELHANDLER.camera.position.y);
+		document.querySelector("#ZViz").textContent = "Z:" + Math.round(LEVELHANDLER.camera.position.z);
+		// Update Level NPC's
+		LEVELHANDLER.NPCBank.forEach(npc => {
 			npc.update(delta);
 		});
-		// Particles
+		// Update Level Particles
 		particleHandler.update(delta);
-		// Player Motion
-		worldSphere.position.copy(camera.position);
+		// Update Skybox Attributes
+		worldSphere.position.copy(LEVELHANDLER.camera.position);
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
+		// Player Movement Handling
 		if (controls.isLocked == true)
 		{
-			isCrouching = isKeyPressed["control"];
+			// Crouching
+			playerMotion.isCrouching = isKeyPressed["control"];
+
+			// Drugs
 			if (isCapsLockPressed) {
+				LEVELHANDLER.renderer.domElement.classList.add("on-drugs");
 				timeModifier = 0.25;
 
-				bloomPass.threshold = lerp(bloomPass.threshold, 0, delta * 15);
-				bloomPass.radius = lerp(bloomPass.radius, 5, delta * 15);
+				bloomPass.threshold = lerp(bloomPass.threshold, 0.15, delta * 15);
+				bloomPass.radius = lerp(bloomPass.radius, 3.5, delta * 15);
 			} else {
+				LEVELHANDLER.renderer.domElement.classList.remove("on-drugs");
 				timeModifier = 1;
 
-				bloomPass.threshold = lerp(bloomPass.threshold, 0.45, delta * 0.25);
-				bloomPass.radius = lerp(bloomPass.radius, 0, delta * 0.25);
+				bloomPass.threshold = lerp(bloomPass.threshold, 0.45, delta * 1.5);
+				bloomPass.radius = lerp(bloomPass.radius, 0, delta * 1.5);
 			}
 
-			if (isKeyPressed["r"]) {
-				camera.position.set(0,60,0);
-				camera.rotation.copy(new THREE.Euler(0,0,0));
-				weaponModel.position.copy(weaponTarget.position);
-			}
+			// Global RESET Key
+			if (isKeyPressed["r"]) resetGameState(LEVELHANDLER, WEAPONHANDLER);
+			
+			// WASD
+			if (isKeyPressed["w"]) playerMotion.zAxis -= playerMotion.acceleration * delta;
+			if (isKeyPressed["s"]) playerMotion.zAxis += playerMotion.acceleration * delta;
+			if ((!isKeyPressed["w"] && !isKeyPressed["s"]) || isKeyPressed["w"] && isKeyPressed["s"]) playerMotion.zAxis = lerp(playerMotion.zAxis, 0, delta * 10);
 
-			let zAxis = 0;
-			if (isKeyPressed["s"]) zAxis += 1 * delta;
-			if (isKeyPressed["w"]) zAxis -= 1 * delta;
-			zAxis = clamp(zAxis, -1, 1);
-			let xAxis = 0;
-			if (isKeyPressed["d"]) xAxis += 1 * delta;
-			if (isKeyPressed["a"]) xAxis -= 1 * delta;
-			xAxis = clamp(xAxis, -0.1, 0.1);
+			if (isKeyPressed["a"]) playerMotion.xAxis -= playerMotion.acceleration * delta;
+			if (isKeyPressed["d"]) playerMotion.xAxis += playerMotion.acceleration * delta;
+			if ((!isKeyPressed["a"] && !isKeyPressed["d"]) || isKeyPressed["a"] && isKeyPressed["d"]) playerMotion.xAxis = lerp(playerMotion.xAxis, 0, delta * 10);
+
+			// Keep within safe range
+			playerMotion.zAxis = clamp(playerMotion.zAxis, -playerMotion.maxSpeed, playerMotion.maxSpeed);
+			playerMotion.xAxis = clamp(playerMotion.xAxis, -playerMotion.maxSpeed, playerMotion.maxSpeed);
+
+			// Sprinting
 			let sprinting = isKeyPressed["shift"] ? 2 : 1;
-			controls.moveRight(playerMoveSpeed * xAxis * sprinting);
-			controls.moveForward(-playerMoveSpeed * zAxis * sprinting);
-			if (isCrouching) {
-				camera.position.y = lerp(playerHeight, crouchYPosition, crouchLerp);
+			// FORWARDS COLLISION CHECKS
+			const collisionRadius = 15;
+			const footPosition = new THREE.Vector3(LEVELHANDLER.camera.position.x, LEVELHANDLER.camera.position.y - LEVELHANDLER.playerHeight + 5, LEVELHANDLER.camera.position.z);
+			if (playerMotion.zAxis < 0) {
+				const camForwardDirection = new THREE.Vector3();
+				LEVELHANDLER.camera.getWorldDirection(camForwardDirection);
+				camForwardDirection.y = 0;
+				if (voxelField.raycast(footPosition, camForwardDirection, collisionRadius) != null) playerMotion.zAxis = 0;
+			}
+			// REAR COLLISION CHECKS
+			if (playerMotion.zAxis > 0) {
+				const camBackwardDirection = new THREE.Vector3();
+				LEVELHANDLER.camera.getWorldDirection(camBackwardDirection);
+				camBackwardDirection.negate();
+				camBackwardDirection.y = 0;
+				if (voxelField.raycast(footPosition, camBackwardDirection, collisionRadius) != null) playerMotion.zAxis = 0;
+			}
+			// LEFT COLLISION CHECKS
+			if (playerMotion.xAxis < 0) {
+				const camLeftDirection = new THREE.Vector3();
+				LEVELHANDLER.camera.getWorldDirection(camLeftDirection);
+				camLeftDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+				camLeftDirection.y = 0;
+				if (voxelField.raycast(footPosition, camLeftDirection, collisionRadius) != null) playerMotion.xAxis = 0;
+			}
+			// RIGHT COLLISION CHECKS
+			if (playerMotion.xAxis > 0) {
+				const camRightDirection = new THREE.Vector3();
+				LEVELHANDLER.camera.getWorldDirection(camRightDirection);
+				camRightDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+				camRightDirection.negate();
+				camRightDirection.y = 0;
+				if (voxelField.raycast(footPosition, camRightDirection, collisionRadius) != null) playerMotion.xAxis = 0;
+			}
+			// Movement
+			controls.moveRight(playerMotion.stepSize * playerMotion.xAxis * sprinting);
+			controls.moveForward(-playerMotion.stepSize * playerMotion.zAxis * sprinting);
+			// Crouching
+			if (playerMotion.isCrouching) {
+				LEVELHANDLER.camera.position.y = lerp(LEVELHANDLER.playerHeight, crouchYPosition, crouchLerp);
 				crouchLerp += crouchSpeed * delta;
 				if (crouchLerp > 1) crouchLerp = 1;
 			}
 			else {
-				var headPosition = playerHeight
-				if (zAxis != 0 || xAxis != 0) {
+				var headPosition = LEVELHANDLER.playerHeight
+				if (playerMotion.zAxis == 1 || playerMotion.xAxis == 1) {
 					const freq = 75;
 					const strength = 2.5;
-					headPosition = playerHeight + (Math.sin(Date.now() / freq) * strength);
+					headPosition = LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
 				}
-				camera.position.y = lerp(camera.position.y, headPosition, delta * 10);
+				LEVELHANDLER.camera.position.y = lerp(LEVELHANDLER.camera.position.y, headPosition, delta * 10);
 				crouchLerp -= crouchSpeed * delta;
 				if (crouchLerp < 0) crouchLerp = 0;
 			}
-			if (weaponModel && weaponTarget && delta > 0) {
-				if (!defaultInstancedWeaponTargetPosition) defaultInstancedWeaponTargetPosition = weaponTarget.position.clone();
-
+			if (WEAPONHANDLER.weaponModel && WEAPONHANDLER.weaponTarget && delta > 0) {
 				// SIN the weapon's position
 				const bounceRange = new THREE.Vector3(100, 100, 0);
 				let speed = new THREE.Vector3(0.01, 0.02, 0.01);
 				if (isCapsLockPressed) speed.multiplyScalar(0.5)
 				let isMoving = false;
-				if ((xAxis != 0 || zAxis != 0) && controls.isLocked == true) isMoving = true;
+				if ((playerMotion.xAxis == 1 || playerMotion.zAxis == 1) && controls.isLocked == true) isMoving = true;
 
-				weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / timeModifier;
-				weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / timeModifier;
-
+				WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / timeModifier;
+				WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / timeModifier;
+			
 				// LERP the weapon's position
 				const instancedWeaponTargetWorldPosition = new THREE.Vector3();
-				weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-				weaponModel.position.copy(moveTowards(weaponModel.position, instancedWeaponTargetWorldPosition, delta * weaponFollowSpeed * 1 / timeModifier));
+				WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
+				WEAPONHANDLER.weaponModel.position.copy(moveTowards(WEAPONHANDLER.weaponModel.position, instancedWeaponTargetWorldPosition, delta * WEAPONHANDLER.weaponFollowSpeed * 1 / timeModifier));
 
 				// always realign the rotation of the weapon to the target
-				weaponModel.rotation.setFromRotationMatrix(weaponTarget.matrixWorld);
+				WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(WEAPONHANDLER.weaponTarget.matrixWorld);
 			}
 		}
 
-		targetFOV = defaultFOV;
+		let targetFOV = USERSETTINGS.baseFOV;
 		if (isRightClicking) {
-			targetFOV = zoomFOV;
-			switch (weaponType) {
+			targetFOV = USERSETTINGS.baseFOV - 20;
+			switch (WEAPONHANDLER.weaponType) {
 				case undefined:
 					break;
 				default:
-					console.error("Illegal Weapon Type - \"" + weaponType + "\"");
+					console.error("Illegal Weapon Type - \"" + WEAPONHANDLER.weaponType + "\"");
 					break;
 				case "melee":
 				case "ranged":
-					weaponTarget.position.set(adsPosition.x, adsPosition.y, adsPosition.z);
-					weaponTarget.rotation.set(adsRotation.x, adsRotation.y, adsRotation.z);
+					WEAPONHANDLER.weaponTarget.position.set(WEAPONHANDLER.adsPosition.x, WEAPONHANDLER.adsPosition.y, WEAPONHANDLER.adsPosition.z);
+					WEAPONHANDLER.weaponTarget.rotation.set(WEAPONHANDLER.adsRotation.x, WEAPONHANDLER.adsRotation.y, WEAPONHANDLER.adsRotation.z);
 			}
 		}
 		else {
-			if (weaponTarget) weaponTarget.position.set(weaponPosition.x, weaponPosition.y, weaponPosition.z);
+			if (WEAPONHANDLER.weaponTarget) WEAPONHANDLER.weaponTarget.position.set(WEAPONHANDLER.weaponPosition.x, WEAPONHANDLER.weaponPosition.y, WEAPONHANDLER.weaponPosition.z);
 		}
-		camera.fov = lerp(camera.fov, targetFOV, 10 * delta);
-		if (Math.abs(camera.fov - targetFOV) > 1) camera.updateProjectionMatrix();
+		LEVELHANDLER.camera.fov = lerp(LEVELHANDLER.camera.fov, targetFOV, 10 * delta);
+		if (Math.abs(LEVELHANDLER.camera.fov - targetFOV) > 1) LEVELHANDLER.camera.updateProjectionMatrix();
 
 		if (isLeftClicking) {
-			switch (weaponType) {
+			switch (WEAPONHANDLER.weaponType) {
 				case undefined:
 					break;
 				default:
-					console.error("Illegal Weapon Type - \"" + weaponType + "\"");
+					console.error("Illegal Weapon Type - \"" + WEAPONHANDLER.weaponType + "\"");
 					break;
 				case "melee":
-					// move weaponModel position forward relative to player camera
-					if (isAttackAvailable) weaponModel.translateX(50);
+					// move weaponModel position forward relative to player LEVELDATA.camera
+					if (isAttackAvailable) WEAPONHANDLER.weaponModel.translateX(50);
 				case "ranged":
-					if (isAttackAvailable) {
-						if (!isRightClicking) {
-							const weaponShakeIntensity = 2.5;
-							weaponTarget.position.set(
-								weaponPosition.x + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-								weaponPosition.y + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-								weaponPosition.z + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-							);
-						}
-
-						// Play Sound
-						shootSound.rate(2 + Math.random());
-						shootSound.play();
-
-						// GOD i HATE javascript
-						// type annotations? NO.
-						// parameter delcarations? NO.
-						// return types? NO.
-						// why don't i just kill myself now?
-						shootRay();
-
-						raycaster.far = weaponRange;
-						raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-						const intersects = raycaster.intersectObjects(NPCBank.map(npc => npc.sceneObject.children[0]));
-
-						for (let i = 0; i < intersects.length; i++) {
-							const mainObj = intersects[i].object;
-							if (mainObj.npcHandler.health > 0) {
-								// Adjust Color
-								mainObj.material.color.r = 20 - (Math.random() * 5);
-								// Register Hit
-								mainObj.npcHandler.depleteHealth(weaponDamage);
+					if (WEAPONHANDLER.weaponRemainingAmmo > 0)
+					{
+						if (isAttackAvailable) {
+							WEAPONHANDLER.weaponRemainingAmmo--;
+							if (!isRightClicking) {
+								const weaponShakeIntensity = 2.5;
+								WEAPONHANDLER.weaponTarget.position.set(
+									WEAPONHANDLER.weaponPosition.x + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+									WEAPONHANDLER.weaponPosition.y + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+									WEAPONHANDLER.weaponPosition.z + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+								);
 							}
-							// Squelch!
-							hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
-							hitSound.play();
-							// create a shoot effect
-							// shootLine(intersects[i].point);
-						}
 
-						isAttackAvailable = false;
-						setTimeout(function () {
-							isAttackAvailable = true;
-						}, fireRate);
+							// Play Sound
+							shootSound.rate(2 + Math.random());
+							shootSound.play();
+
+							// GOD i HATE javascript
+							// type annotations? NO.
+							// parameter delcarations? NO.
+							// return types? NO.
+							// why don't i just kill myself now?
+							shootRay();
+
+							raycaster.far = WEAPONHANDLER.weaponRange;
+							raycaster.setFromCamera(new THREE.Vector2(0, 0), LEVELHANDLER.camera);
+							const intersects = raycaster.intersectObjects(LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+
+							for (let i = 0; i < intersects.length; i++) {
+								const mainObj = intersects[i].object;
+								if (mainObj.npcHandler.health > 0) {
+									// Adjust Color
+									mainObj.material.color.r = 20 - (Math.random() * 5);
+									// Register Hit
+									mainObj.npcHandler.depleteHealth(WEAPONHANDLER.weaponDamage);
+								}
+								// Squelch!
+								hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
+								hitSound.play();
+								// create a shoot effect
+								// shootLine(intersects[i].point);
+							}
+
+							isAttackAvailable = false;
+							setTimeout(function () {
+								isAttackAvailable = true;
+							}, WEAPONHANDLER.fireRate);
+						}
+					}
+					else
+					{
+						throwWeapon();
 					}
 					break;
 				case "explosive":
@@ -1971,21 +1471,25 @@
 						isAttackAvailable = false;
 						setTimeout(function () {
 							isAttackAvailable = true;
-						}, fireRate);
+						}, WEAPONHANDLER.fireRate);
 					}
 					break;
 			}
+		}
+
+		if (isKeyPressed["e"]) {
+			throwWeapon();
 		}
 
 // DEBUG PANEL (in console)
 if (isKeyPressed["p"]) {
 	console.log("\n+==============================+\n")
 	console.log("CAMERA POSITION");
-	console.log(camera.position);
+	console.log(LEVELHANDLER.camera.position);
 	console.log("draw calls #");
-	console.log(renderer.info.render.calls);
+	console.log(LEVELHANDLER.renderer.info.render.calls);
 	console.log("THREE SCENE");
-	console.log(scene);
+	console.log(LEVELHANDLER.scene);
 	console.log("instanced model index");
 	console.log(instancedModelIndex);
 	console.log("TRIVOXELS INDEX");
@@ -1993,7 +1497,7 @@ if (isKeyPressed["p"]) {
 	console.log("\n+==============================+\n")
 }
 if (isKeyPressed['f']) {
-	if (interactionText.innerHTML.includes("computer")) {
+	if (getInteractionText().innerHTML.includes("computer")) {
 		const popupWindow = document.querySelector("#popup-window");
 		if (popupWindow.style.display == "none")
 		{
@@ -2011,26 +1515,8 @@ if (isKeyPressed['f']) {
 		}
 	}
 }
-if (isKeyPressed['e']) playerHeight += 1;
-if (isKeyPressed['q']) playerHeight -= 1;
-if (isKeyPressed['n']) {
-
-	console.log("SPAWNING NPC")
-	const testDummy = new NPC(
-		'swat',
-		'character_models/swat_idle.png',
-		new THREE.Vector3(
-			camera.position.x,
-			0,
-			camera.position.z),
-		new THREE.Vector3(
-			0,
-			Math.random() * Math.PI * 2,
-			0),
-		100 + Math.random() * 100,
-		100
-	);
-}
+// if (isKeyPressed['e']) playerHeight += 1;
+// if (isKeyPressed['q']) playerHeight -= 1;
 if (isKeyPressed['t']) {
 	const vizbox = document.getElementById('vizbox');
 	if (vizbox.style.display == 'none') {
@@ -2041,62 +1527,21 @@ if (isKeyPressed['t']) {
 	dat.GUI.toggleHide();
 }
 
-
-// DEBUG KEYS to move weapon target around, see what looks best :)
-if (isKeyPressed['arrowleft']) {
-	weaponTarget.position.x -= 1;
-	console.log(weaponTarget.position);
-}
-if (isKeyPressed['arrowright']) {
-	weaponTarget.position.x += 1;
-	console.log(weaponTarget.position);
-}
-if (isKeyPressed['arrowup']) {
-	weaponTarget.position.y += 1;
-	console.log(weaponTarget.position);
-}
-if (isKeyPressed['arrowdown']) {
-	weaponTarget.position.y -= 1;
-	console.log(weaponTarget.position);
-}
-if (isKeyPressed['1']) {
-	weaponTarget.position.z -= 1;
-	console.log(weaponTarget.position);
-}
-if (isKeyPressed['2']) {
-	weaponTarget.position.z += 1;
-	console.log(weaponTarget.position);
-}
-if (isKeyPressed['3']) {
-	weaponTarget.rotation.z += Math.PI / 100;
-}
-if (isKeyPressed['4']) {
-	weaponTarget.rotation.z -= Math.PI / 100;
-	console.log(weaponTarget.rotation);
-}
-if (isKeyPressed['5']) {
-	weaponTarget.rotation.y += Math.PI / 100;
-}
-if (isKeyPressed['6']) {
-	weaponTarget.rotation.y -= Math.PI / 100;
-	console.log(weaponTarget.rotation);
-}
-
 		// Raycasting for interactables
 		if (frameCounter % 10 == 0) {
 			raycaster.far = 100;
-			raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+			raycaster.setFromCamera(new THREE.Vector2(0, 0), LEVELHANDLER.camera);
 			const intersects = raycaster.intersectObjects(interactableObjects);
 			if (intersects.length > 0) {
-				if (interactionText.innerHTML != intersects[0].object.interactionEvent) setInteractionText(intersects[0].object.interactionEvent);
+				if (getInteractionText().innerHTML != intersects[0].object.interactionEvent) setInteractionText(intersects[0].object.interactionEvent);
 			}
 			else {
-				if (interactionText.innerHTML != "") setInteractionText("");
+				if (getInteractionText().innerHTML != "") setInteractionText("");
 			}
 		}
 
 		var frustum = new THREE.Frustum();
-		frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+		frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(LEVELHANDLER.camera.projectionMatrix, LEVELHANDLER.camera.matrixWorldInverse));
 		instancedModelIndex.forEach(model => {
 			if (frustum.intersectsBox(model.frustumBox)) {
 				if (model.isCovered == false) {
@@ -2111,20 +1556,20 @@ if (isKeyPressed['6']) {
 		// frameInfo.drawCalls = renderer.info.render.calls;
 		requestAnimationFrame(render);
 
-		renderer.info.reset();
+		LEVELHANDLER.renderer.info.reset();
 		composer.render();
 	}
 
-	const createVizSphere = function (position) {
+	const createVizSphere = function (position, size=2) {
 		const sphere = new THREE.Mesh(
-			new THREE.SphereGeometry(2, 2, 2),
+			new THREE.SphereGeometry(size,2,2),
 			new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff * Math.random()), transparent: true, opacity: 0.5 })
 		);
 		sphere.position.copy(position);
-		scene.add(sphere);
+		LEVELHANDLER.scene.add(sphere);
 	}
 
-	const cubeSprite = globalTextureLoader.load("img/cubesprite.png");
+	const cubeSprite = LEVELHANDLER.globalTextureLoader.load("../img/cubesprite.png");
 	const conjunctionCheckTimesPerSecond = 1;
 	const recentlyEditedWorldModels = [];
 	const maxChunksInPhysicsCache = 15;
@@ -2269,13 +1714,13 @@ if (isKeyPressed['6']) {
 		// STEP 4: IF THE RAYCAST RETURNS A HIT, DESTROY THE VOXEL AT THAT POSITION
 		// CAMERA POSITION
 		const cameraPosition = new THREE.Vector3();
-		camera.getWorldPosition(cameraPosition);
+		LEVELHANDLER.camera.getWorldPosition(cameraPosition);
 		cameraPosition.x = Math.round(cameraPosition.x);
 		cameraPosition.y = Math.round(cameraPosition.y);
 		cameraPosition.z = Math.round(cameraPosition.z);
 		const cameraDirection = new THREE.Vector3();
-		camera.getWorldDirection(cameraDirection);
-		const intersection = voxelField.raycast(cameraPosition, cameraDirection, weaponRange);
+		LEVELHANDLER.camera.getWorldDirection(cameraDirection);
+		const intersection = voxelField.raycast(cameraPosition, cameraDirection, WEAPONHANDLER.weaponRange);
 		// Determine which voxels in chunk are to be destroyed
 		if (intersection != null) {
 			// get the lowest lod model for this voxel
@@ -2297,15 +1742,12 @@ if (isKeyPressed['6']) {
 				intersection.z
 			)
 
-			const cameraDirection = new THREE.Vector3();
-			camera.getWorldDirection(cameraDirection);
-
 			const intersectedVoxelData = voxelField.get(intersectPosition.x, intersectPosition.y, intersectPosition.z);
 
-			// for every voxel within a destroyedChunkRange of the intersection, destroy it
-			for (let x = intersectPosition.x - destroyedChunkRange; x <= intersectPosition.x + destroyedChunkRange; x++) {
-				for (let y = intersectPosition.y - destroyedChunkRange; y <= intersectPosition.y + destroyedChunkRange; y++) {
-					for (let z = intersectPosition.z - destroyedChunkRange; z <= intersectPosition.z + destroyedChunkRange; z++) {
+			// for every voxel within a WEAPONHANDLER.destroyedChunkRange of the intersection, destroy it
+			for (let x = intersectPosition.x - WEAPONHANDLER.destroyedChunkRange; x <= intersectPosition.x + WEAPONHANDLER.destroyedChunkRange; x++) {
+				for (let y = intersectPosition.y - WEAPONHANDLER.destroyedChunkRange; y <= intersectPosition.y + WEAPONHANDLER.destroyedChunkRange; y++) {
+					for (let z = intersectPosition.z - WEAPONHANDLER.destroyedChunkRange; z <= intersectPosition.z + WEAPONHANDLER.destroyedChunkRange; z++) {
 						const voxelPosition = new THREE.Vector3(
 							x,
 							y,
@@ -2314,8 +1756,8 @@ if (isKeyPressed['6']) {
 
 						const distanceToIntersectPos = voxelPosition.distanceTo(intersectPosition);
 						// further the distance is from center, increase chance of missing
-						// use percentMissedHits (0-1)
-						if ((distanceToIntersectPos * percentMissedHits) < rapidFloat()) destroyedVoxelsInChunk.push(voxelPosition);
+						// use WEAPONHANDLER.percentMissedHits (0-1)
+						if ((distanceToIntersectPos * WEAPONHANDLER.percentMissedHits) < rapidFloat()) destroyedVoxelsInChunk.push(voxelPosition);
 					}
 				}
 			}
@@ -2339,10 +1781,10 @@ if (isKeyPressed['6']) {
 		const width = window.innerWidth;
 		const height = window.innerHeight;
 		console.log("Handling resize ->", width, height)
-		renderer.setSize(width, height);
+		LEVELHANDLER.renderer.setSize(width, height);
 		composer.setSize(width, height);
-		camera.aspect = width / height;
-		camera.updateProjectionMatrix();
+		LEVELHANDLER.camera.aspect = width / height;
+		LEVELHANDLER.camera.updateProjectionMatrix();
 	}, false);
 
 	// cutawayField = "Field has been cleared.";
