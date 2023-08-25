@@ -143,7 +143,6 @@ export class WeaponHandler {
 					weaponClone.rotation.y += 0.25;
 				} else {
 					enemiesToKill.forEach((enemy) => {
-						console.log(enemy);
 						enemy.depleteHealth(100);
 					});
 					clearInterval(n);

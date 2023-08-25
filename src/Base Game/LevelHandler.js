@@ -10,7 +10,7 @@ export const USERSETTINGS = {
 	useSpriteParticles: true,
 	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
 	// DISPLAY SETTINGS
-	baseFOV: 45,
+	baseFOV: 60,
     // AUDIO SETTINGS
     SFXVolume: 0.05
 }

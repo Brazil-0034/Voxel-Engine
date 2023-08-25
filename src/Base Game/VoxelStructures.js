@@ -221,8 +221,8 @@ export class BoxData {
 	}
 
 	addChunk(chunk) {
-		this.voxelChunks.push(chunk);
 		chunk.connectedBox = this;
+		this.voxelChunks.push(chunk);
 	}
 }
 

@@ -257,7 +257,7 @@
 	<script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); stats.dom.style.zIndex = 1000; requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script>
 	<!-- DOT CROSSHAIR -->
 	<div id="middle-crosshair"
-		style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 2px; background: white; z-index: 1000;">
+		style="position: absolute; top: 50%; left: 50%; transform: translate(-100%, -100%); width: 2px; height: 2px; background: white; z-index: 1000;">
 	</div>
 <script type="module">
 
@@ -317,7 +317,7 @@
 	)
 	worldSphere.material.map.wrapS = worldSphere.material.map.wrapT = THREE.RepeatWrapping;
 	worldSphere.material.map.repeat.set(10, 10);
-	// LEVELHANDLER.scene.add(worldSphere);
+	LEVELHANDLER.scene.add(worldSphere);
 
 	// ##########
 	// RENDERER SETUP
@@ -342,12 +342,11 @@
 	// ##########
 	// ENVIRONMENT LIGHTING SETUP
 	// ##########
-	// const lightProbe = new THREE.LightProbe();
-	// LEVELHANDLER.scene.add(lightProbe);
-	// const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 256 );
-	// const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
-	// cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);
-	// lightProbe.copy(LightProbeGenerator.fromCubeRenderTarget(LEVELHANDLER.renderer, cubeRenderTarget));
+	const lightProbe = new THREE.LightProbe();
+	LEVELHANDLER.scene.add(lightProbe);
+	const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 256 );
+	const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
+	console.log(cubeRenderTarget.texture);
 	// LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
 	// const cubemap = new THREE.CubeTextureLoader().load(
 	// 	[
@@ -366,9 +365,9 @@
 	// ##########
 	const composer = new EffectComposer(LEVELHANDLER.renderer);
 	const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
-	n8aopass.setQualityMode("Performance");
+	n8aopass.setQualityMode("Ultra");
 	n8aopass.configuration.intensity = 4;
-	n8aopass.configuration.radius = 10;
+	n8aopass.configuration.radius = 64;
 	n8aopass.configuration.halfRes = true;
 	n8aopass.configuration.gammaCorrection = false;
 	composer.addPass(n8aopass);
@@ -386,7 +385,7 @@
 	// DEFAULT AMBIENT LIGHTING
 	// ##########
 	// Initializes the THREE.js lighting
-	const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+	const ambientLight = new THREE.AmbientLight(0xffffff, 0.015);
 	LEVELHANDLER.scene.add(ambientLight);
 
 	// ##########
@@ -534,12 +533,14 @@
 							// create a point light at this position with mapObject.lightBrightness
 							light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
 							light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
-							light.decay = 0.7;
+							light.decay = 1.15;
 							LEVELHANDLER.scene.add(light);
 						}
 
 						// Enemy NPCs
 						if (mapObject.isEnemyNPC && mapObject.isEnemyNPC == true) {
+							// sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
+							if (mapObject.rotation.y < 0.1 && mapObject.rotation.y > -0.1) mapObject.rotation.y = Math.PI;
 							const thisNPC = new NPC(
 								'swat',
 								'../character_models/swat_idle.png',
@@ -578,10 +579,9 @@
 	// VOXEL OBJECT DATA
 	let voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
 	const voxelMaterial = new THREE.MeshLambertMaterial({
-		color: 0xffffff,
-		// metalness: 0.5,
-		// roughness: 1
+		color: 0xffffff
 	});
+	voxelMaterial.dithering = true;
 
 	// ##########
 	// PARTICLE SETUP
@@ -737,8 +737,13 @@
 						emissiveIntensity: lightBrightness
 					})
 				);
+				coverBox.material.dithering = true;
 
 				// box.material.map.repeat.set(squareChunkSize,squareChunkSize);
+				if (USERSETTINGS.debugMode) {
+					coverBox.material.color = debugModeChunkColor;
+					coverBox.material.emissive = debugModeChunkColor;
+				}
 				coverBox.material.map.wrapS = THREE.RepeatWrapping;
 				coverBox.material.map.wrapT = THREE.RepeatWrapping;
 				coverBox.material.map.magFilter = THREE.NearestFilter;
@@ -872,6 +877,7 @@
 							break;
 					}
 					// coverBox.visible = false;
+					// if (instancedWorldModel.isSideChunk == true) coverBox.material.color = new THREE.Color(0xff0000);
 					LEVELHANDLER.numCoverBoxes++;
 				}
 				else
@@ -1086,7 +1092,14 @@
 			itemsBuiltSoFar++;
 			document.querySelector("#loader").textContent = Math.round((itemsBuiltSoFar/itemsToBuild)*100) + "%";
 			console.log(itemsBuiltSoFar, itemsToBuild)
-			if (itemsBuiltSoFar >= itemsToBuild) removeLoader();
+			// When all objects are finished loading ...
+			if (itemsBuiltSoFar >= itemsToBuild) {
+				// Remove the Pump Cover
+				removeLoader();
+				// Update the light probe !!!
+				cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);
+				lightProbe.copy(LightProbeGenerator.fromCubeRenderTarget(LEVELHANDLER.renderer, cubeRenderTarget));
+			}
 
 		};
 		const loader = new THREE.TextureLoader(manager);
@@ -1294,14 +1307,14 @@
 				LEVELHANDLER.renderer.domElement.classList.add("on-drugs");
 				timeModifier = 0.25;
 
-				bloomPass.threshold = lerp(bloomPass.threshold, 0.15, delta * 15);
-				bloomPass.radius = lerp(bloomPass.radius, 3.5, delta * 15);
+				bloomPass.threshold = lerp(bloomPass.threshold, 0.25, delta * 5);
+				bloomPass.radius = lerp(bloomPass.radius, 2.5, delta * 5);
 			} else {
 				LEVELHANDLER.renderer.domElement.classList.remove("on-drugs");
 				timeModifier = 1;
 
-				bloomPass.threshold = lerp(bloomPass.threshold, 0.45, delta * 1.5);
-				bloomPass.radius = lerp(bloomPass.radius, 0, delta * 1.5);
+				bloomPass.threshold = lerp(bloomPass.threshold, 0.75, delta * 0.5);
+				bloomPass.radius = lerp(bloomPass.radius, 0, delta * 0.5);
 			}
 
 			// Global RESET Key
@@ -1329,7 +1342,11 @@
 				const camForwardDirection = new THREE.Vector3();
 				LEVELHANDLER.camera.getWorldDirection(camForwardDirection);
 				camForwardDirection.y = 0;
-				if (voxelField.raycast(footPosition, camForwardDirection, collisionRadius) != null) playerMotion.zAxis *= -0.0001;
+				// FIRST, raycast forwards (foot position)
+				let forward = voxelField.raycast(footPosition, camForwardDirection, collisionRadius);
+				// if there is something in the way
+				if (forward != null) playerMotion.zAxis *= -0.0001;
+				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.zAxis *= -0.0001;
 			}
 			// REAR COLLISION CHECKS
 			if (playerMotion.zAxis > 0) {
@@ -1337,7 +1354,9 @@
 				LEVELHANDLER.camera.getWorldDirection(camBackwardDirection);
 				camBackwardDirection.negate();
 				camBackwardDirection.y = 0;
-				if (voxelField.raycast(footPosition, camBackwardDirection, collisionRadius) != null) playerMotion.zAxis *= -0.0001;
+				let rear = voxelField.raycast(footPosition, camBackwardDirection, collisionRadius);
+				if (rear != null) playerMotion.zAxis *= -0.0001;
+				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camBackwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.zAxis *= -0.0001;
 			}
 			// LEFT COLLISION CHECKS
 			if (playerMotion.xAxis < 0) {
@@ -1345,7 +1364,9 @@
 				LEVELHANDLER.camera.getWorldDirection(camLeftDirection);
 				camLeftDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
 				camLeftDirection.y = 0;
-				if (voxelField.raycast(footPosition, camLeftDirection, collisionRadius) != null) playerMotion.xAxis *= -0.0001;
+				let left = voxelField.raycast(footPosition, camLeftDirection, collisionRadius);
+				if (left != null) playerMotion.xAxis *= -0.0001;
+				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camLeftDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.xAxis *= -0.0001;
 			}
 			// RIGHT COLLISION CHECKS
 			if (playerMotion.xAxis > 0) {
@@ -1354,7 +1375,9 @@
 				camRightDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
 				camRightDirection.negate();
 				camRightDirection.y = 0;
-				if (voxelField.raycast(footPosition, camRightDirection, collisionRadius) != null) playerMotion.xAxis *= -0.0001;
+				let right = voxelField.raycast(footPosition, camRightDirection, collisionRadius);
+				if (right != null) playerMotion.xAxis *= -0.0001;
+				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camRightDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.xAxis *= -0.0001;
 			}
 			// Movement
 			controls.moveRight(playerMotion.stepSize * playerMotion.xAxis * sprinting);
@@ -1510,27 +1533,27 @@ if (isKeyPressed["p"]) {
 	console.log(triVoxelDroppedPieces);
 	console.log("\n+==============================+\n")
 }
-if (isKeyPressed['f']) {
-	if (getInteractionText().innerHTML.includes("computer")) {
-		const popupWindow = document.querySelector("#popup-window");
-		if (popupWindow.style.display == "none")
-		{
-			popupWindow.classList.add("pop-up");
-			popupWindow.style.display = "block";
-			setInteractionText("");
-			controls.unlock();
-		}
-		else
-		{
-			popupWindow.classList.remove("pop-up");
-			popupWindow.style.display = "none";
-			setInteractionText("");
-			lockControls();
-		}
-	}
-}
-// if (isKeyPressed['e']) playerHeight += 1;
-// if (isKeyPressed['q']) playerHeight -= 1;
+// if (isKeyPressed['f']) {
+// 	if (getInteractionText().innerHTML.includes("computer")) {
+// 		const popupWindow = document.querySelector("#popup-window");
+// 		if (popupWindow.style.display == "none")
+// 		{
+// 			popupWindow.classList.add("pop-up");
+// 			popupWindow.style.display = "block";
+// 			setInteractionText("");
+// 			controls.unlock();
+// 		}
+// 		else
+// 		{
+// 			popupWindow.classList.remove("pop-up");
+// 			popupWindow.style.display = "none";
+// 			setInteractionText("");
+// 			lockControls();
+// 		}
+// 	}
+// }
+// if (isKeyPressed['e']) LEVELHANDLER.playerHeight += 1;
+// if (isKeyPressed['q']) LEVELHANDLER.playerHeight -= 1;
 if (isKeyPressed['t']) {
 	const vizbox = document.getElementById('vizbox');
 	if (vizbox.style.display == 'none') {

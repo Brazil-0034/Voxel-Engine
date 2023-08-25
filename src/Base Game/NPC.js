@@ -142,35 +142,34 @@ export class NPC {
         // lerp the color to 0xffffff
         this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
 
-        if (this.health > 0 && this.knowsWherePlayerIs == false && Math.random() < 0.1) // 1 in ten frames ... good enough i guess
+        if (this.health > 0 && this.knowsWherePlayerIs == false) // 1 in ten frames ... good enough i guess
         {
             this.fovConeHull.setFromObject(this.fovConeMesh);
             if (this.fovConeHull.containsPoint(this.LEVELDATA.camera.position)) {
                 const playerDirection = new THREE.Vector3();
                 this.LEVELDATA.camera.getWorldDirection(playerDirection);
                 playerDirection.negate();
-                const intersection = this.voxelField.raycast(this.sceneObject.position, playerDirection, this.WEAPONHANDLER.weaponRange);
+                const intersection = this.voxelField.raycast(this.sceneObject.position, playerDirection, 1000);
                 if (intersection != null) {
-
+                    // if there is a voxel in the way ...
                     const intersectPosition = new THREE.Vector3(
                         intersection.x,
                         intersection.y,
                         intersection.z
                     )
 
+                    // if the player is closer than the nearest voxel, he can be seen
                     if (this.sceneObject.position.distanceTo(this.LEVELDATA.camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
                     {
                         this.knowsWherePlayerIs = true;
-                        console.log("FOUND YOU!!!");
-                        this.shootPlayer(Math.random() * 20);
+                        this.shootPlayer(500 + Math.random() * 250);
                     }
 
                 }
                 else
                 {
                     this.knowsWherePlayerIs = true;
-                    console.log("FOUND YOU!!!");
-                    this.shootPlayer(0);
+                    this.shootPlayer(500 + Math.random() * 250);
                 }
             }
             // else
@@ -213,23 +212,9 @@ export class NPC {
         }
     }
 
-    shootPlayer(delay) {
+    shootPlayer(delay=0) {
         setTimeout(() => {
-                const playerDirection = new THREE.Vector3();
-                this.LEVELDATA.camera.getWorldDirection(playerDirection);
-                playerDirection.negate();
-                const intersection = this.voxelField.raycast(this.sceneObject.position, playerDirection, this.WEAPONHANDLER.weaponRange);
-                if (intersection != null) {
-                    const intersectPosition = new THREE.Vector3(
-                        intersection.x,
-                        intersection.y,
-                        intersection.z
-                    )
-                    if (this.sceneObject.position.distanceTo(this.LEVELDATA.camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
-                    {
-                        resetGameState(this.LEVELDATA, this.WEAPONHANDLER, this.sceneObject.position);
-                    }
-                }
+            if (this.health > 0) resetGameState(this.LEVELDATA, this.WEAPONHANDLER, this.sceneObject.position);
         }, delay);
     }
 
