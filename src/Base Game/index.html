@@ -259,6 +259,11 @@
 	<div id="middle-crosshair"
 		style="position: absolute; top: 50%; left: 50%; transform: translate(-100%, -100%); width: 2px; height: 2px; background: white; z-index: 1000;">
 	</div>
+
+	<div id="interaction-text"></div>
+	<div id="help-text">Loading . . .</div>
+</body>
+
 <script type="module">
 
 	// ##########
@@ -278,30 +283,31 @@
 	import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 	import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 	import { ConvexHull } from 'three/addons/math/ConvexHull.js';
+	import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
+	import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
 	// WRECKMESH
 	import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 	import { USERSETTINGS, LevelHandler } from './LevelHandler.js'; // user settings and level info
-	import { lerp, clamp } from './EngineMath.js'; // math functions
-	import { getPixelsFromImage } from './CanvasPixelReader.js'; // for image operations
-	import { BoxData, VoxelChunk, VoxelFace, voxelField, cutawayField, addToCutawayStack } from './VoxelStructures.js'; // data structures for handling voxels
+	import { InputHandler } from './InputHandler.js'; // DOM input
+	import { lerp, clamp, rapidFloat, moveTowards } from './EngineMath.js'; // math functions
+	import { voxelField, generateDestroyedChunkAt } from './VoxelStructures.js'; // data structures for handling voxels
 	import { NPC } from './NPC.js'; // non-player characters (NPCs)
 	import { resetGameState } from './GameStateControl.js'; // Level Data
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
 	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
-	import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
-	import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
-	// ELECTRON
-	const { ipcRenderer } = require('electron');
+	import { generateWorld, voxelGeometry, voxelMaterial} from './WorldGenerator.js'; // Map Generation
+	import { PlayerController } from './PlayerMotionController.js'; // First Person Controller
 
 	// ##########
 	// GLOBAL HANDLERS
 	// ##########
 	const LEVELHANDLER = new LevelHandler(
 		new THREE.Scene(),
-		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
+		new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000)
 	);
 	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
-
+	const INPUTHANDLER = new InputHandler();
+	
 	// ##########
 	// WORLD SPHERE (BACKDROP COLOR)
 	// ##########
@@ -374,7 +380,6 @@
 	const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
 	composer.addPass(bloomPass);
 
-
 	// What the hell is this?? I fucking hate javascript.
 	// Hours of research and there is no way around this awful bundling system
 	// The most popular language in the world feels like its in its infancy
@@ -385,1043 +390,79 @@
 	// DEFAULT AMBIENT LIGHTING
 	// ##########
 	// Initializes the THREE.js lighting
-	const ambientLight = new THREE.AmbientLight(0xffffff, 0.015);
+	const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 	LEVELHANDLER.scene.add(ambientLight);
 
 	// ##########
-	// DOM CONTROLS HANDLING
+	// DOM CONTROLS (POINTERLOCKAPI)
 	// ##########
 	const controls = new PointerLockControls(LEVELHANDLER.camera, LEVELHANDLER.renderer.domElement);
 	LEVELHANDLER.scene.add(controls.getObject());
 	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => lockControls());
 
 	// ##########
-	// DOM INPUT MANAGEMENT
-	// ##########
-	const isKeyPressed = {};
-	let isCapsLockPressed = false;
-	document.addEventListener('keydown', (e) => {
-		isKeyPressed[e.key.toLowerCase()] = true;
-	});
-	document.addEventListener('keyup', (e) => {
-		isKeyPressed[e.key.toLowerCase()] = false;
-		if (e.key.toLowerCase() === 'capslock') {
-			isCapsLockPressed = !isCapsLockPressed;
-		}
-	});
-
 	// FILESYSTEM CONSTANTS
+	// ##########
 	// These mark locations in the local file system that store the map and current weapon
 	const modelURL = 'savedata';
 	const weaponURL = '../weapons/' + 'smg/smg';
 	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
 	const interactableObjects = [];
-	// This stores any JSON data that is loaded from the file system, on the main thread.
-	// Since only one thread can access the file system at a time, it is convenient to store the data here.
-	// TODO - this explanation sucks. just pass it between functions. too many globals.
-
-	const instancedWorldSafetyOffset = new THREE.Vector3(-10000, -10000, -10000); // to account for memory issues when rendering the dead point ... i know it's messy, but it is the most widely compatible solution. sue me.
-
 	// This stores every individual displaced voxel that is currently being simulated.
 	// TODO: Add gc to this, dead voxels still exist in the array. This will lead to memory problems in big maps.
-	let destroyedVoxels = [];
+	const destroyedVoxels = [];
 
-	// This starts building the map, loaded from modelURL (at the top of the file)
+	// This starts building the map ...
 	// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
 	// (Only one map can be loaded at once... unless?)
 	// TODO - origin offsets for multiple map loading?
 	//  ^ this is very unncessary but could be useful for features like streaming
-	const crouchDepth = 15;
-	const crouchSpeed = 7.5;
-	const crouchYPosition = LEVELHANDLER.playerHeight - crouchDepth;
-
-	let groundSize;
-	let itemsBuiltSoFar = 0, itemsToBuild = 0;
-	const generateWorld = function (modelURL) {
-
-		// send IPC message 'list-maps' and wait for response (sends eventResponse)
-		// TODO - make this a promise
-		ipcRenderer.send('list-maps');
-		ipcRenderer.on('list-maps-reply', (event, arg) => {
-			// THIS LISTS ALL AVAILABLE MAPS (later: map selector)
-			// console.log(arg);
-
-			// THIS CHOOSES THE MAP TO LOAD
-			ipcRenderer.send('get-map-metadata', {
-				mapName: modelURL
-			});
-
-			// THIS GETS METADATA (PRELOAD)
-			ipcRenderer.on('get-map-metadata-reply', (event, arg) => {
-				console.log("RECEIVED METADATA [ONLY SEE ONCE]");
-
-				const mapCameraData = {
-					position: JSON.parse(arg.metaData).cameraData.cameraPosition,
-					rotation: JSON.parse(arg.metaData).cameraData.cameraRotation
-				};
-				LEVELHANDLER.camera.position.set(mapCameraData.position.x, LEVELHANDLER.playerHeight, mapCameraData.position.z);
-				LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
-
-				const groundData = JSON.parse(arg.metaData).groundData;
-				const groundColor = new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b);
-				worldSphere.material.color = groundColor;
-				groundSize = groundData.groundSize;
-				if (groundData) {
-					const groundFloor = new THREE.Mesh(
-						new THREE.BoxGeometry(groundSize.x, 1, groundSize.y),
-						new THREE.MeshBasicMaterial({
-							color: groundColor,
-						})
-					);
-					groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
-					// scene.add(groundFloor);
-				}
-
-				const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
-				const mapLights = JSON.parse(arg.metaData).lightData;
-				const mod = 1; // scale modifier
-
-				// Filter 0: Count Boxes
-				mapObjects.forEach(mapObject => {
-					if (mapObject.type == "box" && mapObject.isCutaway != true && mapObject.isEnemyNPC != true) {
-						itemsToBuild++;
-					}
-				});
-				if (itemsToBuild == 0) removeLoader();
-
-				// Filter 1: Cutaways
-				// These must be processed BEFORE boxes, but by nature can exist in save files in random order
-				mapObjects.forEach(mapObject => {
-					if (mapObject.type == "box" && mapObject.isCutaway == true) {
-						const cutawaySize = mapObject.size;
-						cutawaySize.x /= mod;
-						cutawaySize.y /= mod;
-						cutawaySize.z /= mod;
-						const cutawayPosition = mapObject.position;
-						cutawayPosition.x /= mod;
-						cutawayPosition.y /= mod;
-						cutawayPosition.z /= mod;
-						addToCutawayStack(cutawaySize, cutawayPosition);
-					}
-				});
-
-				// Filter 2: Boxes
-				// These are the most standard world object, and are the quickest to process
-				mapObjects.forEach(mapObject => {
-					if (mapObject.type == "box") {
-
-						if (mapObject.isCutaway && mapObject.isCutaway == true) return;
-
-						const scale = mapObject.size;
-						scale.x /= mod;
-						scale.y /= mod;
-						scale.z /= mod;
-						const position = mapObject.position;
-						position.x /= mod;
-						position.y /= mod;
-						position.z /= mod;
-						const color = mapObject.color;
-
-						// shift position (to center it)
-						position.x -= scale.x / 2;
-						position.y -= scale.y / 2;
-						position.z -= scale.z / 2;
-
-						// Lights
-						let light = null;
-						if (mapObject.isLight && mapObject.isLight == true) {
-							// create a point light at this position with mapObject.lightBrightness
-							light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
-							light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
-							light.decay = 1.15;
-							LEVELHANDLER.scene.add(light);
-						}
-
-						// Enemy NPCs
-						if (mapObject.isEnemyNPC && mapObject.isEnemyNPC == true) {
-							// sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
-							if (mapObject.rotation.y < 0.1 && mapObject.rotation.y > -0.1) mapObject.rotation.y = Math.PI;
-							const thisNPC = new NPC(
-								'swat',
-								'../character_models/swat_idle.png',
-								new THREE.Vector3(position.x, position.y, position.z),
-								new THREE.Vector3(
-									0,
-									mapObject.rotation.y - Math.PI / 2,
-									0
-								),
-								100 + Math.random() * 100,
-								25,
-								LEVELHANDLER,
-								voxelField,
-								WEAPONHANDLER,
-								new Howl({
-									src: ['../sfx/kill_ding.wav'],
-									volume: USERSETTINGS.SFXVolume * 7.5
-								})
-							);
-							return;
-						}
-						
-						buildWorldModelFromBox(scale, position, mapObject.material, color, mapObject.lightBrightness, mapObject.interactionEvent, light);
-					}
-				});
-			});
-		});
-	}
-
-	const removeLoader = function() {
-		const loader = document.querySelector("#loader-bg");
-		loader.style.animation = "fade-out 1s ease";
-		setTimeout(() => { loader.parentNode.removeChild(loader) }, 1000);
-	}
-
-	// VOXEL OBJECT DATA
-	let voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
-	const voxelMaterial = new THREE.MeshLambertMaterial({
-		color: 0xffffff
-	});
-	voxelMaterial.dithering = true;
+	generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, worldSphere);
 
 	// ##########
-	// PARTICLE SETUP
+	// PARTICLE ENGINE INITIALIZATION
 	// ##########
 	const particleHandler = new ParticleMesh(voxelGeometry, voxelMaterial, USERSETTINGS.particleQualityMode * 100);
 	LEVELHANDLER.scene.add(particleHandler);
 	particleHandler.frustumCulled = false;
 
-	// Maximum size for chunking
-	// Lower size = fewer chunks
-	// It is best to alter this dynamically between maps for performance
-	// TODO implement some algorithm to determine this value on the fly
-	const squareChunkSize = 64;
-
-	let instancedModelIndex = []; // An index of all instancedMeshes (which for my own sake, are called Models instead)
-	// on click of "F", set visible = false for all models
-	const buildWorldModelFromBox = function (scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
-		let buildFront = true, buildBack = true, buildLeft = true, buildRight = true, buildTop = true, buildBottom = true;
-
-		if (scale.x > 2) scale.x -= 1;
-		if (scale.y > 2) scale.y -= 1;
-		if (scale.z > 2) scale.z -= 1;
-
-		const chunkConnector = new BoxData();
-
-		// Interactions
-		if (interactionEvent != "none" || USERSETTINGS.blockoutMode == true) {
-			// box (for raycasting)
-			const interactionBox = new THREE.Mesh(
-				voxelGeometry,
-				voxelMaterial
-			);
-			interactionBox.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2), position.z + (scale.z / 2));
-			interactionBox.scale.set(scale.x, scale.y, scale.z);
-			interactionBox.visible = USERSETTINGS.blockoutMode;
-			LEVELHANDLER.scene.add(interactionBox);
-
-			interactionBox.interactionEvent = interactionEvent;
-
-			interactableObjects.push(interactionBox);
-		}
-		if (USERSETTINGS.blockoutMode) return;
-
-		const texturePath = '../textures/' + material + '.png';
-		const manager = new THREE.LoadingManager();
-		let pixelData;
-		manager.onLoad = function () {
-			pixelData = getPixelsFromImage(pixelData.image);
-			const getPixelColorAt = function (x, y) {
-				// pixelData is 32 arrays of 32. Each array is a row of pixels
-				// x and y can be beyond 32, but it will wrap around
-				x = x % 32;
-				y = y % 32;
-				let data = pixelData[x][y];
-				const voxelColor = new THREE.Color(data[0] / 255, data[1] / 255, data[2] / 255);
-				voxelColor.convertSRGBToLinear();
-				return voxelColor;
-			}
-
-			// compute the chunk
-			var debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
-			let chunkCounter = 0;
-			var chunkMinPosition, chunkMaxPosition;
-			const resetChunkBounds = function () {
-				// For every chunk ...
-				chunkMinPosition = new THREE.Vector3(
-					Number.MAX_SAFE_INTEGER,
-					Number.MAX_SAFE_INTEGER,
-					Number.MAX_SAFE_INTEGER
-				);
-				chunkMaxPosition = new THREE.Vector3(
-					Number.MIN_SAFE_INTEGER,
-					Number.MIN_SAFE_INTEGER,
-					Number.MIN_SAFE_INTEGER
-				);
-			}
-			resetChunkBounds();
-
-			// color of tha box (both instance and cover)
-			const boxColor = new THREE.Color(colorData.r, colorData.g, colorData.b);
-
-			let instancedWorldModel, localVoxelIterator;
-			const resetInstancedWorldModel = function () {
-				// Setup the model ...
-				instancedWorldModel = new VoxelChunk(
-					voxelGeometry,
-					voxelMaterial.clone(),
-					squareChunkSize * squareChunkSize,
-					LEVELHANDLER
-				);
-				instancedWorldModel.material.emissive = boxColor;
-				instancedWorldModel.material.emissiveIntensity = lightBrightness;
-				instancedWorldModel.visible = false;
-				instancedWorldModel.position.copy(instancedWorldSafetyOffset);
-				instancedWorldModel.name = chunkCounter.toString();
-				if (light != null) instancedWorldModel.attachedLight = light;
-				// Update Counters
-				localVoxelIterator = 0;
-				chunkCounter++;
-				// Manual Culling Adjustment
-				instancedWorldModel.frustumCulled = false;
-			}
-			resetInstancedWorldModel();
-
-			const finalizeChunk = function (voxelFace, isAbnormal = false) {
-
-				// // For Frustum Culling...
-				instancedWorldModel.frustumBox = new THREE.Box3();
-				instancedWorldModel.frustumBox.setFromCenterAndSize(
-					// Determine Center
-					new THREE.Vector3(
-						(chunkMinPosition.x + chunkMaxPosition.x) / 2,
-						(chunkMinPosition.y + chunkMaxPosition.y) / 2,
-						(chunkMinPosition.z + chunkMaxPosition.z) / 2
-					),
-					// Determine Size
-					new THREE.Vector3(
-						(chunkMaxPosition.x - chunkMinPosition.x),
-						(chunkMaxPosition.y - chunkMinPosition.y),
-						(chunkMaxPosition.z - chunkMinPosition.z)
-					)
-				);
-
-				instancedWorldModel.instanceMatrix.needsUpdate = true;
-				LEVELHANDLER.scene.add(instancedWorldModel);
-				instancedModelIndex.push(instancedWorldModel);
-
-				chunkConnector.addChunk(instancedWorldModel);
-				instancedWorldModel.isSideChunk = false;
-				if (scale.x < squareChunkSize && scale.y < squareChunkSize && scale.z < squareChunkSize) {
-					// If the chunk is smaller than the maximum chunk size, we can just add it to the scene
-					// push to registry & add to scene
-					instancedModelIndex.push(instancedWorldModel);
-					instancedWorldModel.visible = true;
-					return;
-				}
-				
-				instancedWorldModel.visible = false;
-
-				debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
-				// createa  wireframe box to visualize the frustum box
-				// const frustumBoxHelper = new THREE.Box3Helper(instancedWorldModel.frustumBox, 0xffff00);
-				// scene.add(frustumBoxHelper);
-
-				// create a cover box with the same dimensions and position as the frustum box
-				const coverBox = new THREE.Mesh(
-					new THREE.PlaneGeometry(1, 1),
-					new THREE.MeshLambertMaterial({
-						map: texture,
-						side: THREE.DoubleSide,
-						color: boxColor,
-						emissive: boxColor,
-						emissiveIntensity: lightBrightness
-					})
-				);
-				coverBox.material.dithering = true;
-
-				// box.material.map.repeat.set(squareChunkSize,squareChunkSize);
-				if (USERSETTINGS.debugMode) {
-					coverBox.material.color = debugModeChunkColor;
-					coverBox.material.emissive = debugModeChunkColor;
-				}
-				coverBox.material.map.wrapS = THREE.RepeatWrapping;
-				coverBox.material.map.wrapT = THREE.RepeatWrapping;
-				coverBox.material.map.magFilter = THREE.NearestFilter;
-				coverBox.material.map.minFilter = THREE.NearestFilter;
-				instancedWorldModel.frustumBox.getCenter(coverBox.position);
-				coverBox.material.map = texture.clone();
-				coverBox.material.map.repeat.set(
-					squareChunkSize / 32,
-					squareChunkSize / 32 // 32 is the texture resolution, so it is the [size (in world units) of the chunk / size of the texture]
-				);
-
-				// color the coverbox material.color depending on the voxelface
-				// if (voxelFace == VoxelFace.TOP) {
-				// 	coverBox.material.color = new THREE.Color(0x00ff00);
-				// } else if (voxelFace == VoxelFace.BOTTOM) {
-				// 	coverBox.material.color = new THREE.Color(0xff0000);
-				// } else if (voxelFace == VoxelFace.LEFT) {
-				// 	coverBox.material.color = new THREE.Color(0x0000ff);
-				// } else if (voxelFace == VoxelFace.RIGHT) {
-				// 	coverBox.material.color = new THREE.Color(0xffff00);
-				// } else if (voxelFace == VoxelFace.FRONT) {
-				// 	coverBox.material.color = new THREE.Color(0x00ffff);
-				// } else if (voxelFace == VoxelFace.BACK) {
-				// 	coverBox.material.color = new THREE.Color(0xff00ff);
-				// }
-
-				if (instancedWorldModel.useCoverBox != false)
-				{
-					let subBox; // switch cases require parent block scoped variables? guess i don kno much about js ... or coding ... or life
-					// whose idea to make this in js was it anyway??
-					switch (voxelFace) {
-						default:
-							console.error("Invalid VoxelFace: " + voxelFace);
-							return;
-						case VoxelFace.TOP:
-							coverBox.position.y += 0.5
-						case VoxelFace.BOTTOM:
-							if (voxelFace == VoxelFace.BOTTOM) coverBox.position.y -= 0.5;
-							coverBox.scale.set(
-								instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
-								instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1
-							);
-							coverBox.material.map.repeat.multiply(
-								new THREE.Vector2(
-									(coverBox.scale.x / (squareChunkSize)),
-									(coverBox.scale.y / (squareChunkSize))
-								)
-							);
-							if (coverBox.scale.y < squareChunkSize) {
-								// CENTERS:
-								// default (0,0) bottom left
-								coverBox.material.map.center.set(1, 1);
-								instancedWorldModel.isSideChunk = true;
-							}
-							if (coverBox.scale.x < squareChunkSize) {
-								// CENTERS:
-								// default (0,0) bottom left
-								coverBox.material.map.center.set(0, 1);
-								instancedWorldModel.isSideChunk = true;
-							}
-
-							coverBox.rotation.x = -Math.PI / 2;
-
-							instancedWorldModel.addCoverBox(coverBox);
-							LEVELHANDLER.scene.add(coverBox);
-							break;
-						case VoxelFace.LEFT:
-							coverBox.position.x -= 0.5 - 0.01;
-						case VoxelFace.RIGHT:
-							if (voxelFace == VoxelFace.RIGHT) coverBox.position.x += 0.5 + 0.01;
-							// coverBox.position.y += 1;
-							coverBox.scale.set(
-								instancedWorldModel.frustumBox.max.z - instancedWorldModel.frustumBox.min.z + 1,
-								instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
-							);
-							coverBox.material.map.repeat.multiply(
-								new THREE.Vector2(
-									(coverBox.scale.y / (squareChunkSize)),
-									-(coverBox.scale.x / (squareChunkSize))
-								)
-							);
-							if (coverBox.scale.x < squareChunkSize) {
-								// CENTERS:
-								// default (0,0) bottom left
-								coverBox.material.map.center.set(1, 1);
-								if (coverBox.scale.y < squareChunkSize) {
-									// CENTERS:
-									// default (0,0) bottom left
-									coverBox.material.map.center.set(1, 0);
-								}
-								instancedWorldModel.isSideChunk = true;
-							}
-
-							coverBox.material.map.rotation = Math.PI / 2;
-							coverBox.rotation.y = Math.PI / 2;
-
-							instancedWorldModel.addCoverBox(coverBox);
-							LEVELHANDLER.scene.add(coverBox);
-							break;
-						case VoxelFace.FRONT:
-							coverBox.position.z -= 0.5 - 0.01;
-						case VoxelFace.BACK:
-							if (voxelFace == VoxelFace.BACK) coverBox.position.z += 0.5 + 0.01;
-							coverBox.scale.set(
-								instancedWorldModel.frustumBox.max.x - instancedWorldModel.frustumBox.min.x + 1,
-								instancedWorldModel.frustumBox.max.y - instancedWorldModel.frustumBox.min.y + 1
-							);
-							coverBox.material.map.repeat.multiply(
-								new THREE.Vector2(
-									-(coverBox.scale.x / (squareChunkSize)),
-									-(coverBox.scale.y / (squareChunkSize))
-								)
-							);
-
-							if (coverBox.scale.x < squareChunkSize) {
-								// CENTERS:
-								// default (0,0) bottom left
-								coverBox.material.map.center.set(1, 1);
-								if (coverBox.scale.y < squareChunkSize) {
-									// CENTERS:
-									// default (0,0) bottom left
-									coverBox.material.map.center.set(1, 0);
-								}
-								instancedWorldModel.isSideChunk = true;
-							}
-
-							coverBox.rotation.y = Math.PI;
-
-							instancedWorldModel.addCoverBox(coverBox);
-							LEVELHANDLER.scene.add(coverBox);
-							break;
-					}
-					// coverBox.visible = false;
-					// if (instancedWorldModel.isSideChunk == true) coverBox.material.color = new THREE.Color(0xff0000);
-					LEVELHANDLER.numCoverBoxes++;
-				}
-				else
-				{
-					instancedWorldModel.isCovered = false;
-					instancedWorldModel.visible = true;
-				}
-
-				// Reset Everything!!
-				resetChunkBounds();
-				resetInstancedWorldModel();
-
-			}
-
-			const setVoxel = function (voxelPosition, voxelFace, voxelColor) {
-				// set voxelColor based on the voxelFace
-				// first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
-				voxelPosition = voxelPosition.round();
-				if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) {
-					instancedWorldModel.useCoverBox = false;
-					return
-				}
-				const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
-				chunkMinPosition.min(voxelPosition);
-				chunkMaxPosition.max(voxelPosition);
-				if (voxel != null) {
-					// removing  clones ...
-					voxelPosition.copy(instancedWorldSafetyOffset);
-				}
-				// Commit to the global voxel field
-				// update min/max positions for this chunk (for culling)
-				voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace);
-				instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x - instancedWorldSafetyOffset.x, voxelPosition.y - instancedWorldSafetyOffset.y, voxelPosition.z - instancedWorldSafetyOffset.z)));
-				voxelColor.multiply(colorData);
-				if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
-				// if (voxelFace == VoxelFace.FRONT) voxelColor = new THREE.Color(0xff0000)
-				// if (voxelFace == VoxelFace.LEFT) voxelColor = new THREE.Color(0x00ff00)
-				instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
-				localVoxelIterator++;
-				// check if we need to create a new chunk
-				LEVELHANDLER.numVoxels++;
-			}
-
-			// Create the ROOF (top) of the box:
-			if (buildTop == true)
-			{
-				for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
-					for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
-						let isFullChunk = true;
-						let thisChunkSizeX = squareChunkSize;
-						let thisChunkSizeZ = squareChunkSize;
-						for (let i = 0; i < thisChunkSizeX; i++) {
-							for (let j = 0; j < thisChunkSizeZ; j++) {
-								const voxelPosition = new THREE.Vector3(position.x + x * squareChunkSize + i, position.y + scale.y, position.z + z * squareChunkSize + j);
-								// if the point is within the box:
-								if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z) {
-									// we set the voxel at this position
-									setVoxel(voxelPosition, VoxelFace.TOP, getPixelColorAt(x * thisChunkSizeX + i, z * thisChunkSizeZ + j));
-								}
-								else {
-									isFullChunk = false;
-								}
-							}
-						}
-
-						// we finalize this chunk
-						finalizeChunk(VoxelFace.TOP, !isFullChunk);
-					}
-				}
-			}
-
-			if (buildRight == true)
-			{
-				// Create the RIGHT WALL of the box:
-				for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
-					for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
-						let isFullChunk = true;
-						let thisChunkSizeY = squareChunkSize;
-						let thisChunkSizeZ = squareChunkSize;
-						for (let i = 0; i < thisChunkSizeY; i++) {
-							for (let j = 0; j < thisChunkSizeZ; j++) {
-								const voxelPosition = new THREE.Vector3(position.x + scale.x, position.y + y * squareChunkSize + i, position.z + z * squareChunkSize + j);
-								// if the point is within the box:
-								if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z) {
-									// we set the voxel at this position
-									setVoxel(voxelPosition, VoxelFace.RIGHT, getPixelColorAt(y * thisChunkSizeY + i, z * thisChunkSizeZ + j));
-								}
-								else {
-									isFullChunk = false;
-								}
-							}
-						}
-
-						// we finalize this chunk
-						finalizeChunk(VoxelFace.RIGHT, !isFullChunk);
-					}
-				}
-			}
-
-			if (buildBack == true)
-			{
-				// Create the BACK WALL of the box:
-				for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
-					for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
-						let isFullChunk = true;
-						let thisChunkSizeX = squareChunkSize;
-						let thisChunkSizeY = squareChunkSize;
-						for (let i = 0; i < thisChunkSizeX; i++) {
-							for (let j = 0; j < thisChunkSizeY; j++) {
-								const voxelPosition = new THREE.Vector3(position.x + x * squareChunkSize + i, position.y + y * squareChunkSize + j, position.z + scale.z);
-								// if the point is within the box:
-								if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y) {
-									// we set the voxel at this position
-									setVoxel(voxelPosition, VoxelFace.BACK, getPixelColorAt(x * thisChunkSizeX + i, y * thisChunkSizeY + j));
-								}
-								else {
-									isFullChunk = false;
-								}
-							}
-						}
-
-						// we finalize this chunk
-						finalizeChunk(VoxelFace.BACK, !isFullChunk);
-					}
-				}
-			}
-
-			if (buildFront == true)
-			{
-				// Create the FRONT WALL of the box:
-				for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
-					for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
-						let isFullChunk = true;
-						let thisChunkSizeX = squareChunkSize;
-						let thisChunkSizeY = squareChunkSize;
-						for (let i = 0; i < thisChunkSizeX; i++) {
-							for (let j = 0; j < thisChunkSizeY; j++) {
-								const voxelPosition = new THREE.Vector3(position.x + x * squareChunkSize + i, position.y + y * squareChunkSize + j, position.z);
-								// if the point is within the box:
-								if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y) {
-									// we set the voxel at this position
-									setVoxel(voxelPosition, VoxelFace.FRONT, getPixelColorAt(x * thisChunkSizeX + i, y * thisChunkSizeY + j));
-								}
-								else {
-									isFullChunk = false;
-								}
-							}
-						}
-
-						// we finalize this chunk
-						finalizeChunk(VoxelFace.FRONT, !isFullChunk);
-					}
-				}
-			}
-
-			if (buildLeft == true)
-			{
-				// Create the LEFT WALL of the box:
-				for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
-					for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
-						let isFullChunk = true;
-						let thisChunkSizeY = squareChunkSize;
-						let thisChunkSizeZ = squareChunkSize;
-						for (let i = 0; i < thisChunkSizeY; i++) {
-							for (let j = 0; j < thisChunkSizeZ; j++) {
-								const voxelPosition = new THREE.Vector3(position.x, position.y + y * squareChunkSize + i, position.z + z * squareChunkSize + j);
-								// if the point is within the box:
-								if (voxelPosition.y >= position.y && voxelPosition.y <= position.y + scale.y && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z) {
-									// we set the voxel at this position
-									setVoxel(voxelPosition, VoxelFace.LEFT, getPixelColorAt(y * thisChunkSizeY + i, z * thisChunkSizeZ + j));
-								}
-								else {
-									isFullChunk = false;
-								}
-							}
-						}
-
-						// we finalize this chunk
-						finalizeChunk(VoxelFace.LEFT, !isFullChunk);
-					}
-				}
-			}
-
-			if (buildBottom == true)
-			{
-				// Create the FLOOR (bottom) of the box:
-				for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
-					for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
-						let isFullChunk = true;
-						let thisChunkSizeX = squareChunkSize;
-						let thisChunkSizeZ = squareChunkSize;
-						for (let i = 0; i < thisChunkSizeX; i++) {
-							for (let j = 0; j < thisChunkSizeZ; j++) {
-								const voxelPosition = new THREE.Vector3(position.x + x * squareChunkSize + i, position.y, position.z + z * squareChunkSize + j);
-								// if the point is within the box:
-								if (voxelPosition.x >= position.x && voxelPosition.x <= position.x + scale.x && voxelPosition.z >= position.z && voxelPosition.z <= position.z + scale.z) {
-									// we set the voxel at this position
-									setVoxel(voxelPosition, VoxelFace.BOTTOM, getPixelColorAt(x * thisChunkSizeX + i, z * thisChunkSizeZ + j));
-								}
-								else {
-									isFullChunk = false;
-								}
-							}
-						}
-
-						// we finalize this chunk
-						finalizeChunk(VoxelFace.BOTTOM, !isFullChunk);
-					}
-				}
-			}
-
-			itemsBuiltSoFar++;
-			document.querySelector("#loader").textContent = Math.round((itemsBuiltSoFar/itemsToBuild)*100) + "%";
-			console.log(itemsBuiltSoFar, itemsToBuild)
-			// When all objects are finished loading ...
-			if (itemsBuiltSoFar >= itemsToBuild) {
-				// Remove the Pump Cover
-				removeLoader();
-				// Update the light probe !!!
-				cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);
-				lightProbe.copy(LightProbeGenerator.fromCubeRenderTarget(LEVELHANDLER.renderer, cubeRenderTarget));
-			}
-
-		};
-		const loader = new THREE.TextureLoader(manager);
-		const texture = loader.load(texturePath, (texture) => {
-			texture.encoding = THREE.sRGBEncoding;
-			pixelData = texture;
-		});
-	}
-
-	const buildWorldModelFromSphere = function (position, scale, color) {
-		// TODO
-	}
-
-	generateWorld(modelURL); // finally, we load and generate the model!
-
-	const triVoxelDroppedPieces = [];
-	const createTrivoxelAt = function (x, y, z, color) {
-		return;
-		const triVoxel = new THREE.Mesh(
-			// cone with minimal segments
-			new THREE.BoxGeometry(1, 1, 1),
-			new THREE.MeshStandardMaterial({ color: color })
-		);
-		// for some reason i named the destroyed pieces of a mesh 'trivoxels', prolly cuz they were originally triangular prisms.
-		// that has changed since, but the name still slaps.
-		triVoxel.name = "TRIVOXEL-" + Math.random();
-		LEVELHANDLER.scene.add(triVoxel);
-		x = parseInt(x);
-		y = parseInt(y);
-		z = parseInt(z);
-		triVoxel.position.set(x, y, z);
-
-		// velocity (random)
-		const velocityRange = 0.25;
-		const dropAngleModifier = 50;
-		const dropAngle = Math.floor(Math.random() * dropAngleModifier) - (dropAngleModifier / 2);
-		const triVoxelVelocity = new THREE.Vector3(
-			(Math.random() * velocityRange / dropAngle) - (velocityRange / dropAngle),
-			(Math.random() * velocityRange / (dropAngle / 5)) - (velocityRange / (dropAngle / 5)),
-			(Math.random() * velocityRange / dropAngle) - (velocityRange / dropAngle)
-		);
-
-		// normalize the velocity
-		triVoxelVelocity.normalize();
-
-		triVoxelDroppedPieces.push({
-			"sceneObject": triVoxel,
-			"velocity": triVoxelVelocity
-		});
-	}
-
-	const dropSounds = [
-		new Howl({
-			src: ['../sfx/lego_drop.wav'],
-			volume: USERSETTINGS.SFXVolume
-		}),
-		new Howl({
-			src: ['../sfx/lego_drop_2.wav'],
-			volume: USERSETTINGS.SFXVolume * 3
-		}),
-		new Howl({
-			src: ['../sfx/lego_drop_3.wav'],
-			volume: USERSETTINGS.SFXVolume
-		}),
-		new Howl({
-			src: ['../sfx/lego_drop_4.wav'],
-			volume: USERSETTINGS.SFXVolume
-		})
-	]
-
-	const bigDropSounds = [
-		new Howl({
-			src: ['../sfx/big_drop.wav'],
-			volume: USERSETTINGS.SFXVolume * 7.5
-		})
-	]
-
-	const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, generateParticleChance = USERSETTINGS.particleQualityMode/3) {
-		let found = false;
-		for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
-			let position = destroyedVoxelsInChunk[x];
-			const thisVoxel = voxelField.get(position.x, position.y, position.z);
-			if (thisVoxel != null && thisVoxel.value != 0) {
-				thisVoxel.chunk.uncover();
-				thisVoxel.chunk.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4().makeTranslation(instancedWorldSafetyOffset.x, instancedWorldSafetyOffset.y, instancedWorldSafetyOffset.z));
-				thisVoxel.chunk.instanceMatrix.needsUpdate = true;
-				voxelField.set(position.x, position.y, position.z, 0, thisVoxel.indexInChunk, thisVoxel.chunk);
-				const soundToPlay = Math.floor(Math.random() * dropSounds.length);
-				dropSounds[soundToPlay].rate(Math.random() + 0.45);
-				dropSounds[soundToPlay].play();
-				if (Math.random() < generateParticleChance) {
-					const voxelColor = new THREE.Color();
-					thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
-					const cameraDirection = new THREE.Vector3();
-					LEVELHANDLER.camera.getWorldDirection(cameraDirection);
-					// // add some randomness to the direction (x and z only)
-					cameraDirection.x += (Math.random() - 0.5) / 2;
-					cameraDirection.z += (Math.random() - 0.5) / 2;
-					cameraDirection.y = -1/10;
-					new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2), voxelColor, 50);
-				}
-			}
-		}
-	}
-
-	// MOUSE BUTTONS
-	var isLeftClicking = false;
-	document.addEventListener('mousedown', (e) => { if (e.button != 0) return; isLeftClicking = true; });
-	document.addEventListener('mouseup', (e) => { if (e.button != 0) return; isLeftClicking = false; });
-	var isRightClicking = false;
-	document.addEventListener('mousedown', (e) => { if (e.button != 2) return; isRightClicking = true; });
-	document.addEventListener('mouseup', (e) => { if (e.button != 2) return; isRightClicking = false; });
-
-	var isAttackAvailable = true;
-
-	/*
-	
-	public static float Berp(float start, float end, float value)
-	{
-		value = Mathf.Clamp01(value);
-		value = (Mathf.Sin(value * Mathf.PI * (0.2f + 2.5f * value * value * value)) * Mathf.Pow(1f - value, 2.2f) + value) * (1f + (1.2f * (1f - value)));
-		return start + (end - start) * value;
-	}
-	
-	*/
-
 	const clock = new THREE.Clock();
-	var crouchLerp = 0;
 	const raycaster = new THREE.Raycaster();
 
-	const hitSound = new Howl({
-		src: ['../sfx/hit_ding.wav'],
-		volume: USERSETTINGS.SFXVolume
-	})
-
-	const shootSound = new Howl({
-		src: ['../sfx/shoot.wav'],
-		volume: USERSETTINGS.SFXVolume * 3
-	});
-
-	const moveTowards = function (vectorA, vectorB, step) {
-		const difference = vectorB.clone().sub(vectorA);
-		if (difference.length() < step) {
-			return vectorB;
-		}
-		return vectorA.clone().add(difference.normalize().multiplyScalar(step));
-	}
-
-	const shootLine = function (vec) {
-		const newLine = new THREE.LineSegments(
-			new THREE.BufferGeometry().setFromPoints([
-				LEVELHANDLER.camera.position,
-				vec
-			]),
-			new THREE.LineBasicMaterial({
-				color: 0xcccccc
-			})
-		);
-		LEVELHANDLER.scene.add(newLine);
-	}
-
-	const playerMotion = {
-		xAxis: 0,
-		zAxis: 0,
-		acceleration: 0.25,
-		maxSpeed: 0.015,
-		stepSize: 125,
-		isCrouching: false
-	}
-	let timeModifier = 1.0;
-	let frameCounter = 0;
-	// ### RENDER LOOP ###
-	const render = function () {
-		// Frame Calculations
-		frameCounter++;
-		frameCounter = frameCounter % 60;
-		const delta = clock.getDelta() * timeModifier;
-		// Debug Visualizer
+	const updateDebugViz = function(delta) {
 		document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
-		document.querySelector("#DRAWCALLSViz").textContent = LEVELHANDLER.renderer.info.render.calls + " calls";
+		document.querySelector("#DRAWCALLSViz").textContent = LEVELHANDLER.renderer.info.render.calls + " calls (~ " + parseInt(LEVELHANDLER.potentialCleanCalls) + " clean)";
 		let numVoxels = LEVELHANDLER.numVoxels;
 		numVoxels = numVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 		document.querySelector("#NUMVOXELSViz").textContent = numVoxels + " voxels";
 		document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELHANDLER.numCoverBoxes + " covers";
-		document.querySelector("#XViz").textContent = "X:" + Math.round(LEVELHANDLER.camera.position.x);
-		document.querySelector("#YViz").textContent = "Y:" + Math.round(LEVELHANDLER.camera.position.y);
-		document.querySelector("#ZViz").textContent = "Z:" + Math.round(LEVELHANDLER.camera.position.z);
-		// Update Level NPC's
-		LEVELHANDLER.NPCBank.forEach(npc => {
-			npc.update(delta);
-		});
-		// Update Level Particles
+		document.querySelector("#XViz").textContent = "X: " + Math.round(LEVELHANDLER.camera.position.x);
+		document.querySelector("#YViz").textContent = "Y: " + Math.round(LEVELHANDLER.camera.position.y);
+		document.querySelector("#ZViz").textContent = "Z: " + Math.round(LEVELHANDLER.camera.position.z);
+	}
+
+	const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER);
+
+	let frameCounter = 0;
+	// ### RENDER LOOP ###
+	const render = function () {
+		// Frame Calculations
+		frameCounter = (frameCounter + 1) % 60;
+		const delta = clock.getDelta() * LEVELHANDLER.timeModifier;
+		// Debug Visualizer
+		updateDebugViz(delta);
+		// Update Active NPC's
+		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
+		// Update Active Particles
 		particleHandler.update(delta);
 		// Update Skybox Attributes
 		worldSphere.position.copy(LEVELHANDLER.camera.position);
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
 		// Player Movement Handling
-		if (controls.isLocked == true)
-		{
-			// Crouching
-			playerMotion.isCrouching = isKeyPressed["control"];
-
-			// Drugs
-			if (isCapsLockPressed) {
-				LEVELHANDLER.renderer.domElement.classList.add("on-drugs");
-				timeModifier = 0.25;
-
-				bloomPass.threshold = lerp(bloomPass.threshold, 0.25, delta * 5);
-				bloomPass.radius = lerp(bloomPass.radius, 2.5, delta * 5);
-			} else {
-				LEVELHANDLER.renderer.domElement.classList.remove("on-drugs");
-				timeModifier = 1;
-
-				bloomPass.threshold = lerp(bloomPass.threshold, 0.75, delta * 0.5);
-				bloomPass.radius = lerp(bloomPass.radius, 0, delta * 0.5);
-			}
-
-			// Global RESET Key
-			if (isKeyPressed["r"]) resetGameState(LEVELHANDLER, WEAPONHANDLER);
-			
-			// WASD
-			if (isKeyPressed["w"]) playerMotion.zAxis -= playerMotion.acceleration * delta;
-			if (isKeyPressed["s"]) playerMotion.zAxis += playerMotion.acceleration * delta;
-			if ((!isKeyPressed["w"] && !isKeyPressed["s"]) || isKeyPressed["w"] && isKeyPressed["s"]) playerMotion.zAxis = lerp(playerMotion.zAxis, 0, delta * 10);
-
-			if (isKeyPressed["a"]) playerMotion.xAxis -= playerMotion.acceleration * delta;
-			if (isKeyPressed["d"]) playerMotion.xAxis += playerMotion.acceleration * delta;
-			if ((!isKeyPressed["a"] && !isKeyPressed["d"]) || isKeyPressed["a"] && isKeyPressed["d"]) playerMotion.xAxis = lerp(playerMotion.xAxis, 0, delta * 10);
-
-			// Keep within safe range
-			playerMotion.zAxis = clamp(playerMotion.zAxis, -playerMotion.maxSpeed, playerMotion.maxSpeed);
-			playerMotion.xAxis = clamp(playerMotion.xAxis, -playerMotion.maxSpeed, playerMotion.maxSpeed);
-
-			// Sprinting
-			let sprinting = isKeyPressed["shift"] ? 2 : 1;
-			// FORWARDS COLLISION CHECKS
-			const collisionRadius = 15;
-			const footPosition = new THREE.Vector3(LEVELHANDLER.camera.position.x, LEVELHANDLER.camera.position.y - LEVELHANDLER.playerHeight + 5, LEVELHANDLER.camera.position.z);
-			if (playerMotion.zAxis < 0) {
-				const camForwardDirection = new THREE.Vector3();
-				LEVELHANDLER.camera.getWorldDirection(camForwardDirection);
-				camForwardDirection.y = 0;
-				// FIRST, raycast forwards (foot position)
-				let forward = voxelField.raycast(footPosition, camForwardDirection, collisionRadius);
-				// if there is something in the way
-				if (forward != null) playerMotion.zAxis *= -0.0001;
-				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.zAxis *= -0.0001;
-			}
-			// REAR COLLISION CHECKS
-			if (playerMotion.zAxis > 0) {
-				const camBackwardDirection = new THREE.Vector3();
-				LEVELHANDLER.camera.getWorldDirection(camBackwardDirection);
-				camBackwardDirection.negate();
-				camBackwardDirection.y = 0;
-				let rear = voxelField.raycast(footPosition, camBackwardDirection, collisionRadius);
-				if (rear != null) playerMotion.zAxis *= -0.0001;
-				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camBackwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.zAxis *= -0.0001;
-			}
-			// LEFT COLLISION CHECKS
-			if (playerMotion.xAxis < 0) {
-				const camLeftDirection = new THREE.Vector3();
-				LEVELHANDLER.camera.getWorldDirection(camLeftDirection);
-				camLeftDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-				camLeftDirection.y = 0;
-				let left = voxelField.raycast(footPosition, camLeftDirection, collisionRadius);
-				if (left != null) playerMotion.xAxis *= -0.0001;
-				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camLeftDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.xAxis *= -0.0001;
-			}
-			// RIGHT COLLISION CHECKS
-			if (playerMotion.xAxis > 0) {
-				const camRightDirection = new THREE.Vector3();
-				LEVELHANDLER.camera.getWorldDirection(camRightDirection);
-				camRightDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-				camRightDirection.negate();
-				camRightDirection.y = 0;
-				let right = voxelField.raycast(footPosition, camRightDirection, collisionRadius);
-				if (right != null) playerMotion.xAxis *= -0.0001;
-				else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camRightDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), LEVELHANDLER.playerHeight) != null) playerMotion.xAxis *= -0.0001;
-			}
-			// Movement
-			controls.moveRight(playerMotion.stepSize * playerMotion.xAxis * sprinting);
-			controls.moveForward(-playerMotion.stepSize * playerMotion.zAxis * sprinting);
-			// Crouching
-			if (playerMotion.isCrouching) {
-				LEVELHANDLER.camera.position.y = lerp(LEVELHANDLER.playerHeight, crouchYPosition, crouchLerp);
-				crouchLerp += crouchSpeed * delta;
-				if (crouchLerp > 1) crouchLerp = 1;
-			}
-			else {
-				var headPosition = LEVELHANDLER.playerHeight
-				if (playerMotion.zAxis == 1 || playerMotion.xAxis == 1) {
-					const freq = 75;
-					const strength = 2.5;
-					headPosition = LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
-				}
-				LEVELHANDLER.camera.position.y = lerp(LEVELHANDLER.camera.position.y, headPosition, delta * 10);
-				crouchLerp -= crouchSpeed * delta;
-				if (crouchLerp < 0) crouchLerp = 0;
-			}
-			if (WEAPONHANDLER.weaponModel && WEAPONHANDLER.weaponTarget && delta > 0) {
-				// SIN the weapon's position
-				const bounceRange = new THREE.Vector3(100, 100, 0);
-				let speed = new THREE.Vector3(0.01, 0.02, 0.01);
-				if (isCapsLockPressed) speed.multiplyScalar(0.5)
-				let isMoving = false;
-				if ((playerMotion.xAxis == 1 || playerMotion.zAxis == 1) && controls.isLocked == true) isMoving = true;
-
-				WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / timeModifier;
-				WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / timeModifier;
-			
-				// LERP the weapon's position
-				const instancedWeaponTargetWorldPosition = new THREE.Vector3();
-				WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-				WEAPONHANDLER.weaponModel.position.copy(moveTowards(WEAPONHANDLER.weaponModel.position, instancedWeaponTargetWorldPosition, delta * WEAPONHANDLER.weaponFollowSpeed * 1 / timeModifier));
-
-				// always realign the rotation of the weapon to the target
-				WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(WEAPONHANDLER.weaponTarget.matrixWorld);
-			}
-		}
+		playerController.update(delta);
 
 		let targetFOV = USERSETTINGS.baseFOV;
-		if (isRightClicking) {
+		if (INPUTHANDLER.isRightClicking) {
 			targetFOV = USERSETTINGS.baseFOV - 20;
 			switch (WEAPONHANDLER.weaponType) {
 				case undefined:
@@ -1441,7 +482,7 @@
 		LEVELHANDLER.camera.fov = lerp(LEVELHANDLER.camera.fov, targetFOV, 10 * delta);
 		if (Math.abs(LEVELHANDLER.camera.fov - targetFOV) > 1) LEVELHANDLER.camera.updateProjectionMatrix();
 
-		if (isLeftClicking) {
+		if (INPUTHANDLER.isLeftClicking) {
 			switch (WEAPONHANDLER.weaponType) {
 				case undefined:
 					break;
@@ -1450,24 +491,23 @@
 					break;
 				case "melee":
 					// move weaponModel position forward relative to player LEVELDATA.camera
-					if (isAttackAvailable) WEAPONHANDLER.weaponModel.translateX(50);
+					if (WEAPONHANDLER.isAttackAvailable) WEAPONHANDLER.weaponModel.translateX(50);
 				case "ranged":
 					if (WEAPONHANDLER.weaponRemainingAmmo > 0)
 					{
-						if (isAttackAvailable) {
+						if (WEAPONHANDLER.isAttackAvailable) {
 							WEAPONHANDLER.weaponRemainingAmmo--;
-							if (!isRightClicking) {
+							if (!INPUTHANDLER.isRightClicking) {
 								const weaponShakeIntensity = 2.5;
 								WEAPONHANDLER.weaponTarget.position.set(
-									WEAPONHANDLER.weaponPosition.x + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-									WEAPONHANDLER.weaponPosition.y + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-									WEAPONHANDLER.weaponPosition.z + Math.random() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+									WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+									WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+									WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
 								);
 							}
 
 							// Play Sound
-							shootSound.rate(2 + Math.random());
-							shootSound.play();
+							LEVELHANDLER.SFXPlayer.playSound("shootSound");
 
 							// GOD i HATE javascript
 							// type annotations? NO.
@@ -1487,82 +527,50 @@
 									mainObj.npcHandler.depleteHealth(WEAPONHANDLER.weaponDamage);
 								}
 								// Squelch!
-								hitSound.rate(clamp(1 + Math.random(), 1, 1.5));
-								hitSound.play();
-								// create a shoot effect
-								// shootLine(intersects[i].point);
+								LEVELHANDLER.SFXPlayer.playSound("hitSound");
+								// TODO - create a shoot effect
 							}
 
-							isAttackAvailable = false;
+							WEAPONHANDLER.isAttackAvailable = false;
 							setTimeout(function () {
-								isAttackAvailable = true;
+								WEAPONHANDLER.isAttackAvailable = true;
 							}, WEAPONHANDLER.fireRate);
 						}
 					}
 					break;
 				case "explosive":
-					if (isAttackAvailable) {
+					if (WEAPONHANDLER.isAttackAvailable) {
 
 						plantExplosive();
 
-						isAttackAvailable = false;
+						WEAPONHANDLER.isAttackAvailable = false;
 						setTimeout(function () {
-							isAttackAvailable = true;
+							WEAPONHANDLER.isAttackAvailable = true;
 						}, WEAPONHANDLER.fireRate);
 					}
 					break;
 			}
 		}
 
-		if (isKeyPressed["e"]) {
-			WEAPONHANDLER.throwWeapon(voxelField);
+		if (INPUTHANDLER.isKeyPressed("e")) {
+			LEVELHANDLER.playerHeight += 0.5;
+			// WEAPONHANDLER.throwWeapon(voxelField);
+		}
+		if (INPUTHANDLER.isKeyPressed("q")) {
+			LEVELHANDLER.playerHeight -= 0.5;
 		}
 
-// DEBUG PANEL (in console)
-if (isKeyPressed["p"]) {
-	console.log("\n+==============================+\n")
-	console.log("CAMERA POSITION");
-	console.log(LEVELHANDLER.camera.position);
-	console.log("draw calls #");
-	console.log(LEVELHANDLER.renderer.info.render.calls);
-	console.log("THREE SCENE");
-	console.log(LEVELHANDLER.scene);
-	console.log("instanced model index");
-	console.log(instancedModelIndex);
-	console.log("TRIVOXELS INDEX");
-	console.log(triVoxelDroppedPieces);
-	console.log("\n+==============================+\n")
-}
-// if (isKeyPressed['f']) {
-// 	if (getInteractionText().innerHTML.includes("computer")) {
-// 		const popupWindow = document.querySelector("#popup-window");
-// 		if (popupWindow.style.display == "none")
-// 		{
-// 			popupWindow.classList.add("pop-up");
-// 			popupWindow.style.display = "block";
-// 			setInteractionText("");
-// 			controls.unlock();
-// 		}
-// 		else
-// 		{
-// 			popupWindow.classList.remove("pop-up");
-// 			popupWindow.style.display = "none";
-// 			setInteractionText("");
-// 			lockControls();
-// 		}
-// 	}
-// }
-// if (isKeyPressed['e']) LEVELHANDLER.playerHeight += 1;
-// if (isKeyPressed['q']) LEVELHANDLER.playerHeight -= 1;
-if (isKeyPressed['t']) {
-	const vizbox = document.getElementById('vizbox');
-	if (vizbox.style.display == 'none') {
-		vizbox.style.display = 'block';
-	} else {
-		vizbox.style.display = 'none';
-	}
-	dat.GUI.toggleHide();
-}
+		// DEBUG PANEL (in console)
+		if (INPUTHANDLER.isKeyPressed("p")) {
+			console.log("\n+==============================+\n")
+			console.log("CAMERA POSITION");
+			console.log(LEVELHANDLER.camera.position);
+			console.log("draw calls #");
+			console.log(LEVELHANDLER.renderer.info.render.calls);
+			console.log("THREE SCENE");
+			console.log(LEVELHANDLER.scene);
+			console.log("\n+==============================+\n")
+		}
 
 		// Raycasting for interactables
 		if (frameCounter % 10 == 0) {
@@ -1577,20 +585,6 @@ if (isKeyPressed['t']) {
 			}
 		}
 
-		var frustum = new THREE.Frustum();
-		frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(LEVELHANDLER.camera.projectionMatrix, LEVELHANDLER.camera.matrixWorldInverse));
-		instancedModelIndex.forEach(model => {
-			if (frustum.intersectsBox(model.frustumBox)) {
-				if (model.isCovered == false) {
-					model.visible = true;
-				}
-			}
-			else {
-				model.visible = false;
-			}
-		});
-
-		// frameInfo.drawCalls = renderer.info.render.calls;
 		requestAnimationFrame(render);
 
 		LEVELHANDLER.renderer.info.reset();
@@ -1600,7 +594,7 @@ if (isKeyPressed['t']) {
 	const createVizSphere = function (position, size=2) {
 		const sphere = new THREE.Mesh(
 			new THREE.SphereGeometry(size,2,2),
-			new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff * Math.random()), transparent: true, opacity: 0.5 })
+			new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff * rapidFloat()), transparent: true, opacity: 0.5 })
 		);
 		sphere.position.copy(position);
 		LEVELHANDLER.scene.add(sphere);
@@ -1698,7 +692,7 @@ if (isKeyPressed['t']) {
 						if (!hasAYPosition(x, z)) continue;
 						if (voxel.value == 1) {
 							voxelField.set(x, i, z, 2, voxel.indexInChunk, voxel.chunk);
-							voxel.chunk.setMatrixAt(voxel.indexInChunk, new THREE.Matrix4().makeTranslation(instancedWorldSafetyOffset.x, instancedWorldSafetyOffset.y, instancedWorldSafetyOffset.z));
+							voxel.chunk.setMatrixAt(voxel.indexInChunk, new THREE.Matrix4());
 							voxel.chunk.instanceMatrix.needsUpdate = true;
 
 							voxel.position = new THREE.Vector3(x, i, z);
@@ -1713,9 +707,7 @@ if (isKeyPressed['t']) {
 			console.log("conjunction check took " + (endTime - startTime) + " milliseconds");
 
 			if (fullHole.length > 5) {
-				const sound = Math.floor(Math.random() * bigDropSounds.length)
-				bigDropSounds[sound].rate(Math.random() + 0.75);
-				bigDropSounds[sound].play();
+				LEVELHANDLER.SFXPlayer.playRandomSound("bigDropSounds");
 			}
 			
 			// fullhole = array of voxels that are in the hole, and need to be removed
@@ -1735,14 +727,6 @@ if (isKeyPressed['t']) {
 		document.querySelector("#popup-window").style.display = "none";
 	}
 
-	// create an array of random numbers
-	const bankLength = 10;
-	const randomBank = [];
-	for (let i = 0; i < bankLength; i++) {
-		randomBank.push(Math.random());
-	}
-	var bankIterator = 0;
-	const rapidFloat = () => { return randomBank[bankIterator++ % bankLength]; }
 	const shootRay = function () {
 		// RAYCAST INTO THE VOXEL FIELD
 		// STEP 1: GET THE CAMERA POSITION
@@ -1785,16 +769,14 @@ if (isKeyPressed['t']) {
 			for (let x = intersectPosition.x - WEAPONHANDLER.destroyedChunkRange; x <= intersectPosition.x + WEAPONHANDLER.destroyedChunkRange; x++) {
 				for (let y = intersectPosition.y - WEAPONHANDLER.destroyedChunkRange; y <= intersectPosition.y + WEAPONHANDLER.destroyedChunkRange; y++) {
 					for (let z = intersectPosition.z - WEAPONHANDLER.destroyedChunkRange; z <= intersectPosition.z + WEAPONHANDLER.destroyedChunkRange; z++) {
-						const voxelPosition = new THREE.Vector3(
-							x,
-							y,
-							z
-						);
-
-						const distanceToIntersectPos = voxelPosition.distanceTo(intersectPosition);
-						// further the distance is from center, increase chance of missing
-						// use WEAPONHANDLER.percentMissedHits (0-1)
-						if ((distanceToIntersectPos * WEAPONHANDLER.percentMissedHits) < rapidFloat()) destroyedVoxelsInChunk.push(voxelPosition);
+						if (rapidFloat() < 0.9)
+						{
+							destroyedVoxelsInChunk.push(new THREE.Vector3(
+								x,
+								y,
+								z
+							));
+						}
 					}
 				}
 			}
@@ -1807,7 +789,7 @@ if (isKeyPressed['t']) {
 				recentlyEditedWorldModels.push(currentModel);
 			}
 			if (recentlyEditedWorldModels.length > maxChunksInPhysicsCache) recentlyEditedWorldModels.shift();
-			generateDestroyedChunkAt(destroyedVoxelsInChunk);
+			generateDestroyedChunkAt(destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler);
 		}
 	}
 
@@ -1824,13 +806,7 @@ if (isKeyPressed['t']) {
 		LEVELHANDLER.camera.updateProjectionMatrix();
 	}, false);
 
-	// cutawayField = "Field has been cleared.";
 	setHelpText("Loading Map...");
 </script>
-
-	<div id="interaction-text"></div>
-	<div id="help-text">Loading . . .</div>
-    </script>
-</body>
 
 </html>

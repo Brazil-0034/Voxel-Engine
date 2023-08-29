@@ -6,14 +6,13 @@
         "fireRate": 50,
         "totalAmmo": 9999,
         "weaponDamage": 15,
-        "damageRange": 3,
+        "damageRange": 1,
         "minimumDistance": 500,
         "followSpeed": 1000,
-        "basepotency": 0.35,
         "position": {
             "x": 29.3404767778952,
             "y": -35.71519173158039,
-            "z": -84.25836737671506
+            "z": -70.25836737671506
         },
         "adsPosition": {
             "x": 0,

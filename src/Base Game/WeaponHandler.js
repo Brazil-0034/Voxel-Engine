@@ -6,6 +6,7 @@ export class WeaponHandler {
     // AMMO
     weaponRemainingAmmo
     defaultRemainingAmmo
+	isAttackAvailable
 
     // MODEL
     weaponModel
@@ -17,7 +18,6 @@ export class WeaponHandler {
     weaponType
     adsPosition
     adsRotation
-    percentMissedHits
     destroyedChunkRange
     fireRate
     weaponDamage
@@ -32,6 +32,7 @@ export class WeaponHandler {
         
 		this.weaponRemainingAmmo = 0;
 		this.defaultRemainingAmmo = 0;
+		this.isAttackAvailable = true;
 
     }
 
@@ -71,7 +72,6 @@ export class WeaponHandler {
 						WEAPONHANDLER.adsPosition = jsonModel.weaponData.adsPosition;
 						WEAPONHANDLER.adsRotation = jsonModel.weaponData.adsRotation;
 				        WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = jsonModel.weaponData.totalAmmo;
-						WEAPONHANDLER.percentMissedHits = jsonModel.weaponData.basepotency;
 						WEAPONHANDLER.destroyedChunkRange = jsonModel.weaponData.damageRange;
 						WEAPONHANDLER.fireRate = jsonModel.weaponData.fireRate;
 						WEAPONHANDLER.weaponDamage = jsonModel.weaponData.weaponDamage;

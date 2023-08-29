@@ -7,8 +7,8 @@ const fs = require('fs')
 function createWindow() {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
-        width: 980,
-        height: 560,
+        width: 1264,
+        height: 812,
         // titleBarStyle: 'hidden',
         titleBarOverlay: {
             color: '#cd373e',
@@ -33,7 +33,7 @@ function createWindow() {
     })
 
     // and load the index.html of the app.
-    const indexFile = "../Base Game/phone.html";
+    const indexFile = "../Base Game/index.html";
     mainWindow.loadFile(path.join(__dirname, indexFile))
 
     // devtools

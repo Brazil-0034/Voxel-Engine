@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { SoundEffectPlayer } from './AudioLibrary.js'; // SFX and Music
 
 // Data relevant to the user's graphics and gameplay settings
 export const USERSETTINGS = {
 	// LEVEL / DEBUG SETTINGS
 	debugMode: false,
 	blockoutMode: false,
+	disableCollisions: false,
 	// GRAPHICS SETTINGS
 	useSpriteParticles: true,
 	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
@@ -21,10 +23,16 @@ export class LevelHandler {
 	scene
 	camera
 	renderer
+	potentialCleanCalls
+
+	// Data about Audio
+	SFXPlayer
+	MusicPlayer
 
 	// Data about World
 	numCoverBoxes
 	numVoxels
+	timeModifier
 
 	// Data about Player
 	playerHeight
@@ -45,8 +53,13 @@ export class LevelHandler {
 		this.camera = camera;
 		this.renderer = new THREE.WebGLRenderer({ /* antialias: true */ });
 
+		this.potentialCleanCalls = 0;
+
+		this.SFXPlayer = new SoundEffectPlayer(USERSETTINGS);
+
 		this.numCoverBoxes = 0;
 		this.numVoxels = 0;
+		this.timeModifier = 1;
 		
 		this.playerHeight = 40;
 

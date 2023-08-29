@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { rapidFloat } from './EngineMath.js'; // math functions
+import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 
 class blockData {
 	value
@@ -169,6 +171,7 @@ export class VoxelChunk extends THREE.InstancedMesh {
 	isActivated
 	deadVoxels
 	coverBox
+	coverBoxIndex
 	isCovered
 	LEVELHANDLER
 	connectedBox
@@ -189,12 +192,17 @@ export class VoxelChunk extends THREE.InstancedMesh {
 
 	uncover() {
 		if (this.isCovered == true) {
-			this.coverBox.forEach(box => {
-				this.LEVELHANDLER.scene.remove(box);
-				box.material.map.dispose();
-				box.material.dispose();
-				box.geometry.dispose();
-			})
+			if (this.coverBox.isInstancedMesh == true) {
+				this.coverBox.setMatrixAt(this.coverBoxIndex, new THREE.Matrix4());
+				this.coverBox.instanceMatrix.needsUpdate = true;
+			} else {
+				this.coverBox.forEach(box => {
+					this.LEVELHANDLER.scene.remove(box);
+					box.material.map.dispose();
+					box.material.dispose();
+					box.geometry.dispose();
+				})
+			}
 			this.isCovered = false;
 			this.visible = true;
 			this.connectedBox.voxelChunks.forEach(chunk => {
@@ -249,6 +257,32 @@ export const addToCutawayStack = function (scale, position) {
 					Math.round(z),
 					1
 				);
+			}
+		}
+	}
+}
+
+// Adjusts a chunk for destroyed voxels
+export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler) {
+	for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
+		let position = destroyedVoxelsInChunk[x];
+		const thisVoxel = voxelField.get(position.x, position.y, position.z);
+		if (thisVoxel != null && thisVoxel.value != 0) {
+			thisVoxel.chunk.uncover();
+			thisVoxel.chunk.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4());
+			thisVoxel.chunk.instanceMatrix.needsUpdate = true;
+			voxelField.set(position.x, position.y, position.z, 0, thisVoxel.indexInChunk, thisVoxel.chunk);
+			LEVELHANDLER.SFXPlayer.playRandomSound("dropSounds");
+			if (rapidFloat() < USERSETTINGS.particleQualityMode/3) {
+				const voxelColor = new THREE.Color();
+				thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
+				const cameraDirection = new THREE.Vector3();
+				LEVELHANDLER.camera.getWorldDirection(cameraDirection);
+				// // add some randomness to the direction (x and z only)
+				cameraDirection.x += (rapidFloat() - 0.5) / 2;
+				cameraDirection.z += (rapidFloat() - 0.5) / 2;
+				cameraDirection.y = -1/10;
+				new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2), voxelColor, 50);
 			}
 		}
 	}
