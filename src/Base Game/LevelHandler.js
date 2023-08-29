@@ -30,9 +30,11 @@ export class LevelHandler {
 	MusicPlayer
 
 	// Data about World
+	interactableObjects
 	numCoverBoxes
 	numVoxels
 	timeModifier
+	particleHandler
 
 	// Data about Player
 	playerHeight
@@ -57,6 +59,7 @@ export class LevelHandler {
 
 		this.SFXPlayer = new SoundEffectPlayer(USERSETTINGS);
 
+		this.interactableObjects = [];
 		this.numCoverBoxes = 0;
 		this.numVoxels = 0;
 		this.timeModifier = 1;

@@ -51,7 +51,6 @@ export class ParticleMesh extends THREE.InstancedMesh {
     }
 
     update(delta) {
-        console.log(this.particlesList.length);
         for (let i = 0; i < this.particlesList.length; i++)
         {
             let particle = this.particlesList[i];

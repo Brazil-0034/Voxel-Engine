@@ -265,9 +265,8 @@
 </body>
 
 <script type="module">
-
 	// ##########
-	// MODULE IMPORTS
+	// JAVASCRIPT IMPORTS
 	// ##########
 	// THREE
 	import * as THREE from 'three';
@@ -289,8 +288,8 @@
 	import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 	import { USERSETTINGS, LevelHandler } from './LevelHandler.js'; // user settings and level info
 	import { InputHandler } from './InputHandler.js'; // DOM input
-	import { lerp, clamp, rapidFloat, moveTowards } from './EngineMath.js'; // math functions
-	import { voxelField, generateDestroyedChunkAt } from './VoxelStructures.js'; // data structures for handling voxels
+	import { lerp, clamp, rapidFloat, moveTowards, createVizSphere } from './EngineMath.js'; // math functions
+	import { voxelField, recentlyEditedWorldModels } from './VoxelStructures.js'; // data structures for handling voxels
 	import { NPC } from './NPC.js'; // non-player characters (NPCs)
 	import { resetGameState } from './GameStateControl.js'; // Level Data
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
@@ -353,18 +352,20 @@
 	const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 256 );
 	const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
 	console.log(cubeRenderTarget.texture);
-	// LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
-	// const cubemap = new THREE.CubeTextureLoader().load(
-	// 	[
-	// 		'../opensource/cherry_skybox/left.png',
-	// 		'../opensource/cherry_skybox/right.png',
-	// 		'../opensource/cherry_skybox/up.png',
-	// 		'../opensource/cherry_skybox/down.png',
-	// 		'../opensource/cherry_skybox/front.png',
-	// 		'../opensource/cherry_skybox/back.png',
-	// 	]
-	// )
-	// LEVELHANDLER.background = cubemap;
+	{
+	// 	LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
+	// 	const cubemap = new THREE.CubeTextureLoader().load(
+	// 		[
+	// 			'../opensource/cherry_skybox/left.png',
+	// 			'../opensource/cherry_skybox/right.png',
+	// 			'../opensource/cherry_skybox/up.png',
+	// 			'../opensource/cherry_skybox/down.png',
+	// 			'../opensource/cherry_skybox/front.png',
+	// 			'../opensource/cherry_skybox/back.png',
+	// 		]
+	// 	)
+	// 	LEVELHANDLER.background = cubemap;
+	}
 
 	// ##########
 	// POST PROCESSING
@@ -389,7 +390,6 @@
 	// ##########
 	// DEFAULT AMBIENT LIGHTING
 	// ##########
-	// Initializes the THREE.js lighting
 	const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 	LEVELHANDLER.scene.add(ambientLight);
 
@@ -398,7 +398,7 @@
 	// ##########
 	const controls = new PointerLockControls(LEVELHANDLER.camera, LEVELHANDLER.renderer.domElement);
 	LEVELHANDLER.scene.add(controls.getObject());
-	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => lockControls());
+	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => controls.lock());
 
 	// ##########
 	// FILESYSTEM CONSTANTS
@@ -407,10 +407,6 @@
 	const modelURL = 'savedata';
 	const weaponURL = '../weapons/' + 'smg/smg';
 	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
-	const interactableObjects = [];
-	// This stores every individual displaced voxel that is currently being simulated.
-	// TODO: Add gc to this, dead voxels still exist in the array. This will lead to memory problems in big maps.
-	const destroyedVoxels = [];
 
 	// This starts building the map ...
 	// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
@@ -424,6 +420,7 @@
 	// ##########
 	const particleHandler = new ParticleMesh(voxelGeometry, voxelMaterial, USERSETTINGS.particleQualityMode * 100);
 	LEVELHANDLER.scene.add(particleHandler);
+	LEVELHANDLER.particleHandler = particleHandler;
 	particleHandler.frustumCulled = false;
 
 	const clock = new THREE.Clock();
@@ -441,7 +438,7 @@
 		document.querySelector("#ZViz").textContent = "Z: " + Math.round(LEVELHANDLER.camera.position.z);
 	}
 
-	const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER);
+	const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster);
 
 	let frameCounter = 0;
 	// ### RENDER LOOP ###
@@ -461,97 +458,9 @@
 		// Player Movement Handling
 		playerController.update(delta);
 
-		let targetFOV = USERSETTINGS.baseFOV;
-		if (INPUTHANDLER.isRightClicking) {
-			targetFOV = USERSETTINGS.baseFOV - 20;
-			switch (WEAPONHANDLER.weaponType) {
-				case undefined:
-					break;
-				default:
-					console.error("Illegal Weapon Type - \"" + WEAPONHANDLER.weaponType + "\"");
-					break;
-				case "melee":
-				case "ranged":
-					WEAPONHANDLER.weaponTarget.position.set(WEAPONHANDLER.adsPosition.x, WEAPONHANDLER.adsPosition.y, WEAPONHANDLER.adsPosition.z);
-					WEAPONHANDLER.weaponTarget.rotation.set(WEAPONHANDLER.adsRotation.x, WEAPONHANDLER.adsRotation.y, WEAPONHANDLER.adsRotation.z);
-			}
-		}
-		else {
-			if (WEAPONHANDLER.weaponTarget) WEAPONHANDLER.weaponTarget.position.set(WEAPONHANDLER.weaponPosition.x, WEAPONHANDLER.weaponPosition.y, WEAPONHANDLER.weaponPosition.z);
-		}
-		LEVELHANDLER.camera.fov = lerp(LEVELHANDLER.camera.fov, targetFOV, 10 * delta);
-		if (Math.abs(LEVELHANDLER.camera.fov - targetFOV) > 1) LEVELHANDLER.camera.updateProjectionMatrix();
-
-		if (INPUTHANDLER.isLeftClicking) {
-			switch (WEAPONHANDLER.weaponType) {
-				case undefined:
-					break;
-				default:
-					console.error("Illegal Weapon Type - \"" + WEAPONHANDLER.weaponType + "\"");
-					break;
-				case "melee":
-					// move weaponModel position forward relative to player LEVELDATA.camera
-					if (WEAPONHANDLER.isAttackAvailable) WEAPONHANDLER.weaponModel.translateX(50);
-				case "ranged":
-					if (WEAPONHANDLER.weaponRemainingAmmo > 0)
-					{
-						if (WEAPONHANDLER.isAttackAvailable) {
-							WEAPONHANDLER.weaponRemainingAmmo--;
-							if (!INPUTHANDLER.isRightClicking) {
-								const weaponShakeIntensity = 2.5;
-								WEAPONHANDLER.weaponTarget.position.set(
-									WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-									WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-									WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-								);
-							}
-
-							// Play Sound
-							LEVELHANDLER.SFXPlayer.playSound("shootSound");
-
-							// GOD i HATE javascript
-							// type annotations? NO.
-							// parameter delcarations? NO.
-							// return types? NO.
-							// why don't i just kill myself now?
-							shootRay();
-
-							raycaster.far = WEAPONHANDLER.weaponRange;
-							raycaster.setFromCamera(new THREE.Vector2(0, 0), LEVELHANDLER.camera);
-							const intersects = raycaster.intersectObjects(LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
-
-							for (let i = 0; i < intersects.length; i++) {
-								const mainObj = intersects[i].object;
-								if (mainObj.npcHandler.health > 0) {
-									// Register Hit
-									mainObj.npcHandler.depleteHealth(WEAPONHANDLER.weaponDamage);
-								}
-								// Squelch!
-								LEVELHANDLER.SFXPlayer.playSound("hitSound");
-								// TODO - create a shoot effect
-							}
-
-							WEAPONHANDLER.isAttackAvailable = false;
-							setTimeout(function () {
-								WEAPONHANDLER.isAttackAvailable = true;
-							}, WEAPONHANDLER.fireRate);
-						}
-					}
-					break;
-				case "explosive":
-					if (WEAPONHANDLER.isAttackAvailable) {
-
-						plantExplosive();
-
-						WEAPONHANDLER.isAttackAvailable = false;
-						setTimeout(function () {
-							WEAPONHANDLER.isAttackAvailable = true;
-						}, WEAPONHANDLER.fireRate);
-					}
-					break;
-			}
-		}
-
+		// #########
+		// DEBUG KEYS
+		// #########
 		if (INPUTHANDLER.isKeyPressed("e")) {
 			LEVELHANDLER.playerHeight += 0.5;
 			// WEAPONHANDLER.throwWeapon(voxelField);
@@ -559,7 +468,6 @@
 		if (INPUTHANDLER.isKeyPressed("q")) {
 			LEVELHANDLER.playerHeight -= 0.5;
 		}
-
 		// DEBUG PANEL (in console)
 		if (INPUTHANDLER.isKeyPressed("p")) {
 			console.log("\n+==============================+\n")
@@ -576,7 +484,7 @@
 		if (frameCounter % 10 == 0) {
 			raycaster.far = 100;
 			raycaster.setFromCamera(new THREE.Vector2(0, 0), LEVELHANDLER.camera);
-			const intersects = raycaster.intersectObjects(interactableObjects);
+			const intersects = raycaster.intersectObjects(LEVELHANDLER.interactableObjects);
 			if (intersects.length > 0) {
 				if (getInteractionText().innerHTML != intersects[0].object.interactionEvent) setInteractionText(intersects[0].object.interactionEvent);
 			}
@@ -589,208 +497,6 @@
 
 		LEVELHANDLER.renderer.info.reset();
 		composer.render();
-	}
-
-	const createVizSphere = function (position, size=2) {
-		const sphere = new THREE.Mesh(
-			new THREE.SphereGeometry(size,2,2),
-			new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff * rapidFloat()), transparent: true, opacity: 0.5 })
-		);
-		sphere.position.copy(position);
-		LEVELHANDLER.scene.add(sphere);
-	}
-
-	const cubeSprite = LEVELHANDLER.globalTextureLoader.load("../img/cubesprite.png");
-	const conjunctionCheckTimesPerSecond = 1;
-	const recentlyEditedWorldModels = [];
-	const maxChunksInPhysicsCache = 15;
-	const conjunctionCheck = function () {
-
-		const holeBorder = [];
-
-		// CONJUNCTION CHECK
-		recentlyEditedWorldModels.forEach(instancedModel => {
-			const deadVoxels = instancedModel.deadVoxels;
-			for (let i = 0; i < deadVoxels.length; i++) {
-				const thisVector = new THREE.Vector3(
-					deadVoxels[i][0],
-					deadVoxels[i][1],
-					deadVoxels[i][2]
-				);
-				const voxel = voxelField.get(thisVector.x, thisVector.y, thisVector.z);
-				if (voxel != null && voxel.value == 0) {
-					holeBorder.push(thisVector);
-				}
-			}
-			// recentlyEditedWorldModels.splice(recentlyEditedWorldModels.indexOf(instancedModel), 1);
-		});
-
-		// if all voxels in the holeSet touch each other, then they are a hole.
-		const startTime = performance.now();
-		const confirmedTouch = [];
-		holeBorder.forEach(holeA => {
-			const holeApos = new THREE.Vector3(holeA.x, holeA.y, holeA.z);
-			holeBorder.forEach(holeB => {
-				const holeBpos = new THREE.Vector3(holeB.x, holeB.y, holeB.z);
-				if (holeApos.distanceTo(holeBpos) < 2) {
-					// if it isnt in the confirmedTouch array, add it
-					if (!confirmedTouch.includes(holeA)) {
-						confirmedTouch.push(holeA);
-					}
-				}
-			});
-		});
-
-		const fullHole = [];
-		if (confirmedTouch.length == holeBorder.length) {
-			const maxPositions = [];
-			const minPositions = [];
-			const clearedYPositions = []; // store Y positions that have at LEAST two X,Z positions
-			for (let i = 1; i < holeBorder.length; i++) {
-				// min positions for EVERY Y LEVEL
-				if (minPositions[holeBorder[i].y] == undefined) {
-					minPositions[holeBorder[i].y] = holeBorder[i];
-				}
-				else {
-					if (holeBorder[i].x < minPositions[holeBorder[i].y].x) {
-						minPositions[holeBorder[i].y] = holeBorder[i];
-					}
-					if (holeBorder[i].z < minPositions[holeBorder[i].y].z) {
-						minPositions[holeBorder[i].y] = holeBorder[i];
-					}
-				}
-				// max positions for EVERY Y LEVEL
-				if (maxPositions[holeBorder[i].y] == undefined) {
-					maxPositions[holeBorder[i].y] = holeBorder[i];
-				}
-				else {
-					if (holeBorder[i].x > maxPositions[holeBorder[i].y].x) {
-						maxPositions[holeBorder[i].y] = holeBorder[i];
-					}
-					if (holeBorder[i].z > maxPositions[holeBorder[i].y].z) {
-						maxPositions[holeBorder[i].y] = holeBorder[i];
-					}
-				}
-			}
-			const hasAYPosition = function (x, z) {
-				let count = 0;
-				for (let i = 0; i < holeBorder.length; i++) {
-					if (holeBorder[i].x == x && holeBorder[i].z == z) count++;
-					if (count >= 2) return true;
-				}
-				return false;
-			}
-			for (let i = 1; i < minPositions.length; i++) {
-				const minPos = minPositions[i];
-				const maxPos = maxPositions[i];
-				if (minPos == undefined || maxPos == undefined) continue;
-				// if clearedYpositions does NOT include this Y position, or its length is less than 2, then skip it
-				// for every voxel beween min and max, add it to the fullHole array
-				for (let x = minPos.x; x <= maxPos.x; x++) {
-					for (let z = minPos.z; z <= maxPos.z; z++) {
-						const voxel = voxelField.get(x, i, z);
-						if (!hasAYPosition(x, z)) continue;
-						if (voxel.value == 1) {
-							voxelField.set(x, i, z, 2, voxel.indexInChunk, voxel.chunk);
-							voxel.chunk.setMatrixAt(voxel.indexInChunk, new THREE.Matrix4());
-							voxel.chunk.instanceMatrix.needsUpdate = true;
-
-							voxel.position = new THREE.Vector3(x, i, z);
-							voxel.color = voxelField.get(x, i, z).color;
-
-							fullHole.push(voxel);
-						}
-					}
-				}
-			}
-			const endTime = performance.now();
-			console.log("conjunction check took " + (endTime - startTime) + " milliseconds");
-
-			if (fullHole.length > 5) {
-				LEVELHANDLER.SFXPlayer.playRandomSound("bigDropSounds");
-			}
-			
-			// fullhole = array of voxels that are in the hole, and need to be removed
-		}
-	}
-
-	document.addEventListener('mousedown', function (e) {
-		// if mouse4 click
-		if (e.button == 3) {
-			conjunctionCheck();
-			activateExplosives();
-		}
-	});
-
-	const lockControls = function() {
-		controls.lock();
-		document.querySelector("#popup-window").style.display = "none";
-	}
-
-	const shootRay = function () {
-		// RAYCAST INTO THE VOXEL FIELD
-		// STEP 1: GET THE CAMERA POSITION
-		// STEP 2: GET THE CAMERA DIRECTION
-		// STEP 3: CALL voxelField.raycast() WITH THE CAMERA POSITION AND DIRECTION, and a step range of weaponRange
-		// STEP 4: IF THE RAYCAST RETURNS A HIT, DESTROY THE VOXEL AT THAT POSITION
-		// CAMERA POSITION
-		const cameraPosition = new THREE.Vector3();
-		LEVELHANDLER.camera.getWorldPosition(cameraPosition);
-		cameraPosition.x = Math.round(cameraPosition.x);
-		cameraPosition.y = Math.round(cameraPosition.y);
-		cameraPosition.z = Math.round(cameraPosition.z);
-		const cameraDirection = new THREE.Vector3();
-		LEVELHANDLER.camera.getWorldDirection(cameraDirection);
-		const intersection = voxelField.raycast(cameraPosition, cameraDirection, WEAPONHANDLER.weaponRange);
-		// Determine which voxels in chunk are to be destroyed
-		if (intersection != null) {
-			// get the lowest lod model for this voxel
-			const currentModel = intersection.chunk;
-
-			// disable any attached light
-			if (currentModel.attachedLight != undefined) // TODO: this check may be unnecessary
-			{
-				currentModel.attachedLight.visible = false;
-			}
-
-			// build a list of each destroyed voxel
-			let destroyedVoxelsInChunk = [];
-
-			// the position at which we hit
-			const intersectPosition = new THREE.Vector3(
-				intersection.x,
-				intersection.y,
-				intersection.z
-			)
-
-			const intersectedVoxelData = voxelField.get(intersectPosition.x, intersectPosition.y, intersectPosition.z);
-
-			// for every voxel within a WEAPONHANDLER.destroyedChunkRange of the intersection, destroy it
-			for (let x = intersectPosition.x - WEAPONHANDLER.destroyedChunkRange; x <= intersectPosition.x + WEAPONHANDLER.destroyedChunkRange; x++) {
-				for (let y = intersectPosition.y - WEAPONHANDLER.destroyedChunkRange; y <= intersectPosition.y + WEAPONHANDLER.destroyedChunkRange; y++) {
-					for (let z = intersectPosition.z - WEAPONHANDLER.destroyedChunkRange; z <= intersectPosition.z + WEAPONHANDLER.destroyedChunkRange; z++) {
-						if (rapidFloat() < 0.9)
-						{
-							destroyedVoxelsInChunk.push(new THREE.Vector3(
-								x,
-								y,
-								z
-							));
-						}
-					}
-				}
-			}
-
-			// 
-			// ### ASSIGN PHYSICS
-			// 
-			// if recentlyeditedworldmodels DOES NOT HAVE currentmodel
-			if (!recentlyEditedWorldModels.some(model => model.name == currentModel.name)) {
-				recentlyEditedWorldModels.push(currentModel);
-			}
-			if (recentlyEditedWorldModels.length > maxChunksInPhysicsCache) recentlyEditedWorldModels.shift();
-			generateDestroyedChunkAt(destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler);
-		}
 	}
 
 	render(); // calls render loop

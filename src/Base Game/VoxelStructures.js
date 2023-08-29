@@ -262,8 +262,11 @@ export const addToCutawayStack = function (scale, position) {
 	}
 }
 
+export const recentlyEditedWorldModels = [];
+const maxChunksInPhysicsCache = 15;
+
 // Adjusts a chunk for destroyed voxels
-export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler) {
+export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler, currentModel) {
 	for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
 		let position = destroyedVoxelsInChunk[x];
 		const thisVoxel = voxelField.get(position.x, position.y, position.z);
@@ -286,4 +289,9 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 			}
 		}
 	}
+    
+	if (!recentlyEditedWorldModels.some(model => model.name == currentModel.name)) {
+		recentlyEditedWorldModels.push(currentModel);
+	}
+	if (recentlyEditedWorldModels.length > maxChunksInPhysicsCache) recentlyEditedWorldModels.shift();
 }

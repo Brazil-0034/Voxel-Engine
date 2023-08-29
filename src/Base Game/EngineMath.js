@@ -31,3 +31,13 @@ export const moveTowards = function (vectorA, vectorB, step) {
 
 // ### CLAMP
 export const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+
+// ### DEBUG SPHERE
+export const createVizSphere = function (position, size=2) {
+	const sphere = new THREE.Mesh(
+		new THREE.SphereGeometry(size,2,2),
+		new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff * rapidFloat()), transparent: true, opacity: 0.5 })
+	);
+	sphere.position.copy(position);
+	LEVELHANDLER.scene.add(sphere);
+}
