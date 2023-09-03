@@ -190,6 +190,12 @@ export class VoxelChunk extends THREE.InstancedMesh {
 		this.coverBox.push(coverBox);
 	}
 
+	addInstancedCoverBox(coverBox, index) {
+		this.isCovered = true;
+		this.coverBox = coverBox;
+		this.coverBoxIndex = index;
+	}
+
 	uncover() {
 		if (this.isCovered == true) {
 			if (this.coverBox.isInstancedMesh == true) {
@@ -197,10 +203,11 @@ export class VoxelChunk extends THREE.InstancedMesh {
 				this.coverBox.instanceMatrix.needsUpdate = true;
 			} else {
 				this.coverBox.forEach(box => {
-					this.LEVELHANDLER.scene.remove(box);
-					box.material.map.dispose();
-					box.material.dispose();
-					box.geometry.dispose();
+					box.visible = false;
+					// this.LEVELHANDLER.scene.remove(box);
+					// box.material.map.dispose();
+					// box.material.dispose();
+					// box.geometry.dispose();
 				})
 			}
 			this.isCovered = false;
@@ -220,7 +227,6 @@ export class VoxelChunk extends THREE.InstancedMesh {
  * It is used to handle the uncovering of boxes that may have more than one chunk (often having side-chunks unless they are a perfect multiple of two)
  * 
  */
-
 export class BoxData {
 	voxelChunks
 

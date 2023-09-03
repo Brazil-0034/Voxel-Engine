@@ -11,10 +11,11 @@ export const USERSETTINGS = {
 	// GRAPHICS SETTINGS
 	useSpriteParticles: true,
 	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
+	disablePostProcessing: false,
 	// DISPLAY SETTINGS
 	baseFOV: 60,
     // AUDIO SETTINGS
-    SFXVolume: 0.05
+    SFXVolume: 5 / 100 // (value / 100)
 }
 
 // Data relevent to the game's currently loaded level
@@ -85,3 +86,5 @@ export class LevelHandler {
 		this.thrownWeaponBank.push(thrownWeapon);
 	}
 }
+
+export const instancedModelIndex = []; // index of raw voxel instances and cover boxes

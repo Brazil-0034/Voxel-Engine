@@ -577,8 +577,6 @@ document.body.addEventListener('keydown', function (event) {
     if (event.key == "f")
     {
         controls.target.copy(selectedObjects.position);
-        console.log(controls.target);
-        console.log(camera.position, camera.rotation);
     }
 });
 var retachAvailable = true;
@@ -602,6 +600,12 @@ const errorTex = new THREE.TextureLoader().load("../img/errorTex.png");
 const clamp = function(val, min, max) {
     return Math.min(Math.max(val, min), max);
 }
+const shiftUp = function(obj) {
+    const boundingBox = new THREE.Box3().setFromObject(obj);
+    if (boundingBox.min.y < -1) {
+        obj.position.y += Math.abs(boundingBox.min.y);
+    }
+}
 transformControls.addEventListener('dragging-changed', function (event) {
     controls.enabled = !event.value;
     retachAvailable = !event.value;
@@ -615,24 +619,46 @@ transformControls.addEventListener('dragging-changed', function (event) {
                     const tempSelObjs = Array.from(selectedObjects.children);
                     clearSelectedObjects();
                     tempSelObjs.forEach(selectedObject => {
-                        const boundingBox = new THREE.Box3().setFromObject(selectedObject);
-                        if (boundingBox.min.y < -1) {
-                            const distanceToMoveUp = Math.abs(boundingBox.min.y);
-                            selectedObject.position.y += distanceToMoveUp;
-                            attachHandles(selectedObject);
-                        }
+                        shiftUp(selectedObject);
+                        attachHandles(selectedObject);
                     });
                 }
                 // round the WORLD scale to the nearest EVEN whole number
-                const multipleCheck = function(n) { return Math.round(n / 2) * 2 }
+                const multipleCheck = function(n, d) { return Math.round(n / d) * d }
                 selectedObjects.children.forEach(child => {
-                    // the scale MUST be a multiple-of-two greater than 0
                     removeHandles(child);
                     if (child.userData.isEnemyNPC == false)
                     {
-                        child.scale.x = clamp(multipleCheck(child.scale.x), 2, Infinity);
-                        child.scale.y = clamp(multipleCheck(child.scale.y), 2, Infinity);
-                        child.scale.z = clamp(multipleCheck(child.scale.z), 2, Infinity);
+                        switch (child.userData.gameObjectType)
+                        {
+                            default:
+                                console.error("Failed to process transform for type: " + child.userData.gameObjectType);
+                                break;
+                            case "Wall":
+                                if (child.userData.isRotated == false) {
+                                    child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
+                                    child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
+                                    child.scale.z = 2;
+                                }
+                                else
+                                {
+                                    child.scale.x = 2;
+                                    child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
+                                    child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
+                                }
+                                break;
+                            case "Floor":
+                                child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
+                                child.scale.y = 2;
+                                child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
+                                break;
+                            case "Detail":
+                                child.scale.x = clamp(multipleCheck(child.scale.x, 2), 64, Infinity);
+                                child.scale.y = clamp(multipleCheck(child.scale.y, 2), 64, Infinity);
+                                child.scale.z = clamp(multipleCheck(child.scale.z, 2), 64, Infinity);
+                                break;
+                        }
+
                     }
                     // round the position of the child to the nearest whole number
                     child.position.x = Math.round(child.position.x);
@@ -891,6 +917,10 @@ document.body.addEventListener('keydown', function (event) {
                         childObject.scale.x = childObject.scale.z;
                         childObject.scale.z = temp;
                         attachHandles(childObject);
+
+                        if (childObject.userData.gameObjectType == "Wall") {
+                            childObject.userData.isRotated = !childObject.userData.isRotated;
+                        }
                     }
                 });
                 break;
@@ -1028,10 +1058,53 @@ const createEnemyNPC = function(position, rotation=0) {
     enemyNPC.userData.existInGame = true;
     enemyNPC.userData.isEnemyNPC = true;
     enemyNPC.userData.isLight = false;
+    enemyNPC.userData.gameObjectType = "EnemyNPC"
+
     enemyNPC.name = "Enemy NPC - " + Math.floor(Math.random() * 1000);
     addToScene(enemyNPC);
     MAPOBJECTS.push(enemyNPC);
     return enemyNPC;
+}
+
+const createBox = function(type) {
+    const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xffffff),
+            side: THREE.DoubleSide
+        })
+    );
+    switch (type) {
+        case "Wall":
+            cube.scale.set(64, 64, 2);
+            break;
+        case "Floor":
+            cube.scale.set(64, 2, 64);
+            break;
+        default:
+            console.error("Invalid Box Type: " + type);
+            break;
+    }
+    const cubePosition = new THREE.Vector3();
+    cubePosition.copy(camera.position);
+    cubePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(camera.position.distanceTo(groundFloor.position)));
+    cube.position.copy(cubePosition);
+    shiftUp(cube);
+
+    cube.userData.gameObjectType = type;
+    cube.userData.isRotated = false;
+    cube.userData.existInGame = true;
+    cube.userData.materialType = "smooth";
+    cube.userData.isLight = false;
+    cube.userData.lightBrightness = 0;
+    cube.userData.isCutaway = false;
+    cube.userData.isEnemyNPC = false;
+    cube.userData.interactionEvent = "none";
+
+    cube.name = type + " - " + Math.floor(Math.random() * 1000);
+    realignTexture(cube, cube.scale.x, cube.scale.z);
+    addToScene(cube);
+    MAPOBJECTS.push(cube);
 }
 
 // ### CONTEXT MENU
@@ -1039,31 +1112,14 @@ const rightClickMenu = document.querySelector("#right-click-menu");
 const contextMenuClick = function (action) {
     switch (action) {
         //  ### Object Creation
-        case "Create Hollow Box":
-            const cube = new THREE.Mesh(
-                new THREE.BoxGeometry(1, 1, 1),
-                new THREE.MeshBasicMaterial({
-                    color: randomColor(),
-                    side: THREE.DoubleSide
-                })
-            );
-            const cubePosition = new THREE.Vector3();
-            cubePosition.copy(camera.position);
-            cubePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
-            cube.position.copy(cubePosition);
-
-            cube.userData.existInGame = true;
-            cube.userData.materialType = "smooth";
-            cube.userData.isLight = false;
-            cube.userData.lightBrightness = 0;
-            cube.userData.isCutaway = false;
-            cube.userData.isEnemyNPC = false;
-            cube.userData.interactionEvent = "none";
-
-            cube.name = "Hollow Box - " + Math.floor(Math.random() * 1000);
-            realignTexture(cube, cube.scale.x, cube.scale.z);
-            addToScene(cube);
-            MAPOBJECTS.push(cube);
+        case "Create Wall":
+            createBox("Wall");
+            break;
+        case "Create Floor/Ceiling":
+            createBox("Floor");
+            break;
+        case "Create Detail Object":
+            sendTooltip("Not yet implemented :)");
             break;
         case "Create NPC Enemy":
             // set EnemyNPCPosition to be right IN FRONT of the camera
@@ -1101,7 +1157,9 @@ const invokeContextMenu = function (e) {
     const options = [];
     if (clickedElement.id == "left-panel" || clickedElement.id == "editor-canvas") {
         options.push("[] Add Geometry");
-        options.push("Create Hollow Box");
+        options.push("Create Wall");
+        options.push("Create Floor/Ceiling");
+        options.push("Create Detail Object");
         options.push("[] Add Characters");
         options.push("Create NPC Enemy");
     }
@@ -1233,7 +1291,8 @@ const saveProject = function () {
         if (mapObject.isMesh) {
             // save the size, position, color
             metaData.mapMakerSave.push({
-                "type": "box",
+                "type": mapObject.userData.gameObjectType,
+                "isRotated": mapObject.userData.isRotated,
                 "size": {
                     "x": Math.round(mapObject.scale.x), // We round again in case i ever add anything stupid in the future that would cause a decimal (post-typescript change)
                     "y": Math.round(mapObject.scale.y),
@@ -1359,45 +1418,47 @@ const importProject = function () {
             console.log(mapMakerSaveData);
 
             mapMakerSaveData.forEach(mapMakerObject => {
-                if (mapMakerObject.type == "box") {
-                    if (mapMakerObject.isEnemyNPC == true)
-                    {
-                        createEnemyNPC(
-                            new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z), mapMakerObject.rotation.y
-                            // new THREE.Vector3(mapMakerObject.rotation.x, mapMakerObject.rotation.y, mapMakerObject.rotation.z)
-                        );
-                    }
-                    else
-                    {
-                        const newBox = new THREE.Mesh(
-                            new THREE.BoxGeometry(1, 1, 1),
-                            new THREE.MeshBasicMaterial({
-                                color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
-                                map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
-                            })
-                        );
-                        newBox.material.side = THREE.DoubleSide;
-                        newBox.material.map.magFilter = THREE.NearestFilter;
-                        newBox.material.map.wrapS = THREE.RepeatWrapping;
-                        newBox.material.map.wrapT = THREE.RepeatWrapping;
-                        newBox.name = capitalizeFirstLetter(mapMakerObject.material + " Box ID:" + Math.floor(Math.random() * 1000000));
-                        newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
+                if (mapMakerObject.isEnemyNPC == true)
+                {
+                    createEnemyNPC(
+                        new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z), mapMakerObject.rotation.y
+                        // new THREE.Vector3(mapMakerObject.rotation.x, mapMakerObject.rotation.y, mapMakerObject.rotation.z)
+                    );
+                }
+                else
+                {
+                    const newBox = new THREE.Mesh(
+                        new THREE.BoxGeometry(1, 1, 1),
+                        new THREE.MeshBasicMaterial({
+                            color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
+                            map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
+                        })
+                    );
+                    newBox.material.side = THREE.DoubleSide;
+                    newBox.material.map.magFilter = THREE.NearestFilter;
+                    newBox.material.map.wrapS = THREE.RepeatWrapping;
+                    newBox.material.map.wrapT = THREE.RepeatWrapping;
+                    newBox.name = capitalizeFirstLetter(mapMakerObject.material + " Box ID:" + Math.floor(Math.random() * 1000000));
+                    newBox.position.set(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z);
 
-                        newBox.userData.materialType = mapMakerObject.material;
-                        newBox.userData.isCutaway = mapMakerObject.isCutaway;
-                        if (mapMakerObject.isCutaway) newBox.material = cutawayMaterial;
-                        newBox.userData.existInGame = true;
-                        newBox.userData.isLight = mapMakerObject.isLight;
-                        newBox.userData.lightBrightness = mapMakerObject.lightBrightness;
-                        newBox.userData.interactionEvent = mapMakerObject.interactionEvent ? mapMakerObject.interactionEvent : "none";
+                    newBox.userData.materialType = mapMakerObject.material;
+                    newBox.userData.isCutaway = mapMakerObject.isCutaway;
+                    if (mapMakerObject.isCutaway) newBox.material = cutawayMaterial;
+                    newBox.userData.existInGame = true;
+                    newBox.userData.isLight = mapMakerObject.isLight;
+                    newBox.userData.lightBrightness = mapMakerObject.lightBrightness;
+                    newBox.userData.interactionEvent = mapMakerObject.interactionEvent ? mapMakerObject.interactionEvent : "none";
 
-                        addToScene(newBox);
-                        MAPOBJECTS.push(newBox);
-                        newBox.scale.x = mapMakerObject.size.x;
-                        newBox.scale.y = mapMakerObject.size.y;
-                        newBox.scale.z = mapMakerObject.size.z;
-                        realignTexture(newBox, newBox.scale.x, newBox.scale.z);
-                    }
+                    newBox.userData.isRotated = mapMakerObject.isRotated;
+                    newBox.userData.gameObjectType = mapMakerObject.type;
+                    newBox.userData.isEnemyNPC = mapMakerObject.isEnemyNPC;
+
+                    addToScene(newBox);
+                    MAPOBJECTS.push(newBox);
+                    newBox.scale.x = mapMakerObject.size.x;
+                    newBox.scale.y = mapMakerObject.size.y;
+                    newBox.scale.z = mapMakerObject.size.z;
+                    realignTexture(newBox, newBox.scale.x, newBox.scale.z);
                 }
             })
 

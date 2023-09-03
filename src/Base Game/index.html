@@ -81,6 +81,7 @@
 			padding: 20px;
 			transform: translate(-50%, 0);
 			opacity: 0.25;
+			text-align: center;
 		}
 
 		#loader {
@@ -286,12 +287,10 @@
 	import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
 	// WRECKMESH
 	import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
-	import { USERSETTINGS, LevelHandler } from './LevelHandler.js'; // user settings and level info
+	import { USERSETTINGS, LevelHandler, instancedModelIndex } from './LevelHandler.js'; // user settings and level info
 	import { InputHandler } from './InputHandler.js'; // DOM input
 	import { lerp, clamp, rapidFloat, moveTowards, createVizSphere } from './EngineMath.js'; // math functions
 	import { voxelField, recentlyEditedWorldModels } from './VoxelStructures.js'; // data structures for handling voxels
-	import { NPC } from './NPC.js'; // non-player characters (NPCs)
-	import { resetGameState } from './GameStateControl.js'; // Level Data
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
 	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
 	import { generateWorld, voxelGeometry, voxelMaterial} from './WorldGenerator.js'; // Map Generation
@@ -351,7 +350,6 @@
 	LEVELHANDLER.scene.add(lightProbe);
 	const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 256 );
 	const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
-	console.log(cubeRenderTarget.texture);
 	{
 	// 	LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
 	// 	const cubemap = new THREE.CubeTextureLoader().load(
@@ -381,6 +379,13 @@
 	const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
 	composer.addPass(bloomPass);
 
+	if (USERSETTINGS.disablePostProcessing == true) {
+		n8aopass.enabled = false;
+		bloomPass.enabled = false;
+		const renderPass = new RenderPass(LEVELHANDLER.scene, LEVELHANDLER.camera);
+		composer.addPass(renderPass);
+	}
+
 	// What the hell is this?? I fucking hate javascript.
 	// Hours of research and there is no way around this awful bundling system
 	// The most popular language in the world feels like its in its infancy
@@ -390,7 +395,7 @@
 	// ##########
 	// DEFAULT AMBIENT LIGHTING
 	// ##########
-	const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+	const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 	LEVELHANDLER.scene.add(ambientLight);
 
 	// ##########
@@ -413,7 +418,7 @@
 	// (Only one map can be loaded at once... unless?)
 	// TODO - origin offsets for multiple map loading?
 	//  ^ this is very unncessary but could be useful for features like streaming
-	generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, worldSphere);
+	generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere);
 
 	// ##########
 	// PARTICLE ENGINE INITIALIZATION
@@ -432,7 +437,7 @@
 		let numVoxels = LEVELHANDLER.numVoxels;
 		numVoxels = numVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 		document.querySelector("#NUMVOXELSViz").textContent = numVoxels + " voxels";
-		document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELHANDLER.numCoverBoxes + " covers";
+		document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELHANDLER.numCoverBoxes + " IMESH Covers";
 		document.querySelector("#XViz").textContent = "X: " + Math.round(LEVELHANDLER.camera.position.x);
 		document.querySelector("#YViz").textContent = "Y: " + Math.round(LEVELHANDLER.camera.position.y);
 		document.querySelector("#ZViz").textContent = "Z: " + Math.round(LEVELHANDLER.camera.position.z);
@@ -442,6 +447,7 @@
 
 	let frameCounter = 0;
 	// ### RENDER LOOP ###
+	const frustum = new THREE.Frustum();
 	const render = function () {
 		// Frame Calculations
 		frameCounter = (frameCounter + 1) % 60;
@@ -493,6 +499,18 @@
 			}
 		}
 
+		frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(LEVELHANDLER.camera.projectionMatrix, LEVELHANDLER.camera.matrixWorldInverse));
+		instancedModelIndex.forEach(model => {
+			if (frustum.intersectsBox(model.frustumBox)) {
+				if (!model.isCovered) {
+					model.visible = true;
+				}
+			}
+			else {
+				model.visible = false;
+			}
+		});
+
 		requestAnimationFrame(render);
 
 		LEVELHANDLER.renderer.info.reset();
@@ -512,7 +530,7 @@
 		LEVELHANDLER.camera.updateProjectionMatrix();
 	}, false);
 
-	setHelpText("Loading Map...");
+	setHelpText("PRE-ALPHA GAMEPLAY - NOT REPRESENTATIVE OF THE FINAL PRODUCT");
 </script>
 
 </html>

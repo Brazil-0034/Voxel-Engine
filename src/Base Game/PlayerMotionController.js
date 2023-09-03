@@ -3,6 +3,7 @@
 // ##########
 import { lerp, clamp, rapidFloat, moveTowards } from './EngineMath.js'; // math functions
 import { voxelField, generateDestroyedChunkAt } from './VoxelStructures.js'; // data structures for handling voxels
+import { resetGameState } from './GameStateControl.js'; // Level Data
 import * as THREE from 'three';
 
 /**
@@ -292,7 +293,7 @@ export class PlayerController {
             // disable any attached light
             if (currentModel.attachedLight != undefined) // TODO: this check may be unnecessary
             {
-                currentModel.attachedLight.visible = false;
+                currentModel.attachedLight.intensity = 0;
             }
     
             // build a list of each destroyed voxel

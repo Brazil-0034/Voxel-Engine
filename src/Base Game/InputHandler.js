@@ -22,6 +22,11 @@ export class InputHandler {
             if (e.key.toLowerCase() === 'capslock') {
                 isCapsLockPressed = !isCapsLockPressed;
             }
+            if (e.key.toLowerCase() == 'KeyT') {
+                let vizbox = document.querySelector("#vizbox");
+                if (vizbox.style.display == "none") vizbox.style.display = "block";
+                else vizbox.style.display = "none";
+            }
         });
 
         // Mouse Buttons:
