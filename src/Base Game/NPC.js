@@ -31,9 +31,9 @@ export class NPC {
     deathSound // on death
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
-    constructor(npcName, texturePath, position, rotation, speed, health, LEVELDATA, voxelField, WEAPONHANDLER, deathSound) {
+    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELDATA, voxelField, WEAPONHANDLER, deathSound) {
         this.startingPosition = position;
-        this.startingRotation = rotation;
+        this.startingRotation = new THREE.Euler(0, rotationIntervals * Math.PI/4, 0);
         this.startingHealth = health;
 
         this.deathSound = deathSound;
@@ -113,9 +113,9 @@ export class NPC {
             // compute bounding sphere
             this.npcObject.geometry.computeBoundingSphere();
             this.npcObject.geometry.boundingSphere.set(this.npcObject.position, 512);
+            this.sceneObject.rotation.copy(this.startingRotation);
 
-            // apply rotation
-            this.sceneObject.rotation.set(rotation.x, rotation.y, rotation.z);
+            console.log(this.sceneObject.rotation);
         });
 
         LEVELDATA.NPCBank.push(this);
@@ -180,7 +180,7 @@ export class NPC {
 
         if (this.health > 0) {
             if (this.knowsWherePlayerIs == true)
-            {
+            { return
                 // Look towards the nearest player (this.playerCamera) smoothly, using the lerp(a, b, t) function
                 const targetRotation = Math.atan2(this.LEVELDATA.camera.position.x - this.sceneObject.position.x, this.LEVELDATA.camera.position.z - this.sceneObject.position.z);
                 // prevent spinning by flipping the rotation value
@@ -212,7 +212,7 @@ export class NPC {
         }
     }
 
-    shootPlayer(delay=0) {
+    shootPlayer(delay=0) { return
         setTimeout(() => {
             if (this.health > 0) resetGameState(this.LEVELDATA, this.WEAPONHANDLER, this.sceneObject.position);
         }, delay);

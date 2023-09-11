@@ -102,19 +102,19 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
             // Filter 2: Boxes
             // These are the most standard world object, and are the quickest to process
-            mapObjects.forEach(mapObject => {
+            mapObjects.forEach(mapMakerObject => {
 
-                if (mapObject.isCutaway && mapObject.isCutaway == true) return;
+                if (mapMakerObject.isCutaway && mapMakerObject.isCutaway == true) return;
 
-                const scale = mapObject.size;
+                const scale = mapMakerObject.size;
                 scale.x /= mod;
                 scale.y /= mod;
                 scale.z /= mod;
-                const position = mapObject.position;
+                const position = mapMakerObject.position;
                 position.x /= mod;
                 position.y /= mod;
                 position.z /= mod;
-                const color = mapObject.color;
+                const color = mapMakerObject.color;
 
                 // shift position (to center it)
                 position.x -= scale.x / 2;
@@ -123,27 +123,23 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
                 // Lights
                 let light = null;
-                if (mapObject.isLight && mapObject.isLight == true) {
+                if (mapMakerObject.isLight && mapMakerObject.isLight == true) {
                     // create a point light at this position with mapObject.lightBrightness
-                    light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapObject.lightBrightness, 0, 2);
+                    light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness, 0, 2);
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
                     light.decay = 1.15;
                     LEVELHANDLER.scene.add(light);
                 }
 
                 // Enemy NPCs
-                if (mapObject.isEnemyNPC && mapObject.isEnemyNPC == true) {
+                if (mapMakerObject.isEnemyNPC && mapMakerObject.isEnemyNPC == true) {
                     // sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
-                    if (mapObject.rotation.y < 0.1 && mapObject.rotation.y > -0.1) mapObject.rotation.y = Math.PI;
+                    if (mapMakerObject.rotation.y < 0.1 && mapMakerObject.rotation.y > -0.1) mapMakerObject.rotation.y = Math.PI;
                     const thisNPC = new NPC(
                         'swat',
                         '../character_models/swat_idle.png',
                         new THREE.Vector3(position.x, position.y, position.z),
-                        new THREE.Vector3(
-                            0,
-                            mapObject.rotation.y - Math.PI / 2,
-                            0
-                        ),
+                        -mapMakerObject.rotationIntervals,
                         100 + rapidFloat() * 100,
                         25,
                         LEVELHANDLER,
@@ -157,7 +153,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     return;
                 }
                 
-                buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapObject.type, scale, position, mapObject.material, color, mapObject.lightBrightness, mapObject.interactionEvent, light);
+                buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
             });
         });
     });
@@ -186,7 +182,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
 
         interactionBox.interactionEvent = interactionEvent;
 
-        interactableObjects.push(interactionBox);
+        LEVELHANDLER.interactableObjects.push(interactionBox);
     }
     if (USERSETTINGS.blockoutMode) return;
 
@@ -231,7 +227,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
         let instancedWorldModel, localVoxelIterator;
         const resetInstancedWorldModel = function () {
             // Determine Instance Count
-            let count = (2 * scale.x) + (2 * scale.y) + (2 * scale.z);
+            let count = 2 * ((scale.x * scale.z) + (scale.x * scale.y) + (scale.y * scale.z));
             if (boxType == "Wall" || boxType == "Floor") count = 64 * 64 * 2; // 2 is the wall depth
             // Setup the model ...
             instancedWorldModel = new VoxelChunk(
@@ -401,6 +397,12 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
                     resetInstancedWorldModel();
                     return;
                 }
+            }
+            else if (boxType == "Detail") {
+                instancedWorldModel.visible = true;
+                resetChunkBounds();
+                resetInstancedWorldModel();
+                return;
             }
 
             if (instancedWorldModel.useCoverBox != false)
@@ -784,6 +786,15 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             buildTop();
             buildBottom();
         }
+        else if (boxType == "Detail") {
+            buildTop();
+            buildBottom();
+            buildLeft();
+            buildRight();
+            buildFront();
+            buildBack();
+        }
+        else console.error("Invalid Box Type: " + boxType)
 
         itemsBuiltSoFar++;
         document.querySelector("#loader").textContent = Math.round((itemsBuiltSoFar/itemsToBuild)*100) + "%";

@@ -42,7 +42,7 @@
 			text-shadow: 0 0 10px white;
 			font-size: 150%;
 			z-index: 1000;
-			transform: translate(-50%, -50%);
+			transform: translate(50%, 50%);
 		}
 
 		#position-overlay {
@@ -59,12 +59,12 @@
 		#interaction-text {
 			/* center */
 			position: absolute;
-			top: 50%;
+			top: 80%;
 			left: 50%;
 			color: white;
 			text-shadow: 0 0 10px black;
 			z-index: 1000;
-			transform: translate(-50%, 150%);
+			transform: translateX(-50%);
 			padding: 15px;
 			background: rgba(0, 0, 0, 0.85);
 			opacity: 0;
@@ -226,15 +226,7 @@
 
 	<!-- WEB BROWSER -->
 	<div id="popup-window">
-		<webview id="fullframe" src="storymode_computer/email/emailHub.html" disablewebsecurity></webview>
-		<script>
-			// on press of "k" set webview's src to example.com
-			document.addEventListener('keydown', (e) => {
-				if (e.key === 'k') {
-					document.getElementById('fullframe').src = 'https://example.com';
-				}
-			});
-		</script>
+		<webview id="fullframe" src="" disablewebsecurity></webview>
 	</div>
 
 	<!-- THREE JS IMPORTS -->
@@ -496,6 +488,19 @@
 			}
 			else {
 				if (getInteractionText().innerHTML != "") setInteractionText("");
+			}
+		}
+
+		// Computer
+		if (INPUTHANDLER.isKeyPressed("f")) {
+			console.log(1);
+			if (getInteractionText().includes("computer")) {
+				console.log(2);
+				const popup = document.querySelector("#popup-window");
+				document.getElementById('fullframe').src = '../storymode_computer/browser.html';
+				popup.style.display = "block";
+				popup.classList.add("pop-up");
+				controls.unlock();
 			}
 		}
 

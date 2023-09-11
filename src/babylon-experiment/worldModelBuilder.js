@@ -9,22 +9,22 @@ const buildWorldModelFromBox = async function (scale, position, material, colorD
     position.z = Math.round(position.z);
 
 
-    // // Interactions
-    // if (interactionEvent != "none") {
-    // 	// box (for raycasting)
-    // 	const interactionBox = new THREE.Mesh(
-    // 		voxelGeometry,
-    // 		voxelMaterial
-    // 	);
-    // 	interactionBox.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2), position.z + (scale.z / 2));
-    // 	interactionBox.scale.set(scale.x, scale.y, scale.z);
-    // 	interactionBox.visible = false;
-    // 	scene.add(interactionBox);
+    // Interactions
+    if (interactionEvent != "none") {
+    	// box (for raycasting)
+    	const interactionBox = new THREE.Mesh(
+    		voxelGeometry,
+    		voxelMaterial
+    	);
+    	interactionBox.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2), position.z + (scale.z / 2));
+    	interactionBox.scale.set(scale.x, scale.y, scale.z);
+    	interactionBox.visible = false;
+    	scene.add(interactionBox);
 
-    // 	interactionBox.interactionEvent = interactionEvent;
+    	interactionBox.interactionEvent = interactionEvent;
 
-    // 	interactableObjects.push(interactionBox);
-    // }
+    	interactableObjects.push(interactionBox);
+    }
 
     const texturePath = 'textures/' + material + '.png';
     const boxTexture = new BABYLON.Texture(texturePath, scene);

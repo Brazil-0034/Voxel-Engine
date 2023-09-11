@@ -287,11 +287,33 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 				thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
 				const cameraDirection = new THREE.Vector3();
 				LEVELHANDLER.camera.getWorldDirection(cameraDirection);
-				// // add some randomness to the direction (x and z only)
+				// add some randomness to the direction (x and z only)
 				cameraDirection.x += (rapidFloat() - 0.5) / 2;
 				cameraDirection.z += (rapidFloat() - 0.5) / 2;
 				cameraDirection.y = -1/10;
 				new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2), voxelColor, 50);
+				// const dir = new THREE.Vector3(rapidFloat(), rapidFloat(), rapidFloat());
+				// switch (thisVoxel.face) {
+				// 	case VoxelFace.TOP:
+				// 		dir.y = 1;
+				// 		break;
+				// 	case VoxelFace.BOTTOM:
+				// 		dir.y = -1;
+				// 		break;
+				// 	case VoxelFace.LEFT:
+				// 		dir.x = -1;
+				// 		break;
+				// 	case VoxelFace.RIGHT:
+				// 		dir.x = 1;
+				// 		break;
+				// 	case VoxelFace.FRONT:
+				// 		dir.z = -1;
+				// 		break;
+				// 	case VoxelFace.BACK:
+				// 		dir.z = 1;
+				// 		break;
+				// }
+				// new Particle(particleHandler, thisVoxel.position, dir, voxelColor, 50);
 			}
 		}
 	}

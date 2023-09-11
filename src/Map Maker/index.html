@@ -497,6 +497,7 @@ const updateRightPanel = function (item, clear=false) {
         addMaterial('bricks')
         addMaterial('cobblestone')
         addMaterial('wallpaper')
+        addMaterial('abstract-lines')
         addMaterial('debug')
 
         // global color override
@@ -562,8 +563,8 @@ const updateRightPanel = function (item, clear=false) {
 }
 const randomColor = function () { return new THREE.Color(0xffffff * Math.random()); }
 var transformControls = new TransformControls(camera, canvas);
-transformControls.name = "TransformControls"
-transformControls.setRotationSnap(THREE.MathUtils.degToRad(90));
+transformControls.name = "TransformControls";
+transformControls.setRotationSnap(THREE.MathUtils.degToRad(45));
 transformControls.setTranslationSnap(1);
 // transformControls.setScaleSnap(1);
 transformControls.userData.existInGame = false;
@@ -606,74 +607,72 @@ const shiftUp = function(obj) {
         obj.position.y += Math.abs(boundingBox.min.y);
     }
 }
+
+// On any update to transform controls ...
 transformControls.addEventListener('dragging-changed', function (event) {
     controls.enabled = !event.value;
     retachAvailable = !event.value;
 
     if (event.value == false) {
-        // if lastAttachedObject has any part below y=-1, move it up to y=0
-        if (lastAttachedObject != undefined) {
-            if (lastAttachedObject.userData.isGroundFloor != true) { // bad code explanation: "!= true" also accounts for undefined
-                if (selectedObjects.children.some(child => (new THREE.Box3().setFromObject(child).min.y < -1)))
-                {
-                    const tempSelObjs = Array.from(selectedObjects.children);
-                    clearSelectedObjects();
-                    tempSelObjs.forEach(selectedObject => {
-                        shiftUp(selectedObject);
-                        attachHandles(selectedObject);
-                    });
-                }
-                // round the WORLD scale to the nearest EVEN whole number
-                const multipleCheck = function(n, d) { return Math.round(n / d) * d }
-                selectedObjects.children.forEach(child => {
-                    removeHandles(child);
-                    if (child.userData.isEnemyNPC == false)
-                    {
-                        switch (child.userData.gameObjectType)
-                        {
-                            default:
-                                console.error("Failed to process transform for type: " + child.userData.gameObjectType);
-                                break;
-                            case "Wall":
-                                if (child.userData.isRotated == false) {
-                                    child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
-                                    child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
-                                    child.scale.z = 2;
-                                }
-                                else
-                                {
-                                    child.scale.x = 2;
-                                    child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
-                                    child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
-                                }
-                                break;
-                            case "Floor":
-                                child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
-                                child.scale.y = 2;
-                                child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
-                                break;
-                            case "Detail":
-                                child.scale.x = clamp(multipleCheck(child.scale.x, 2), 64, Infinity);
-                                child.scale.y = clamp(multipleCheck(child.scale.y, 2), 64, Infinity);
-                                child.scale.z = clamp(multipleCheck(child.scale.z, 2), 64, Infinity);
-                                break;
-                        }
 
+        if (lastAttachedObject != undefined) {
+            // Cache the selected objects ...
+            const tempSelObjs = Array.from(selectedObjects.children);
+
+            // round the WORLD scale to the nearest EVEN whole number
+            const multipleCheck = function(n, d) { return Math.round(n / d) * d }
+            clearSelectedObjects();
+            tempSelObjs.forEach(child => {
+                // if the selected objects are underground, move them up
+                shiftUp(child);
+                // Adjust scales for walls, floors and details
+                if (child.userData.isEnemyNPC == false)
+                {
+                    switch (child.userData.gameObjectType)
+                    {
+                        default:
+                            console.error("Failed to process transform for type: " + child.userData.gameObjectType);
+                            break;
+                        case "Wall":
+                            if (child.userData.isRotated == false) {
+                                child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
+                                child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
+                                child.scale.z = 2;
+                            }
+                            else
+                            {
+                                child.scale.x = 2;
+                                child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
+                                child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
+                            }
+                            break;
+                        case "Floor":
+                            child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
+                            child.scale.y = 2;
+                            child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
+                            break;
+                        case "Detail":
+                            child.scale.x = clamp(multipleCheck(child.scale.x, 2), 2, Infinity);
+                            child.scale.y = clamp(multipleCheck(child.scale.y, 2), 2, Infinity);
+                            child.scale.z = clamp(multipleCheck(child.scale.z, 2), 2, Infinity);
+                            break;
                     }
-                    // round the position of the child to the nearest whole number
-                    child.position.x = Math.round(child.position.x);
-                    child.position.y = Math.round(child.position.y);
-                    child.position.z = Math.round(child.position.z);
-                    attachHandles(child, true);
-                });
-                // round the position of the selectedObjects to the nearest whole number
-                selectedObjects.children.forEach(sceneObject => {
-                    realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.z);
-                });
-            }
-            updateRightPanel(lastAttachedObject);
+
+                }
+                // round the position to the nearest whole number
+                child.position.x = Math.round(child.position.x);
+                child.position.y = Math.round(child.position.y);
+                child.position.z = Math.round(child.position.z);
+                // reattach to the controls (to keep it all seamless)
+                // attachHandles(child, true);
+            });
+            // round the position of the selectedObjects to the nearest whole number
+            tempSelObjs.forEach(sceneObject => {
+                realignTexture(sceneObject, selectedObjects.scale.x, selectedObjects.scale.z);
+            });
         }
 
+        updateRightPanel(lastAttachedObject);
     }
 
 });
@@ -735,14 +734,17 @@ const clearSelectedObjects = function () {
         // get world scale
         const newScale = new THREE.Vector3();
         newScale.setFromMatrixScale(child.matrixWorld);
+        // get world rotation
+        const newRot = new THREE.Euler();
+        newRot.setFromRotationMatrix(child.matrixWorld);
 
         child.parent.remove(child);
         scene.add(child);
         child.position.set(newPos.x, newPos.y, newPos.z);
         child.scale.set(newScale.x, newScale.y, newScale.z);
+        child.rotation.set(newRot.x, newRot.y, newRot.z);
         clearSelectedObjects();
     }
-    // selectedObjects.rotation.set(0, 0, 0);
     updateLeftPanel();
 }
 clearSelectedObjects();
@@ -894,21 +896,13 @@ document.body.addEventListener('keydown', function (event) {
             case 'w':
                 transformControls.setMode("translate");
                 break;
-            // case 'e':
-            //     transformControls.setMode("rotate");
-            //     break;
-            case 'e':
-                console.log(lastAttachedObject.rotation.y);
-                break;
             case 'r':
                 // swap X and Z scale of all selected objects
                 selectedObjects.children.forEach(childObject => {
                     if (childObject.userData.isEnemyNPC == true)
                     {
-                        // rotate it 45 degrees
-                        childObject.rotateOnWorldAxis(new THREE.Vector3(0,1,0), THREE.MathUtils.degToRad(45));
-                        console.log(childObject.rotation.order, selectedObjects.rotation.order)
-                        console.log(childObject.rotation.x.toFixed(2), childObject.rotation.y.toFixed(2), childObject.rotation.z.toFixed(2))
+                        childObject.userData.rotationIntervals += 1;
+                        childObject.rotation.z = (Math.PI / 4) * childObject.userData.rotationIntervals;
                     }
                     else
                     {
@@ -1040,7 +1034,7 @@ document.body.addEventListener('keydown', function (event) {
     }
 });
 
-const createEnemyNPC = function(position, rotation=0) {
+const createEnemyNPC = function(position, rotationIntervals) {
     const enemyNPC = new THREE.Mesh(
         new THREE.ConeGeometry(5,15,3),
         new THREE.MeshBasicMaterial({
@@ -1050,13 +1044,11 @@ const createEnemyNPC = function(position, rotation=0) {
             opacity: 0.75
         })
     );
-    enemyNPC.rotation.x = 0;
-    enemyNPC.rotation.y = rotation;
-    enemyNPC.rotation.z = Math.PI/2;
-    enemyNPC.updateMatrixWorld();
+    enemyNPC.rotation.set(Math.PI/2, rotationIntervals * Math.PI / 4, 0);
     enemyNPC.position.copy(position);
     enemyNPC.userData.existInGame = true;
     enemyNPC.userData.isEnemyNPC = true;
+    enemyNPC.userData.rotationIntervals = rotationIntervals;
     enemyNPC.userData.isLight = false;
     enemyNPC.userData.gameObjectType = "EnemyNPC"
 
@@ -1080,6 +1072,9 @@ const createBox = function(type) {
             break;
         case "Floor":
             cube.scale.set(64, 2, 64);
+            break;
+        case "Detail":
+            cube.scale.set(2,2,2);
             break;
         default:
             console.error("Invalid Box Type: " + type);
@@ -1119,7 +1114,7 @@ const contextMenuClick = function (action) {
             createBox("Floor");
             break;
         case "Create Detail Object":
-            sendTooltip("Not yet implemented :)");
+            createBox("Detail");
             break;
         case "Create NPC Enemy":
             // set EnemyNPCPosition to be right IN FRONT of the camera
@@ -1127,7 +1122,7 @@ const contextMenuClick = function (action) {
             enemyNPCPosition.copy(camera.position);
             enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
 
-            createEnemyNPC(enemyNPCPosition);
+            createEnemyNPC(enemyNPCPosition, 0);
             break;
         //  ### Object Manipulation
         case "Delete Object":
@@ -1318,6 +1313,7 @@ const saveProject = function () {
                 "isLight": mapObject.userData.isLight,
                 "lightBrightness": mapObject.userData.lightBrightness,
                 "isEnemyNPC": mapObject.userData.isEnemyNPC,
+                "rotationIntervals": mapObject.userData.rotationIntervals,
                 "interactionEvent": mapObject.userData.interactionEvent
             });
         }
@@ -1421,8 +1417,8 @@ const importProject = function () {
                 if (mapMakerObject.isEnemyNPC == true)
                 {
                     createEnemyNPC(
-                        new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z), mapMakerObject.rotation.y
-                        // new THREE.Vector3(mapMakerObject.rotation.x, mapMakerObject.rotation.y, mapMakerObject.rotation.z)
+                        new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
+                        mapMakerObject.rotationIntervals
                     );
                 }
                 else
@@ -1431,7 +1427,8 @@ const importProject = function () {
                         new THREE.BoxGeometry(1, 1, 1),
                         new THREE.MeshBasicMaterial({
                             color: new THREE.Color(mapMakerObject.color.r, mapMakerObject.color.g, mapMakerObject.color.b),
-                            map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png')
+                            map: new THREE.TextureLoader().load('../textures/' + mapMakerObject.material + '.png'),
+                            side: THREE.DoubleSide
                         })
                     );
                     newBox.material.side = THREE.DoubleSide;

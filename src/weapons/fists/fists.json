@@ -6,7 +6,7 @@
         "fireRate": 150,
         "weaponDamage": 150,
         "totalAmmo": 9999999,
-        "damageRange": 4,
+        "damageRange": 1,
         "minimumDistance": 100,
         "followSpeed": 512,
         "basepotency": 0.35,
