@@ -58,22 +58,12 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             LEVELHANDLER.camera.position.set(mapCameraData.position.x, LEVELHANDLER.playerHeight, mapCameraData.position.z);
             LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
 
-            const groundData = JSON.parse(arg.metaData).groundData;
-            const groundColor = new THREE.Color(groundData.groundColor.r, groundData.groundColor.g, groundData.groundColor.b);
-            worldSphere.material.color = groundColor;
-            if (groundData) {
-                const groundFloor = new THREE.Mesh(
-                    new THREE.BoxGeometry(groundData.groundSize.x, 1, groundData.groundSize.y),
-                    new THREE.MeshBasicMaterial({
-                        color: groundColor,
-                    })
-                );
-                groundFloor.position.y = -1; // we set it just below the origin, to act as a floor
-                // scene.add(groundFloor);
-            }
+            const ambientColorData = JSON.parse(arg.metaData).ambientColor;
+            const ambientColor = new THREE.Color(ambientColorData.r, ambientColorData.g, ambientColorData.b);
+            worldSphere.material.color = ambientColor;
+            LEVELHANDLER.backlight.color = ambientColor;
 
             const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
-            const mapLights = JSON.parse(arg.metaData).lightData;
             const mod = 1; // scale modifier
 
             // Filter 0: Count Boxes
@@ -125,7 +115,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 let light = null;
                 if (mapMakerObject.isLight && mapMakerObject.isLight == true) {
                     // create a point light at this position with mapObject.lightBrightness
-                    light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness, 0, 2);
+                    light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness * 10, 0, 2);
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
                     light.decay = 1.15;
                     LEVELHANDLER.scene.add(light);
@@ -138,10 +128,10 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     const thisNPC = new NPC(
                         'swat',
                         '../character_models/swat_idle.png',
-                        new THREE.Vector3(position.x, position.y, position.z),
+                        new THREE.Vector3(position.x, 1, position.z),
                         -mapMakerObject.rotationIntervals,
                         100 + rapidFloat() * 100,
-                        25,
+                        100,
                         LEVELHANDLER,
                         voxelField,
                         WEAPONHANDLER,

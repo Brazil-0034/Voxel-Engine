@@ -26,6 +26,7 @@ class blockData {
  * 
  */
 class DiscreteVectorField {
+
 	constructor() {
 		this.field = [];
 		this.indexInChunkes = {};
@@ -273,6 +274,9 @@ const maxChunksInPhysicsCache = 15;
 
 // Adjusts a chunk for destroyed voxels
 export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler, currentModel) {
+	let particleChance = 1;
+	if (destroyedVoxelsInChunk.length > 20) particleChance = 0.25;
+	LEVELHANDLER.SFXPlayer.playRandomSound("dropSounds");
 	for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
 		let position = destroyedVoxelsInChunk[x];
 		const thisVoxel = voxelField.get(position.x, position.y, position.z);
@@ -281,7 +285,6 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 			thisVoxel.chunk.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4());
 			thisVoxel.chunk.instanceMatrix.needsUpdate = true;
 			voxelField.set(position.x, position.y, position.z, 0, thisVoxel.indexInChunk, thisVoxel.chunk);
-			LEVELHANDLER.SFXPlayer.playRandomSound("dropSounds");
 			if (rapidFloat() < USERSETTINGS.particleQualityMode/3) {
 				const voxelColor = new THREE.Color();
 				thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
@@ -291,7 +294,7 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 				cameraDirection.x += (rapidFloat() - 0.5) / 2;
 				cameraDirection.z += (rapidFloat() - 0.5) / 2;
 				cameraDirection.y = -1/10;
-				new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2), voxelColor, 50);
+				if (rapidFloat() < particleChance) new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2).setY(-2.5), voxelColor, 50);
 				// const dir = new THREE.Vector3(rapidFloat(), rapidFloat(), rapidFloat());
 				// switch (thisVoxel.face) {
 				// 	case VoxelFace.TOP:

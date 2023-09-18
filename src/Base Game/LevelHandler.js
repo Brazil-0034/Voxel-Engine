@@ -25,6 +25,7 @@ export class LevelHandler {
 	camera
 	renderer
 	potentialCleanCalls
+	outliner
 
 	// Data about Audio
 	SFXPlayer
@@ -36,9 +37,13 @@ export class LevelHandler {
 	numVoxels
 	timeModifier
 	particleHandler
+	backlight
 
 	// Data about Player
 	playerHeight
+	playerHealth
+	playerCanMove
+	lastKiller
 
 	// Data about WorldBuilding
 	globalTextureLoader
@@ -66,6 +71,9 @@ export class LevelHandler {
 		this.timeModifier = 1;
 		
 		this.playerHeight = 40;
+		this.playerHealth = 100;
+		this.playerCanMove = true;
+		this.lastKiller = [];
 
 		this.globalTextureLoader = new THREE.TextureLoader()
 		this.globalModelLoader = new FBXLoader();

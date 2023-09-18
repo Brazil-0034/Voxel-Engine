@@ -90,8 +90,9 @@ export class PlayerController {
             this.playerMotion.zAxis = clamp(this.playerMotion.zAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
             this.playerMotion.xAxis = clamp(this.playerMotion.xAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
 
-            // Sprinting
-            let sprinting = this.INPUTHANDLER.isKeyPressed("shift") ? 2 : 1;
+            // Walking
+            let moveSpeedOffset = this.INPUTHANDLER.isKeyPressed("shift") ? 0.45 : 1;
+            let isInWall = false;
             if (this.USERSETTINGS.disableCollisions == false)
             {
                 // FORWARDS COLLISION CHECKS
@@ -104,7 +105,13 @@ export class PlayerController {
                     // FIRST, raycast forwards (foot position)
                     let forward = voxelField.raycast(footPosition, camForwardDirection, collisionRadius);
                     // if there is something in the way
-                    if (forward != null) this.playerMotion.zAxis *= -0.0001;
+                    if (forward != null) {
+                        this.playerMotion.zAxis *= -0.0001;
+                        const distance = footPosition.distanceTo(new THREE.Vector3(forward.x, forward.y, forward.z));
+                        if (distance < 15) {
+                            this.WEAPONHANDLER.weaponTarget.rotation.z = Math.PI/2;
+                        }
+                    }
                     else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) this.playerMotion.zAxis *= -0.0001;
                 }
                 // REAR COLLISION CHECKS
@@ -114,8 +121,14 @@ export class PlayerController {
                     camBackwardDirection.negate();
                     camBackwardDirection.y = 0;
                     let rear = voxelField.raycast(footPosition, camBackwardDirection, collisionRadius);
-                    if (rear != null) this.playerMotion.zAxis *= -0.0001;
-                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camBackwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) this.playerMotion.zAxis *= -0.0001;
+                    if (rear != null) {
+                        this.playerMotion.zAxis *= -0.0001;
+                        isInWall = true;
+                    }
+                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camBackwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) {
+                        this.playerMotion.zAxis *= -0.0001;
+                        isInWall = true;
+                    }
                 }
                 // LEFT COLLISION CHECKS
                 if (this.playerMotion.xAxis < 0) {
@@ -124,8 +137,14 @@ export class PlayerController {
                     camLeftDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
                     camLeftDirection.y = 0;
                     let left = voxelField.raycast(footPosition, camLeftDirection, collisionRadius);
-                    if (left != null) this.playerMotion.xAxis *= -0.0001;
-                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camLeftDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) this.playerMotion.xAxis *= -0.0001;
+                    if (left != null) {
+                        this.playerMotion.xAxis *= -0.0001;
+                        isInWall = true;
+                    }
+                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camLeftDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) {
+                        this.playerMotion.xAxis *= -0.0001;
+                        isInWall = true;
+                    }
                 }
                 // RIGHT COLLISION CHECKS
                 if (this.playerMotion.xAxis > 0) {
@@ -135,117 +154,133 @@ export class PlayerController {
                     camRightDirection.negate();
                     camRightDirection.y = 0;
                     let right = voxelField.raycast(footPosition, camRightDirection, collisionRadius);
-                    if (right != null) this.playerMotion.xAxis *= -0.0001;
-                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camRightDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) this.playerMotion.xAxis *= -0.0001;
+                    if (right != null) {
+                        this.playerMotion.xAxis *= -0.0001;
+                        isInWall = true;
+                    }
+                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camRightDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) {
+                        this.playerMotion.xAxis *= -0.0001;
+                        isInWall = true;
+                    }
                 }
             }
 
             // Movement
-            this.controls.moveRight(this.playerMotion.stepSize * this.playerMotion.xAxis * sprinting);
-            this.controls.moveForward(-this.playerMotion.stepSize * this.playerMotion.zAxis * sprinting);
             let isMoving = false;
-            if (this.playerMotion.zAxis > this.playerMotion.maxSpeed/2 || this.playerMotion.xAxis > this.playerMotion.maxSpeed/2 || this.playerMotion.zAxis < -this.playerMotion.maxSpeed/2 || this.playerMotion.xAxis < -this.playerMotion.maxSpeed/2) {
-                isMoving = true;
-            }
-
-            // Crouching
-            if (this.playerMotion.isCrouching) {
-                this.LEVELHANDLER.camera.position.y = lerp(this.LEVELHANDLER.playerHeight, this.playerMotion.crouchYPosition, this.playerMotion.crouchLerp);
-                this.playerMotion.crouchLerp += this.playerMotion.crouchSpeed * delta;
-                if (this.playerMotion.crouchLerp > 1) this.playerMotion.crouchLerp = 1;
-            }
-            else {
-                var headPosition = this.LEVELHANDLER.playerHeight
-                if (isMoving) {
-                    const freq = 75;
-                    const strength = 2.5;
-                    headPosition = this.LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
+            if (this.LEVELHANDLER.playerCanMove == true) {
+                this.controls.moveRight(this.playerMotion.stepSize * this.playerMotion.xAxis * moveSpeedOffset);
+                this.controls.moveForward(-this.playerMotion.stepSize * this.playerMotion.zAxis * moveSpeedOffset);
+                if (this.playerMotion.zAxis > this.playerMotion.maxSpeed/2 || this.playerMotion.xAxis > this.playerMotion.maxSpeed/2 || this.playerMotion.zAxis < -this.playerMotion.maxSpeed/2 || this.playerMotion.xAxis < -this.playerMotion.maxSpeed/2) {
+                    isMoving = true;
                 }
-                this.LEVELHANDLER.camera.position.y = lerp(this.LEVELHANDLER.camera.position.y, headPosition, delta * 10);
-                this.playerMotion.crouchLerp -= this.playerMotion.crouchSpeed * delta;
-                if (this.playerMotion.crouchLerp < 0) this.playerMotion.crouchLerp = 0;
-            }
+    
+                // Crouching
+                if (this.playerMotion.isCrouching) {
+                    this.LEVELHANDLER.camera.position.y = lerp(this.LEVELHANDLER.playerHeight, this.playerMotion.crouchYPosition, this.playerMotion.crouchLerp);
+                    this.playerMotion.crouchLerp += this.playerMotion.crouchSpeed * delta;
+                    if (this.playerMotion.crouchLerp > 1) this.playerMotion.crouchLerp = 1;
+                }
+                else {
+                    var headPosition = this.LEVELHANDLER.playerHeight
+                    if (isMoving) {
+                        const freq = 75;
+                        const strength = 2.5;
+                        headPosition = this.LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
+                    }
+                    this.LEVELHANDLER.camera.position.y = lerp(this.LEVELHANDLER.camera.position.y, headPosition, delta * 10);
+                    this.playerMotion.crouchLerp -= this.playerMotion.crouchSpeed * delta;
+                    if (this.playerMotion.crouchLerp < 0) this.playerMotion.crouchLerp = 0;
+                }
 
-            // Weapon Bouncing (For Juice!!!)
-            if (this.WEAPONHANDLER.weaponModel && this.WEAPONHANDLER.weaponTarget && delta > 0) {
-                // SIN the weapon's position
-                const bounceRange = new THREE.Vector3(100, 100, 0);
-                let speed = new THREE.Vector3(0.01, 0.02, 0.01);
-                if (this.isCapsLockPressed) speed.multiplyScalar(0.5)
+                // Weapon Bouncing (For Juice!!!)
+                if (this.WEAPONHANDLER.weaponModel && this.WEAPONHANDLER.weaponTarget && delta > 0) {
+                    // SIN the weapon's position
+                    const bounceRange = new THREE.Vector3(10, 10, 0);
+                    let speed = new THREE.Vector3(0.01, 0.02, 0.01);
+                    if (this.isCapsLockPressed) speed.multiplyScalar(0.5)
+    
+                    this.WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
+                    this.WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
 
-                this.WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
-                this.WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
-            
-                // LERP the weapon's position
-                const instancedWeaponTargetWorldPosition = new THREE.Vector3();
-                this.WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-                this.WEAPONHANDLER.weaponModel.position.copy(moveTowards(this.WEAPONHANDLER.weaponModel.position, instancedWeaponTargetWorldPosition, delta * this.WEAPONHANDLER.weaponFollowSpeed * 1 / this.LEVELHANDLER.timeModifier));
+                    if (!isInWall) this.WEAPONHANDLER.weaponTarget.setRotationFromEuler(new THREE.Euler(-(this.playerMotion.zAxis * 2.5), 0, (this.playerMotion.xAxis * 5)));
+                    this.WEAPONHANDLER.weaponModel.children[0].rotation.y = Math.PI/2;
 
-                // always realign the rotation of the weapon to the target
-                this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
+                
+                    // LERP the weapon's position
+                    const instancedWeaponTargetWorldPosition = new THREE.Vector3();
+                    this.WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
+                    // this.WEAPONHANDLER.weaponModel.position.copy(moveTowards(this.WEAPONHANDLER.weaponModel.position, instancedWeaponTargetWorldPosition, delta * this.WEAPONHANDLER.weaponFollowSpeed * 1 / this.LEVELHANDLER.timeModifier));
+                    this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
+
+                    // always realign the rotation of the weapon to the target 
+                    this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
+                }
+    
+                // WEAPON ACTION HANDLING
+                if (this.INPUTHANDLER.isLeftClicking) {
+                    switch (this.WEAPONHANDLER.weaponType) {
+                        case undefined:
+                            break;
+                        default:
+                            console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
+                            break;
+                        case "melee":
+                            // move weaponModel position forward relative to player LEVELDATA.camera
+                            if (this.WEAPONHANDLER.isAttackAvailable) this.WEAPONHANDLER.weaponModel.translateX(50);
+                        case "ranged":
+                            if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
+                            {
+                                if (this.WEAPONHANDLER.isAttackAvailable) {
+                                    this.WEAPONHANDLER.weaponRemainingAmmo--;
+                                    if (!this.INPUTHANDLER.isRightClicking) {
+                                        const weaponShakeIntensity = 2.5;
+                                        this.WEAPONHANDLER.weaponTarget.position.set(
+                                            this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+                                            this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+                                            this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+                                        );
+                                    }
+        
+                                    // Play Sound
+                                    this.LEVELHANDLER.SFXPlayer.playSound("shootSound");
+        
+                                    // GOD i HATE javascript
+                                    // type annotations? NO.
+                                    // parameter delcarations? NO.
+                                    // return types? NO.
+                                    // why don't i just kill myself now?
+                                    this.calculateWeaponShot();
+        
+                                    this.raycaster.far = this.WEAPONHANDLER.weaponRange;
+                                    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+        
+                                    for (let i = 0; i < intersects.length; i++) {
+                                        const mainObj = intersects[i].object;
+                                        if (mainObj.npcHandler.health > 0) {
+                                            // Register Hit
+                                            mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
+                                        }
+                                        // Squelch!
+                                        this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
+                                        // TODO - create a shoot effect
+                                    }
+        
+                                    this.WEAPONHANDLER.isAttackAvailable = false;
+                                    const activateWeapon = function(weaponHandler) {
+                                        weaponHandler.isAttackAvailable = true;
+                                    }
+                                    setTimeout(activateWeapon, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
+                                }
+                            }
+                            break;
+                    }
+                }
+
+                // throwing
+                if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
             }
         }
-
-        // WEAPON ACTION HANDLING
-		if (this.INPUTHANDLER.isLeftClicking) {
-			switch (this.WEAPONHANDLER.weaponType) {
-				case undefined:
-					break;
-				default:
-					console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
-					break;
-				case "melee":
-					// move weaponModel position forward relative to player LEVELDATA.camera
-					if (this.WEAPONHANDLER.isAttackAvailable) this.WEAPONHANDLER.weaponModel.translateX(50);
-				case "ranged":
-					if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
-					{
-						if (this.WEAPONHANDLER.isAttackAvailable) {
-							this.WEAPONHANDLER.weaponRemainingAmmo--;
-							if (!this.INPUTHANDLER.isRightClicking) {
-								const weaponShakeIntensity = 2.5;
-								this.WEAPONHANDLER.weaponTarget.position.set(
-									this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-									this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-									this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-								);
-							}
-
-							// Play Sound
-							this.LEVELHANDLER.SFXPlayer.playSound("shootSound");
-
-							// GOD i HATE javascript
-							// type annotations? NO.
-							// parameter delcarations? NO.
-							// return types? NO.
-							// why don't i just kill myself now?
-							this.calculateWeaponShot();
-
-							this.raycaster.far = this.WEAPONHANDLER.weaponRange;
-							this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-							const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
-
-							for (let i = 0; i < intersects.length; i++) {
-								const mainObj = intersects[i].object;
-								if (mainObj.npcHandler.health > 0) {
-									// Register Hit
-									mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
-								}
-								// Squelch!
-								this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
-								// TODO - create a shoot effect
-							}
-
-							this.WEAPONHANDLER.isAttackAvailable = false;
-                            const activateWeapon = function(weaponHandler) {
-                                weaponHandler.isAttackAvailable = true;
-                            }
-							setTimeout(activateWeapon, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
-						}
-					}
-					break;
-			}
-		}
 
         // Adjust Camera FOV (For ADS Effects)
 		let targetFOV = this.USERSETTINGS.baseFOV;
@@ -310,8 +345,18 @@ export class PlayerController {
             for (let x = intersectPosition.x - this.WEAPONHANDLER.destroyedChunkRange; x <= intersectPosition.x + this.WEAPONHANDLER.destroyedChunkRange; x++) {
                 for (let y = intersectPosition.y - this.WEAPONHANDLER.destroyedChunkRange; y <= intersectPosition.y + this.WEAPONHANDLER.destroyedChunkRange; y++) {
                     for (let z = intersectPosition.z - this.WEAPONHANDLER.destroyedChunkRange; z <= intersectPosition.z + this.WEAPONHANDLER.destroyedChunkRange; z++) {
-                        if (rapidFloat() < 0.9)
                         {
+                            if (
+                                x == intersectPosition.x + this.WEAPONHANDLER.destroyedChunkRange ||
+                                x == intersectPosition.x - this.WEAPONHANDLER.destroyedChunkRange ||
+                                y == intersectPosition.y + this.WEAPONHANDLER.destroyedChunkRange ||
+                                y == intersectPosition.y - this.WEAPONHANDLER.destroyedChunkRange ||
+                                z == intersectPosition.z + this.WEAPONHANDLER.destroyedChunkRange ||
+                                z == intersectPosition.z - this.WEAPONHANDLER.destroyedChunkRange
+                            )
+                            {
+                                if (rapidFloat() < 0.5) continue;
+                            }
                             destroyedVoxelsInChunk.push(new THREE.Vector3(
                                 x,
                                 y,

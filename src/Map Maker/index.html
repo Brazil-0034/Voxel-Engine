@@ -74,8 +74,8 @@
                 <!-- Ground Settings -->
                 <h2>Ground</h2>
                 <div class="settings-group">
-                    <h3>Ground Color</h3>
-                    <input type="color" id="ground-color" value="#ffffff">
+                    <h3>Sky Color</h3>
+                    <input type="color" id="ambient-color">
                 </div>
                 <div class="settings-group">
                     <h3>Ground Scale</h3>
@@ -153,7 +153,7 @@ camera.rotation.z = -0.5135108191734854;
 DEFAULTOBJECTS.push(camera);
 
 // LIGHTING
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 scene.add(ambientLight);
 DEFAULTOBJECTS.push(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.75);
@@ -484,6 +484,7 @@ const updateRightPanel = function (item, clear=false) {
                     childObject.material.map.wrapS = THREE.RepeatWrapping;
                     childObject.material.map.wrapT = THREE.RepeatWrapping;
                     childObject.userData.materialType = filename;
+                    realignTexture(childObject, childObject.scale.x, childObject.scale.z);
                 });
             });
             material.appendChild(newMaterial);
@@ -498,12 +499,13 @@ const updateRightPanel = function (item, clear=false) {
         addMaterial('cobblestone')
         addMaterial('wallpaper')
         addMaterial('abstract-lines')
+        addMaterial('pizza')
         addMaterial('debug')
 
         // global color override
         const materialColor = document.createElement("input");
         materialColor.type = "color";
-        materialColor.value = item.material.color.getHexString();
+        materialColor.value = "#" + item.material.color.getHexString();
         materialColor.addEventListener("input", function () {
             selectedObjects.children.forEach(childObject => {
                 childObject.material.color.set(materialColor.value);
@@ -573,7 +575,8 @@ scene.add(selectedObjects);
 transformControls.attach(selectedObjects);
 document.body.addEventListener('keydown', function (event) {
     if (event.key == "s") {
-        console.log(scene);
+        console.log(transformControls.scale.x, transformControls.scale.y, transformControls.scale.z);
+        console.log(selectedObjects.scale.x, selectedObjects.scale.y, selectedObjects.scale.z);
     }
     if (event.key == "f")
     {
@@ -608,6 +611,8 @@ const shiftUp = function(obj) {
     }
 }
 
+const multipleCheck = function(n, d) { return Math.round(n / d) * d }
+
 // On any update to transform controls ...
 transformControls.addEventListener('dragging-changed', function (event) {
     controls.enabled = !event.value;
@@ -618,9 +623,6 @@ transformControls.addEventListener('dragging-changed', function (event) {
         if (lastAttachedObject != undefined) {
             // Cache the selected objects ...
             const tempSelObjs = Array.from(selectedObjects.children);
-
-            // round the WORLD scale to the nearest EVEN whole number
-            const multipleCheck = function(n, d) { return Math.round(n / d) * d }
             clearSelectedObjects();
             tempSelObjs.forEach(child => {
                 // if the selected objects are underground, move them up
@@ -636,25 +638,31 @@ transformControls.addEventListener('dragging-changed', function (event) {
                         case "Wall":
                             if (child.userData.isRotated == false) {
                                 child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
-                                child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
+                                child.scale.y = 64;
                                 child.scale.z = 2;
                             }
                             else
                             {
                                 child.scale.x = 2;
-                                child.scale.y = clamp(multipleCheck(child.scale.y, 64), 64, Infinity);
+                                child.scale.y = 64;
                                 child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
                             }
+
+                            child.position.x = multipleCheck(child.position.x, 32);
+                            child.position.y = multipleCheck(child.position.y, 32);
+                            child.position.z = multipleCheck(child.position.z, 32);
                             break;
                         case "Floor":
                             child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
                             child.scale.y = 2;
                             child.scale.z = clamp(multipleCheck(child.scale.z, 64), 64, Infinity);
+
+                            child.position.x = multipleCheck(child.position.x, 32);
+                            child.position.y = multipleCheck(child.position.y, 32);
+                            child.position.z = multipleCheck(child.position.z, 32);
                             break;
                         case "Detail":
-                            child.scale.x = clamp(multipleCheck(child.scale.x, 2), 2, Infinity);
-                            child.scale.y = clamp(multipleCheck(child.scale.y, 2), 2, Infinity);
-                            child.scale.z = clamp(multipleCheck(child.scale.z, 2), 2, Infinity);
+                            child.scale.round();
                             break;
                     }
 
@@ -825,14 +833,14 @@ const addToScene = function (item) {
 
     updateLeftPanel();
 }
-var mapHasGround = true;
 const groundFloor = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
 );
-document.querySelector("#ground-color").addEventListener("input", function (e) { groundFloor.material.color.set(e.target.value); });
-document.querySelector("#ground-scale").addEventListener("input", function (e) { groundFloor.scale.set(e.target.value, e.target.value, 1); });
-groundFloor.scale.set(1000, 1000, 1);
+const ambientColor = new THREE.Color();
+document.querySelector("#ambient-color").addEventListener("input", function (e) { ambientColor.set(e.target.value); });
+groundFloor.scale.set(100000, 100000, 1);
+groundFloor.visible = false;
 groundFloor.name = "Ground Floor";
 groundFloor.userData.doNotVoxelize = true;
 groundFloor.userData.cannotBeRemoved = true;
@@ -1035,6 +1043,7 @@ document.body.addEventListener('keydown', function (event) {
 });
 
 const createEnemyNPC = function(position, rotationIntervals) {
+    console.log(rotationIntervals);
     const enemyNPC = new THREE.Mesh(
         new THREE.ConeGeometry(5,15,3),
         new THREE.MeshBasicMaterial({
@@ -1044,7 +1053,7 @@ const createEnemyNPC = function(position, rotationIntervals) {
             opacity: 0.75
         })
     );
-    enemyNPC.rotation.set(Math.PI/2, rotationIntervals * Math.PI / 4, 0);
+    enemyNPC.rotation.set(Math.PI/2, 0, rotationIntervals * Math.PI / 4);
     enemyNPC.position.copy(position);
     enemyNPC.userData.existInGame = true;
     enemyNPC.userData.isEnemyNPC = true;
@@ -1082,7 +1091,16 @@ const createBox = function(type) {
     }
     const cubePosition = new THREE.Vector3();
     cubePosition.copy(camera.position);
-    cubePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(camera.position.distanceTo(groundFloor.position)));
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    cubePosition.add(camDir.multiplyScalar(camera.position.distanceTo(groundFloor.position)));
+    if (type == "Detail") {
+        // place it right in front of the camera
+        cubePosition.copy(camera.position.clone().add(camDir.multiplyScalar(0.1)));
+    }
+    cubePosition.x = multipleCheck(cubePosition.x, 32);
+    cubePosition.y = multipleCheck(cubePosition.y, 32);
+    cubePosition.z = multipleCheck(cubePosition.z, 32);
     cube.position.copy(cubePosition);
     shiftUp(cube);
 
@@ -1332,22 +1350,11 @@ const saveProject = function () {
         }
     }
 
-    if (mapHasGround) {
-        metaData.groundData = {
-            "groundSize": {
-                "x": groundFloor.scale.x,
-                "y": groundFloor.scale.y
-            },
-            "groundColor": {
-                "r": groundFloor.material.color.r,
-                "g": groundFloor.material.color.g,
-                "b": groundFloor.material.color.b
-            }
-        }
-    }
-    else {
-        console.log("Skipping Ground [Removed from Scene]");
-    }
+    metaData.ambientColor = {
+        "r": ambientColor.r,
+        "g": ambientColor.g,
+        "b": ambientColor.b
+    };
 
     var saveData = { voxels: [] }
 
@@ -1365,8 +1372,8 @@ const saveProject = function () {
         });
         // SEND GROUND DATA
         ipc.send('savefile-add-custom-data', {
-            dataName: "groundData",
-            data: JSON.stringify(metaData.groundData)
+            dataName: "ambientColor",
+            data: JSON.stringify(metaData.ambientColor)
         });
         // SAVE MAPMAKERSAVE
         ipc.send('savefile-add-custom-data', {
@@ -1459,11 +1466,8 @@ const importProject = function () {
                 }
             })
 
-            const mapMakerGroundData = parsedJSON.groundData;
-            groundFloor.scale.set(mapMakerGroundData.groundSize.x, mapMakerGroundData.groundSize.y, mapMakerGroundData.groundSize.z);
-            groundFloor.material.color.r = mapMakerGroundData.groundColor.r;
-            groundFloor.material.color.g = mapMakerGroundData.groundColor.g;
-            groundFloor.material.color.b = mapMakerGroundData.groundColor.b;
+            document.querySelector("#ambient-color").value = "#" + new THREE.Color(parsedJSON.ambientColor.r, parsedJSON.ambientColor.g, parsedJSON.ambientColor.b).getHexString();
+            ambientColor.set(document.querySelector("#ambient-color").value);
 
             updateLeftPanel();
             // scene.add(selectedObjects);

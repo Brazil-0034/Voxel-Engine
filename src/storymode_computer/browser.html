@@ -168,8 +168,9 @@
         display: none;
     }
 
-    .visible {
-        display: block !important;
+    .currently-open {
+        opacity: 80%;
+        filter: sepia(100%);
     }
 
     #emails-list {
@@ -197,6 +198,8 @@
         font-size: 14px;
 
         border-bottom: 2px dashed rgb(93, 93, 93);
+
+        cursor: pointer;
     }
 
     .new {
@@ -234,9 +237,9 @@
 <body>
     <div id="header">
         <div id="topbar">
-            <div class="tab" onclick="activate('email', 'email.com', true, this)"><span id="alert">1</span> Your Email
+            <div class="tab active" onclick="activate('email', 'email.com', true, this)"><span id="alert">1</span> Your Email
             </div>
-            <div class="tab active" onclick="activate('catvideos', 'epic cat videos.com')">Cat Videos</div>
+            <div class="tab" onclick="activate('catvideos', 'epic cat videos.com')">Cat Videos</div>
         </div>
         <div id="searchbar">
             <div id="searchbarcontent">
@@ -253,56 +256,102 @@
         </div>
     </div>
     <div id="maincontent">
-        <div id="catvideos" class="page">
-            <img src="catvideos/website.gif" />
+        <div id="catvideos" class="page" style="background: #1b021c">
+            <center>
+                <img src="catvideos/website.gif" style="max-width: 800px"/>
+            </center>
         </div>
-        <div id="email" class="page visible">
+        <div id="email" class="page" style="display: block;">
             <div id="email-header">
                 <span style="padding-left: 20px">You have mail!</span>
             </div>
             <div style="width: 100%; height: 100%; display: flex">
                 <div id="emails-list">
-                    <div class="email-subject">
-                        <div class="header-line new">URGENT: Rent Overdue!</div>
-                        <div class="description">This is your final warning ...</div>
+                    <div class="email-subject" onclick="activateEmail(this, 'email-you-ready')">
+                        <div class="header-line new">You ready?</div>
+                        <div class="description">Hey. Job starts at midnight ...</div>
                     </div>
-                    <div class="email-subject">
+                    <div class="email-subject" onclick="activateEmail(this, 'email-outstanding')">
                         <div class="header-line new">NOTICE: Outstanding Invoice</div>
                         <div class="description">Invoice #85182 is overdue, pay ...</div>
                     </div>
-                    <div class="email-subject">
-                        <div class="header-line new">URGENT: Bank Overdraft</div>
+                    <div class="email-subject" onclick="activateEmail(this, 'email-overdraft')">
+                        <div class="header-line new">Warning: Bank Overdraft</div>
                         <div class="description">Your bank account has a negative ...</div>
                     </div>
                     <div class="email-subject">
-                        <div class="header-line new">Investment Report</div>
+                        <div class="header-line new">Weekly Market Report</div>
                         <div class="description">The market has seen grave ...</div>
                     </div>
                 </div>
                 <div id="actual-emails">
-                    <div class="email-content visible" id="rent-overdue">
-                        <h1>URGENT: Rent Overdue!</h1>
+                    <div class="email-content" id="email-you-ready">
+                        <h1>You ready?</h1>
                         <div style="color: rgb(220, 220, 220); margin-top: 10px;">
                             <h4>To: You</h4>
-                            <h4>From: Landchad the Landlord</h4>
+                            <h4>From: Anonymous User</h4>
                         </div>
                         <p>
-                            Listen up.
+                            Hey. You ready?
                             <br />
                             <br />
-                            Times are tough and the market has gone to shit.
-                            <br />
-                            But right now, you're <b>SIX WEEKS BEHIND ON RENT!!!</b>
+                            Be there at midnight. Just across the street.
                             <br />
                             <br />
-                            get it together and find a job. i don't care WHAT you do.
+                            You know what to do. Clean job, no witnesses.
                             <br />
-                            just figure it out and <b>PAY. ME.</b>
+                            Don't let anybody see you. Don't let anybody catch you.
                             <br />
                             <br />
-                            If ur late ONE MORE TIME then i'm kicking you back to the streets.
+                            You finish this job, and there's more to come.
                             <br />
-                            - Landchad OUT.
+                            We'll be watching.
+                        </p>
+                    </div>
+                    <div class="email-content" id="email-outstanding">
+                        <h1>NOTICE: Outstanding Invoice</h1>
+                        <div style="color: rgb(220, 220, 220); margin-top: 10px;">
+                            <h4>To: You</h4>
+                            <h4>From: Medical Center</h4>
+                        </div>
+                        <p>
+                            Dear <b>Patient #1189</b>,
+                            <br />
+                            <br />
+                            You have <strong>2</strong> oustanding invoice(s).
+                            <br />
+                            <br />
+                            Please pay your invoice within 30 days to avoid late fees.
+                            <br />
+                            Additional late fees will be added every 30 days.
+                            <br />
+                            <br />
+                            We wish you the best of health,
+                            <br />
+                            Medical Center.
+                        </p>
+                    </div>
+                    <div class="email-content" id="email-overdraft">
+                        <h1>Warning: Bank Overdraft</h1>
+                        <div style="color: rgb(220, 220, 220); margin-top: 10px;">
+                            <h4>To: You</h4>
+                            <h4>From: World Bank</h4>
+                        </div>
+                        <p>
+                            Dear valued customer,
+                            <br />
+                            <br />
+                            Your bank account balance has fallen below $0.00.
+                            <br />
+                            <br />
+                            Please deposit more money into your account to avoid fees.
+                            <br />
+                            If you do not deposit more money into your account within 24 hours, your account will be closed.
+                            <br />
+                            <br />
+                            Thank you for banking with us,
+                            <br />
+                            World Bank.
                         </p>
                     </div>
                 </div>
@@ -340,6 +389,22 @@
             }, 1000 * Math.random());
         }, 1000);
 
+        const activateEmail = function(preview, contentID) {
+            // set every email-content element to invisible EXCEPT the one with the id
+            const emails = document.getElementsByClassName("email-content");
+            const previews = document.getElementsByClassName("email-subject");
+            for (var i = 0; i < previews.length; i++) {
+                previews[i].classList.remove("currently-open");
+            }
+            preview.classList.add("currently-open");
+            for (var i = 0; i < emails.length; i++) {
+                emails[i].style.display = "none";
+            }
+            const activeEmail = document.getElementById(contentID);
+            if (activeEmail) activeEmail.style.display = "block";
+        }
+
+        // Manage Tabs
         const pages = document.getElementsByClassName("page");
         const activate = function (id, newURL, clearAlert = false, tab = null) {
             // disable each page and activate the one with the id

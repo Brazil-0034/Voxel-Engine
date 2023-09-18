@@ -1,0 +1,29 @@
+{
+    "currentLevel": "prologue",
+    "levels": [
+        {
+            "name": "PROLOGUE",
+            "map": "hotel-room",
+            "location": "Gold Star Hotel",
+            "music": "downbeat-1"
+        },
+        {
+            "name": "THE JOB",
+            "map": "bank-heist",
+            "location": "World Bank",
+            "music": "hype-1"
+        },
+        {
+            "name": "BREAK OUT",
+            "map": "prison-break",
+            "location": "Maximum-Security Prison",
+            "music": "hype-2"
+        },
+        {
+            "name": "STAYING LOW",
+            "map": "maria-diner",
+            "location": "Midnight Diner",
+            "music": "downbeat-2"
+        },
+    ]
+}

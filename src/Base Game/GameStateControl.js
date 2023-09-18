@@ -1,25 +1,18 @@
 // BIG class for all things level related
 import * as THREE from 'three';
 
-export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER, killStartPosition) {
-	// Draw Last Kill Line
-	if (killStartPosition)
-	{
-		const killLine = new THREE.Line(
-			new THREE.BufferGeometry().setFromPoints([
-				killStartPosition.clone().setY(LEVELHANDLER.playerHeight),
-				LEVELHANDLER.camera.position.multiply(new THREE.Vector3(1000,0,1000))
-			]),
-			new THREE.LineBasicMaterial({
-				color: 0xcccccc
-			})
-		)
+export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
+	LEVELHANDLER.playerCanMove = false;
+	WEAPONHANDLER.setWeaponVisible(false);
+}
 
-		LEVELHANDLER.scene.add(killLine);
-	}
+export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	// Reset Player ...
 	LEVELHANDLER.camera.position.set(0,LEVELHANDLER.playerHeight,0);
 	LEVELHANDLER.camera.rotation.copy(new THREE.Euler(0,0,0));
+	LEVELHANDLER.playerCanMove = true;
+	WEAPONHANDLER.setWeaponVisible(true);
+	LEVELHANDLER.playerHealth = 100;
 	// LEVELHANDLER.camera.rotation.x = Math.PI/4;
 	// Reset Weapon
 	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
@@ -38,4 +31,5 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER, killStartPos
 	})
 	// Clean Garbage
 	LEVELHANDLER.clearGarbage();
+	LEVELHANDLER.outliner.selectedObjects = [];
 }

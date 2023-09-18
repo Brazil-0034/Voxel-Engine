@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { ConvexHull } from 'three/addons/math/ConvexHull.js';
-import { lerp, clamp } from './EngineMath.js';
-import { resetGameState } from './GameStateControl.js';
+import { lerp, clamp, createVizSphere } from './EngineMath.js';
+import { pauseGameState } from './GameStateControl.js';
+import { LevelHandler } from './LevelHandler.js';
 
 // This will be the main system for spawning and handling NPC behavior
 export class NPC {
@@ -26,7 +27,7 @@ export class NPC {
     voxelField // for raycasting
 
     WEAPONHANDLER // how far he can see
-    LEVELDATA // what it sound like
+    LEVELHANDLER // what it sound like
 
     deathSound // on death
 
@@ -41,7 +42,7 @@ export class NPC {
         this.voxelField = voxelField;
         this.WEAPONHANDLER = WEAPONHANDLER;
 
-        this.LEVELDATA = LEVELDATA;
+        this.LEVELHANDLER = LEVELDATA;
 
         this.speed = speed;
         this.health = health;
@@ -107,7 +108,7 @@ export class NPC {
 
             // And lastly... add it to the scene!
             if (Math.random() > 0.5) this.sceneObject.scale.x *= -1;
-            this.LEVELDATA.scene.add(this.sceneObject);
+            this.LEVELHANDLER.scene.add(this.sceneObject);
 
             // add a helper to the bounding sphere
             // compute bounding sphere
@@ -115,7 +116,6 @@ export class NPC {
             this.npcObject.geometry.boundingSphere.set(this.npcObject.position, 512);
             this.sceneObject.rotation.copy(this.startingRotation);
 
-            console.log(this.sceneObject.rotation);
         });
 
         LEVELDATA.NPCBank.push(this);
@@ -145,11 +145,12 @@ export class NPC {
         if (this.health > 0 && this.knowsWherePlayerIs == false) // 1 in ten frames ... good enough i guess
         {
             this.fovConeHull.setFromObject(this.fovConeMesh);
-            if (this.fovConeHull.containsPoint(this.LEVELDATA.camera.position)) {
+            if (this.fovConeHull.containsPoint(this.LEVELHANDLER.camera.position)) {
+                const rayStartPos = this.sceneObject.position.clone().setY(this.LEVELHANDLER.playerHeight);
                 const playerDirection = new THREE.Vector3();
-                this.LEVELDATA.camera.getWorldDirection(playerDirection);
-                playerDirection.negate();
-                const intersection = this.voxelField.raycast(this.sceneObject.position, playerDirection, 1000);
+                playerDirection.subVectors(this.LEVELHANDLER.camera.position, rayStartPos).normalize();
+
+                const intersection = this.voxelField.raycast(rayStartPos, playerDirection, 1000);
                 if (intersection != null) {
                     // if there is a voxel in the way ...
                     const intersectPosition = new THREE.Vector3(
@@ -159,30 +160,25 @@ export class NPC {
                     )
 
                     // if the player is closer than the nearest voxel, he can be seen
-                    if (this.sceneObject.position.distanceTo(this.LEVELDATA.camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
+                    if (this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
                     {
-                        this.knowsWherePlayerIs = true;
-                        this.shootPlayer(500 + Math.random() * 250);
+                        this.shootPlayer(delta);
                     }
 
                 }
                 else
                 {
-                    this.knowsWherePlayerIs = true;
-                    this.shootPlayer(500 + Math.random() * 250);
+                    // else, if there is no voxel in the way, the player can be seen
+                    this.shootPlayer(delta);
                 }
             }
-            // else
-            // {
-            // 	this.knowsWherePlayerIs = false;
-            // }
         }
 
         if (this.health > 0) {
             if (this.knowsWherePlayerIs == true)
-            { return
+            {
                 // Look towards the nearest player (this.playerCamera) smoothly, using the lerp(a, b, t) function
-                const targetRotation = Math.atan2(this.LEVELDATA.camera.position.x - this.sceneObject.position.x, this.LEVELDATA.camera.position.z - this.sceneObject.position.z);
+                const targetRotation = Math.atan2(this.LEVELHANDLER.camera.position.x - this.sceneObject.position.x, this.LEVELHANDLER.camera.position.z - this.sceneObject.position.z);
                 // prevent spinning by flipping the rotation value
                 if (Math.abs(targetRotation - this.sceneObject.rotation.y) > Math.PI) {
                     if (targetRotation > this.sceneObject.rotation.y) {
@@ -195,10 +191,10 @@ export class NPC {
                 this.sceneObject.rotation.y = lerp(this.sceneObject.rotation.y, targetRotation, delta * 5);
 
                 // If too far, move closer
-                const distanceToPlayerCamera = this.sceneObject.position.distanceTo(this.LEVELDATA.camera.position);
+                const distanceToPlayerCamera = this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position);
                 if (distanceToPlayerCamera > 150) {
                     const direction = new THREE.Vector3();
-                    this.LEVELDATA.camera.getWorldDirection(direction);
+                    this.LEVELHANDLER.camera.getWorldDirection(direction);
                     direction.y = 0;
                     direction.normalize();
                     this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
@@ -212,20 +208,39 @@ export class NPC {
         }
     }
 
-    shootPlayer(delay=0) { return
-        setTimeout(() => {
-            if (this.health > 0) resetGameState(this.LEVELDATA, this.WEAPONHANDLER, this.sceneObject.position);
-        }, delay);
+    shootPlayer(damage) {
+        if (this.health > 0) {
+            this.LEVELHANDLER.playerHealth -= damage * 45;
+            console.log(this.LEVELHANDLER.playerHealth);
+            // snap lookat the player
+            this.sceneObject.rotation.set(
+                0,
+                Math.atan2(this.LEVELHANDLER.camera.position.x - this.sceneObject.position.x, this.LEVELHANDLER.camera.position.z - this.sceneObject.position.z),
+                0
+            );
+        }
+        if (this.LEVELHANDLER.playerHealth <= 0) {
+            pauseGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
+            // Outline the killer
+            this.LEVELHANDLER.outliner.selectedObjects = [this.npcObject];
+            // Draw Last Kill Line
+            const killArrow = new THREE.ArrowHelper(
+                new THREE.Vector3(
+                    this.LEVELHANDLER.camera.position.x - this.sceneObject.position.x,
+                    this.LEVELHANDLER.camera.position.y - this.sceneObject.position.y - this.LEVELHANDLER.playerHeight,
+                    this.LEVELHANDLER.camera.position.z - this.sceneObject.position.z
+                ).normalize(),
+                this.sceneObject.position.clone().setY(this.LEVELHANDLER.playerHeight),
+                this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position) + 5000,
+                0xffff63
+            );
+            this.LEVELHANDLER.scene.add(killArrow);
+        }
     }
 
     kill() {
-        // disable all animation
         this.mixer.stopAllAction();
         this.health = 0;
         this.dieAnimation.play();
-        // this.npcObject.material.color = new THREE.Color(0x00ff00);
-        // this.sceneObject.remove(this.npcObject);
-        // this.npcObject.geometry.dispose();
-        // this.npcObject.material.dispose();
     }
 }

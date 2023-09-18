@@ -4,20 +4,20 @@
         "name": "UZI",
         "helpText": "[Left Click] Shoot",
         "fireRate": 50,
-        "totalAmmo": 9999,
-        "weaponDamage": 15,
-        "damageRange": 1,
+        "totalAmmo": 99999,
+        "weaponDamage": 25,
+        "damageRange": 3,
         "minimumDistance": 500,
-        "followSpeed": 1000,
+        "followSpeed": 120,
         "position": {
-            "x": 29.3404767778952,
-            "y": -35.71519173158039,
-            "z": -70.25836737671506
+            "x": 7.5,
+            "y": -10,
+            "z": -20
         },
         "adsPosition": {
-            "x": 0,
-            "y": -28,
-            "z": -33
+            "x": 0.05,
+            "y": -8.5,
+            "z": -10
         },
         "adsRotation": {
             "x": 0.06283185307179587,

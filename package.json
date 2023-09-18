@@ -1,5 +1,5 @@
 {
-  "name": "wreckmesh",
+  "name": "voxelgame",
   "version": "1.0.0",
   "description": "A minimal Electron application",
   "main": "./src/electron/main.js",
