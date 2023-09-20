@@ -13,6 +13,10 @@ export class WeaponHandler {
     weaponTarget
     weaponPosition
     weaponRotation
+
+	// PARTICLES & JUICE
+	fireSprite
+	muzzleFire
     
     // SPECS
     weaponType
@@ -43,7 +47,7 @@ export class WeaponHandler {
 
 	// This will add the player's weapon model to the scene
 	generateWeaponModel(basePath) {
-        let LEVELDATA = this.LEVELHANDLER;
+        let LEVELHANDLER = this.LEVELHANDLER;
         let WEAPONHANDLER = this;
 		// First, load the weapon metadata from the .json file
 		let jsonLoader = new THREE.FileLoader();
@@ -51,13 +55,13 @@ export class WeaponHandler {
 			basePath + '.json',
 			function (json) {
 				let jsonModel = JSON.parse(json);
-				LEVELDATA.globalModelLoader.load(
+				LEVELHANDLER.globalModelLoader.load(
 					basePath + '.fbx',
 					function (object) {
 						WEAPONHANDLER.weaponModel = object;
 						// Load in the texture for the weapon
 						WEAPONHANDLER.weaponModel.children[0].material.transparent = true;
-						WEAPONHANDLER.weaponModel.children[0].material.map = LEVELDATA.globalTextureLoader.load(basePath + '.png');
+						WEAPONHANDLER.weaponModel.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
 						// Adjust the scale from standard magicavoxel scaling
 						WEAPONHANDLER.weaponModel.scale.divideScalar(50);
 						WEAPONHANDLER.weaponModel.name = jsonModel.weaponData.name;
@@ -66,7 +70,7 @@ export class WeaponHandler {
 							new THREE.MeshBasicMaterial({ color: 0x00ff00 })
 						);
 						WEAPONHANDLER.weaponTarget.material.visible = false; // uncomment to position weapon better
-						LEVELDATA.camera.add(WEAPONHANDLER.weaponTarget);
+						LEVELHANDLER.camera.add(WEAPONHANDLER.weaponTarget);
 						// json reads for weapon data
 						WEAPONHANDLER.weaponType = jsonModel.weaponData.type;
 						WEAPONHANDLER.adsPosition = jsonModel.weaponData.adsPosition;
@@ -78,7 +82,7 @@ export class WeaponHandler {
 						WEAPONHANDLER.weaponFollowSpeed = jsonModel.weaponData.followSpeed;
 						WEAPONHANDLER.weaponHelpText = jsonModel.weaponData.helpText;
 						// finally, add the weapon to the scene
-						LEVELDATA.scene.add(WEAPONHANDLER.weaponModel);
+						LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
 						WEAPONHANDLER.weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
 						if (jsonModel.weaponData.placementOffset) weaponPlacementOffset = new THREE.Vector3(jsonModel.weaponData.placementOffset.x, jsonModel.weaponData.placementOffset.y, jsonModel.weaponData.placementOffset.z);
 						WEAPONHANDLER.weaponRange = jsonModel.weaponData.minimumDistance;
@@ -94,6 +98,37 @@ export class WeaponHandler {
 						WEAPONHANDLER.weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
 						WEAPONHANDLER.weaponTarget.rotation.copy(WEAPONHANDLER.weaponRotation);
 						// if (WEAPONDATA.weaponHelpText) setHelpText(WEAPONDATA.weaponHelpText);
+
+						// Muzzle Flash
+						const map = new THREE.TextureLoader().load('../img/impact.png');
+						WEAPONHANDLER.fireSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+							map: map,
+							color: 0xffffff,
+							side: THREE.DoubleSide,
+							depthTest: false,
+							transparent: true,
+						}));
+						WEAPONHANDLER.weaponModel.add(WEAPONHANDLER.fireSprite);
+						WEAPONHANDLER.fireSprite.position.x = 50;
+						WEAPONHANDLER.fireSprite.position.y = 250;
+						WEAPONHANDLER.fireSprite.position.z = -700;
+
+						// Muzzle Fire
+						WEAPONHANDLER.muzzleFire = new THREE.Mesh(
+							new THREE.PlaneGeometry(6000, 45),
+							new THREE.MeshBasicMaterial({
+								map: new THREE.TextureLoader().load('../img/muzzlefire.png'),
+								color: 0xffffff,
+								side: THREE.DoubleSide,
+								depthTest: false,
+								transparent: true,
+							})
+						);
+						WEAPONHANDLER.weaponModel.add(WEAPONHANDLER.muzzleFire);
+						WEAPONHANDLER.muzzleFire.position.x = 50;
+						WEAPONHANDLER.muzzleFire.position.y = 250;
+						WEAPONHANDLER.muzzleFire.position.z = -3600;
+						WEAPONHANDLER.muzzleFire.rotation.y = Math.PI / 2;
 					},
 					function (err) {
 						// console.log(err);

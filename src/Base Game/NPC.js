@@ -122,7 +122,7 @@ export class NPC {
     }
 
     depleteHealth(amount) {
-        // this.knowsWherePlayerIs = true;
+        this.knowsWherePlayerIs = true;
 		// Adjust Color
 		this.npcObject.material.color.r = 20 - (Math.random() * 5);
         this.health -= amount;
@@ -211,7 +211,7 @@ export class NPC {
     shootPlayer(damage) {
         if (this.health > 0) {
             this.LEVELHANDLER.playerHealth -= damage * 45;
-            console.log(this.LEVELHANDLER.playerHealth);
+            // console.log(this.LEVELHANDLER.playerHealth);
             // snap lookat the player
             this.sceneObject.rotation.set(
                 0,

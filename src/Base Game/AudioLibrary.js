@@ -6,6 +6,7 @@ export class SoundEffectPlayer {
     bigDropSounds
     hitSound
     shootSound
+    isPlayingShootSound
 
     USERSETTINGS
 
@@ -44,9 +45,11 @@ export class SoundEffectPlayer {
         })
 
         this.shootSound = new Howl({
-            src: ['../sfx/shoot.wav'],
-            volume: USERSETTINGS.SFXVolume * 3
+            src: ['../sfx/heavy_shoot.ogg'],
+            volume: USERSETTINGS.SFXVolume * 2,
+            loop: true
         });
+        this.isPlayingShootSound = false;
 
     }
     
@@ -56,9 +59,23 @@ export class SoundEffectPlayer {
         soundToPlay.play();
     }
 
-    playSound(soundEffect) {
+    playSound(soundEffect, randomizeRate=true) {
         let soundToPlay = this[soundEffect];
-        soundToPlay.rate(rapidFloat() + 0.45);
+        if (randomizeRate) soundToPlay.rate(rapidFloat() + 0.45);
         soundToPlay.play();
+    }
+
+    setSoundPlaying(soundEffect, bool) {
+        if (bool == false) {
+            this[soundEffect].stop();
+            this.isPlayingShootSound = bool;
+        }
+        else
+        {
+            if (this.isPlayingShootSound == false) {
+                this[soundEffect].play();
+                this.isPlayingShootSound = bool;
+            }
+        }
     }
 }

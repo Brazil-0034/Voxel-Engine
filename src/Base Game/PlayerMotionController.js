@@ -44,11 +44,6 @@ export class PlayerController {
             acceleration: 0.25,
             maxSpeed: 0.015,
             stepSize: 125,
-        
-            crouchSpeed: 7.5,
-            crouchLerp: 0,
-            crouchYPosition: this.LEVELHANDLER.playerHeight - 15,
-            isCrouching: false
         }
     }
 
@@ -56,9 +51,6 @@ export class PlayerController {
     update(delta) {
         if (this.controls.isLocked == true)
         {
-            // Crouching
-            this.playerMotion.isCrouching = this.INPUTHANDLER.isKeyPressed("control");
-
             // // Drugs
             // if (isCapsLockPressed) {
             //     this.LEVELHANDLER.renderer.domElement.classList.add("on-drugs");
@@ -174,22 +166,74 @@ export class PlayerController {
                     isMoving = true;
                 }
     
-                // Crouching
-                if (this.playerMotion.isCrouching) {
-                    this.LEVELHANDLER.camera.position.y = lerp(this.LEVELHANDLER.playerHeight, this.playerMotion.crouchYPosition, this.playerMotion.crouchLerp);
-                    this.playerMotion.crouchLerp += this.playerMotion.crouchSpeed * delta;
-                    if (this.playerMotion.crouchLerp > 1) this.playerMotion.crouchLerp = 1;
+                // Head Bop
+                var headPosition = this.LEVELHANDLER.playerHeight
+                if (isMoving) {
+                    const freq = 75;
+                    const strength = 2.5;
+                    headPosition = this.LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
                 }
-                else {
-                    var headPosition = this.LEVELHANDLER.playerHeight
-                    if (isMoving) {
-                        const freq = 75;
-                        const strength = 2.5;
-                        headPosition = this.LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
+    
+                // WEAPON ACTION HANDLING
+                if (this.INPUTHANDLER.isLeftClicking) {
+                    switch (this.WEAPONHANDLER.weaponType) {
+                        case undefined:
+                            break;
+                        default:
+                            console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
+                            break;
+                        case "melee":
+                            // move weaponModel position forward relative to player LEVELDATA.camera
+                            if (this.WEAPONHANDLER.isAttackAvailable) this.WEAPONHANDLER.weaponModel.translateX(50);
+                        case "ranged":
+                            if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
+                            {
+                                if (this.WEAPONHANDLER.isAttackAvailable) {
+                                    this.WEAPONHANDLER.weaponRemainingAmmo--;
+                                    const weaponShakeIntensity = 0.25;
+                                    this.WEAPONHANDLER.weaponTarget.position.set(
+                                        this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+                                        this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+                                        this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+                                    );
+        
+                                    // Play Sound
+                                    // this.LEVELHANDLER.SFXPlayer.playSound("shootSound", false);
+                                    this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", true);
+        
+                                    // GOD i HATE javascript
+                                    // type annotations? NO.
+                                    // parameter delcarations? NO.
+                                    // return types? NO.
+                                    // why don't i just kill myself now?
+                                    this.calculateWeaponShot();
+        
+                                    this.raycaster.far = this.WEAPONHANDLER.weaponRange;
+                                    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+        
+                                    for (let i = 0; i < intersects.length; i++) {
+                                        const mainObj = intersects[i].object;
+                                        if (mainObj.npcHandler.health > 0) {
+                                            // Register Hit
+                                            mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
+                                        }
+                                        // Squelch!
+                                        this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
+                                        // TODO - create a shoot effect
+                                    }
+        
+                                    this.WEAPONHANDLER.isAttackAvailable = false;
+                                    setTimeout(() => {this.WEAPONHANDLER.isAttackAvailable = true}, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
+                                }
+                            }
+                            break;
                     }
-                    this.LEVELHANDLER.camera.position.y = lerp(this.LEVELHANDLER.camera.position.y, headPosition, delta * 10);
-                    this.playerMotion.crouchLerp -= this.playerMotion.crouchSpeed * delta;
-                    if (this.playerMotion.crouchLerp < 0) this.playerMotion.crouchLerp = 0;
+                }
+                else
+                {
+                    // Play Sound
+                    this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
                 }
 
                 // Weapon Bouncing (For Juice!!!)
@@ -215,97 +259,30 @@ export class PlayerController {
                     // always realign the rotation of the weapon to the target 
                     this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                 }
-    
-                // WEAPON ACTION HANDLING
-                if (this.INPUTHANDLER.isLeftClicking) {
-                    switch (this.WEAPONHANDLER.weaponType) {
-                        case undefined:
-                            break;
-                        default:
-                            console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
-                            break;
-                        case "melee":
-                            // move weaponModel position forward relative to player LEVELDATA.camera
-                            if (this.WEAPONHANDLER.isAttackAvailable) this.WEAPONHANDLER.weaponModel.translateX(50);
-                        case "ranged":
-                            if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
-                            {
-                                if (this.WEAPONHANDLER.isAttackAvailable) {
-                                    this.WEAPONHANDLER.weaponRemainingAmmo--;
-                                    if (!this.INPUTHANDLER.isRightClicking) {
-                                        const weaponShakeIntensity = 2.5;
-                                        this.WEAPONHANDLER.weaponTarget.position.set(
-                                            this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-                                            this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-                                            this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-                                        );
-                                    }
-        
-                                    // Play Sound
-                                    this.LEVELHANDLER.SFXPlayer.playSound("shootSound");
-        
-                                    // GOD i HATE javascript
-                                    // type annotations? NO.
-                                    // parameter delcarations? NO.
-                                    // return types? NO.
-                                    // why don't i just kill myself now?
-                                    this.calculateWeaponShot();
-        
-                                    this.raycaster.far = this.WEAPONHANDLER.weaponRange;
-                                    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
-        
-                                    for (let i = 0; i < intersects.length; i++) {
-                                        const mainObj = intersects[i].object;
-                                        if (mainObj.npcHandler.health > 0) {
-                                            // Register Hit
-                                            mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
-                                        }
-                                        // Squelch!
-                                        this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
-                                        // TODO - create a shoot effect
-                                    }
-        
-                                    this.WEAPONHANDLER.isAttackAvailable = false;
-                                    const activateWeapon = function(weaponHandler) {
-                                        weaponHandler.isAttackAvailable = true;
-                                    }
-                                    setTimeout(activateWeapon, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
-                                }
-                            }
-                            break;
-                    }
-                }
 
                 // throwing
                 if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
             }
         }
 
+        // Assign Weapon Position
+        if (this.WEAPONHANDLER.weaponTarget) this.WEAPONHANDLER.weaponTarget.position.set(this.WEAPONHANDLER.weaponPosition.x, this.WEAPONHANDLER.weaponPosition.y, this.WEAPONHANDLER.weaponPosition.z);
+
         // Adjust Camera FOV (For ADS Effects)
 		let targetFOV = this.USERSETTINGS.baseFOV;
-		if (this.INPUTHANDLER.isRightClicking) {
-			targetFOV = this.USERSETTINGS.baseFOV - 20;
-			switch (this.WEAPONHANDLER.weaponType) {
-				case undefined:
-					break;
-				default:
-					console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
-					break;
-				case "melee":
-				case "ranged":
-					this.WEAPONHANDLER.weaponTarget.position.set(this.WEAPONHANDLER.adsPosition.x, this.WEAPONHANDLER.adsPosition.y, this.WEAPONHANDLER.adsPosition.z);
-					this.WEAPONHANDLER.weaponTarget.rotation.set(this.WEAPONHANDLER.adsRotation.x, this.WEAPONHANDLER.adsRotation.y, this.WEAPONHANDLER.adsRotation.z);
-			}
-		}
-		else {
-			if (this.WEAPONHANDLER.weaponTarget) this.WEAPONHANDLER.weaponTarget.position.set(this.WEAPONHANDLER.weaponPosition.x, this.WEAPONHANDLER.weaponPosition.y, this.WEAPONHANDLER.weaponPosition.z);
-		}
-		this.LEVELHANDLER.camera.fov = lerp(this.LEVELHANDLER.camera.fov, targetFOV, 10 * delta);
+		if (this.INPUTHANDLER.isRightClicking) targetFOV = this.USERSETTINGS.baseFOV - 20;
+        this.LEVELHANDLER.camera.fov = lerp(this.LEVELHANDLER.camera.fov, targetFOV, 10 * delta);
 		if (Math.abs(this.LEVELHANDLER.camera.fov - targetFOV) > 1) this.LEVELHANDLER.camera.updateProjectionMatrix();
     }
 
     calculateWeaponShot = function () {
+        // Impact Effect
+        this.WEAPONHANDLER.fireSprite.material.rotation = rapidFloat() * Math.PI * 2;
+        const scale = 125 + rapidFloat() * 100;
+        this.WEAPONHANDLER.fireSprite.scale.set(scale, scale);
+        this.WEAPONHANDLER.fireSprite.material.opacity = rapidFloat();
+        this.WEAPONHANDLER.muzzleFire.material.opacity = rapidFloat();
+        this.WEAPONHANDLER.muzzleFire.rotateX(rapidFloat());
         // RAYCAST INTO THE VOXEL FIELD
         // STEP 1: GET THE CAMERA POSITION
         // STEP 2: GET THE CAMERA DIRECTION

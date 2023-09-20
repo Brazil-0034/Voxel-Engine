@@ -2,6 +2,8 @@
 const { ipcRenderer } = require('electron');
 import { addToCutawayStack, BoxData, VoxelChunk, VoxelFace, voxelField, cutawayField } from './VoxelStructures.js';
 import { getPixelsFromImage } from './CanvasPixelReader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { rapidFloat, createVizSphere } from './EngineMath.js'; // math functions
 import { instancedModelIndex } from './LevelHandler.js'; // for frustum
 import { NPC } from './NPC.js'; // non-player characters (NPCs)
@@ -145,6 +147,34 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 
                 buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
             });
+
+            // Final Step: Level Text
+            const loader = new FontLoader();
+            loader.load('../opensource/fonts/Lilita/Lilita One_Regular.json', (font) => {
+                const levelTitleGeometry = new TextGeometry('THE CLUB', {
+                    font: font,
+                    size: 120,
+                    height: 2.5
+                });
+                const levelText = new THREE.Mesh(levelTitleGeometry, new THREE.MeshBasicMaterial({
+                    color: ambientColor.clone().multiplyScalar(0.15)
+                }));
+                levelText.position.set(0, 256, 0);
+                levelText.rotation.y = -Math.PI/4;
+                LEVELHANDLER.scene.add(levelText);
+
+                const directedByGeometry = new TextGeometry('Directed by Austin Zaman', {
+                    font: font,
+                    size: 20,
+                    height: 2.5
+                });
+                const directedByText = new THREE.Mesh(directedByGeometry, new THREE.MeshBasicMaterial({
+                    color: ambientColor.clone().multiplyScalar(0.15)
+                }));
+                directedByText.position.set(0, 200, 0);
+                directedByText.rotation.y = -Math.PI/4;
+                LEVELHANDLER.scene.add(directedByText);
+            })
         });
     });
 }

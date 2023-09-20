@@ -275,7 +275,7 @@ const maxChunksInPhysicsCache = 15;
 // Adjusts a chunk for destroyed voxels
 export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler, currentModel) {
 	let particleChance = 1;
-	if (destroyedVoxelsInChunk.length > 20) particleChance = 0.25;
+	if (destroyedVoxelsInChunk.length > 1000) particleChance = 0.25;
 	LEVELHANDLER.SFXPlayer.playRandomSound("dropSounds");
 	for (let x = 0; x < destroyedVoxelsInChunk.length; x++) {
 		let position = destroyedVoxelsInChunk[x];

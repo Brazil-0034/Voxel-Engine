@@ -465,6 +465,11 @@
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
 		// Player Movement Handling
 		playerController.update(delta);
+		// Impact Effect Softening
+		if (WEAPONHANDLER.fireSprite) {
+			WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
+			WEAPONHANDLER.muzzleFire.material.opacity -= 15 * delta;
+		}
 
 		// #########
 		// DEBUG KEYS
