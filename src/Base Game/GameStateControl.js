@@ -4,6 +4,7 @@ import * as THREE from 'three';
 export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.playerCanMove = false;
 	WEAPONHANDLER.setWeaponVisible(false);
+	document.querySelector("#dead-overlay").style.animation = "fade-in 0.12s ease-in forwards";
 }
 
 export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
@@ -17,8 +18,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	// Reset Weapon
 	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
 	WEAPONHANDLER.weaponModel.position.copy(WEAPONHANDLER.weaponTarget.position);
-	WEAPONHANDLER.weaponModel.children[0].visible = true;
-	WEAPONHANDLER.weaponModel.children[0].rotation.set(0,0,0);
+	WEAPONHANDLER.weaponModel.children.forEach(child => { child.visible = true });
 	// Reset NPCs ...
 	LEVELHANDLER.NPCBank.forEach(thisNPC => {
 		thisNPC.sceneObject.rotation.set(thisNPC.startingRotation.x, thisNPC.startingRotation.y, thisNPC.startingRotation.z);
@@ -29,6 +29,9 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		thisNPC.idleAnimation.play();
 		thisNPC.mixer.timeScale = 1;
 	})
+	// Reset UI
+	document.querySelector("#dead-overlay").style.animation = "dead-fade-out 1.5s ease-out ";
+	document.querySelector("#healthbar").style.width = "200px";
 	// Clean Garbage
 	LEVELHANDLER.clearGarbage();
 	LEVELHANDLER.outliner.selectedObjects = [];

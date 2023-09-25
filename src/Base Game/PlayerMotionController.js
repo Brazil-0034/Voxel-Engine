@@ -190,12 +190,18 @@ export class PlayerController {
                             {
                                 if (this.WEAPONHANDLER.isAttackAvailable) {
                                     this.WEAPONHANDLER.weaponRemainingAmmo--;
-                                    const weaponShakeIntensity = 0.25;
-                                    this.WEAPONHANDLER.weaponTarget.position.set(
-                                        this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-                                        this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-                                        this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-                                    );
+                                    if (this.WEAPONHANDLER.fireSprite) {
+                                        const weaponShakeIntensity = 0.25;
+                                        this.WEAPONHANDLER.weaponTarget.position.set(
+                                            this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+                                            this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+                                            this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+                                        );
+                                    }
+
+                                    if (this.WEAPONHANDLER.fireAnimation) {
+                                        this.WEAPONHANDLER.fireAnimation.play();
+                                    }
         
                                     // Play Sound
                                     // this.LEVELHANDLER.SFXPlayer.playSound("shootSound", false);
@@ -232,11 +238,14 @@ export class PlayerController {
                 }
                 else
                 {
-                    // Play Sound
+                    // Stop Sound
                     this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
+                    // Stop Animation
+                    if (this.WEAPONHANDLER.fireAnimation) this.WEAPONHANDLER.fireAnimation.stop();
                 }
 
                 // Weapon Bouncing (For Juice!!!)
+                if (this.WEAPONHANDLER.isAnimated) this.WEAPONHANDLER.mixer.update(delta);
                 if (this.WEAPONHANDLER.weaponModel && this.WEAPONHANDLER.weaponTarget && delta > 0) {
                     // SIN the weapon's position
                     const bounceRange = new THREE.Vector3(10, 10, 0);
@@ -246,17 +255,16 @@ export class PlayerController {
                     this.WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
                     this.WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
 
-                    if (!isInWall) this.WEAPONHANDLER.weaponTarget.setRotationFromEuler(new THREE.Euler(-(this.playerMotion.zAxis * 2.5), 0, (this.playerMotion.xAxis * 5)));
-                    this.WEAPONHANDLER.weaponModel.children[0].rotation.y = Math.PI/2;
-
+                    if (!isInWall) this.WEAPONHANDLER.weaponTarget.setRotationFromEuler(new THREE.Euler(
+                        -(this.playerMotion.zAxis * 0.5),
+                        0,
+                        (this.playerMotion.xAxis * 5)
+                    ));
                 
                     // LERP the weapon's position
                     const instancedWeaponTargetWorldPosition = new THREE.Vector3();
                     this.WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-                    // this.WEAPONHANDLER.weaponModel.position.copy(moveTowards(this.WEAPONHANDLER.weaponModel.position, instancedWeaponTargetWorldPosition, delta * this.WEAPONHANDLER.weaponFollowSpeed * 1 / this.LEVELHANDLER.timeModifier));
                     this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
-
-                    // always realign the rotation of the weapon to the target 
                     this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                 }
 
@@ -277,12 +285,14 @@ export class PlayerController {
 
     calculateWeaponShot = function () {
         // Impact Effect
-        this.WEAPONHANDLER.fireSprite.material.rotation = rapidFloat() * Math.PI * 2;
-        const scale = 125 + rapidFloat() * 100;
-        this.WEAPONHANDLER.fireSprite.scale.set(scale, scale);
-        this.WEAPONHANDLER.fireSprite.material.opacity = rapidFloat();
-        this.WEAPONHANDLER.muzzleFire.material.opacity = rapidFloat();
-        this.WEAPONHANDLER.muzzleFire.rotateX(rapidFloat());
+        if (this.WEAPONHANDLER.fireSprite) {
+            const scale = 125 + rapidFloat() * 100;
+            this.WEAPONHANDLER.fireSprite.scale.set(scale, scale);
+            this.WEAPONHANDLER.fireSprite.material.rotation = rapidFloat() * Math.PI * 2;
+            this.WEAPONHANDLER.fireSprite.material.opacity = rapidFloat();
+            this.WEAPONHANDLER.muzzleFire.material.opacity = rapidFloat();
+            this.WEAPONHANDLER.muzzleFire.rotateX(rapidFloat());
+        }
         // RAYCAST INTO THE VOXEL FIELD
         // STEP 1: GET THE CAMERA POSITION
         // STEP 2: GET THE CAMERA DIRECTION

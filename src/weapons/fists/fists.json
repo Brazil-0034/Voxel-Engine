@@ -3,32 +3,23 @@
         "type": "melee",
         "name": "FISTS",
         "helpText": "[Left Click] Punch",
-        "fireRate": 150,
+        "fireRate": 200,
         "weaponDamage": 150,
         "totalAmmo": 9999999,
-        "damageRange": 1,
+        "damageRange": 4,
         "minimumDistance": 100,
         "followSpeed": 512,
-        "basepotency": 0.35,
+        "basepotency": 0.15,
+        "hasMuzzleFlash": false,
         "position": {
-            "x": 29.3404767778952,
-            "y": -35.71519173158039,
-            "z": -74.25836737671506
-        },
-        "adsPosition": {
             "x": 0,
-            "y": -28,
-            "z": -33
-        },
-        "adsRotation": {
-            "x": 0.06283185307179587,
-            "y": 1.5588283547812212,
-            "z": -0.08566370614359174
+            "y": 0,
+            "z": 25
         },
         "rotation": {
-            "x": 0.06283185307179587,
-            "y": 1.5274124282453232,
-            "z": -0.031415926535897934
+            "x": 0,
+            "y": 0,
+            "z": 0
         }
     }
 }

@@ -142,7 +142,7 @@ export class NPC {
         // lerp the color to 0xffffff
         this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
 
-        if (this.health > 0 && this.knowsWherePlayerIs == false) // 1 in ten frames ... good enough i guess
+        if (this.health > 0) // 1 in ten frames ... good enough i guess
         {
             this.fovConeHull.setFromObject(this.fovConeMesh);
             if (this.fovConeHull.containsPoint(this.LEVELHANDLER.camera.position)) {
@@ -210,8 +210,25 @@ export class NPC {
 
     shootPlayer(damage) {
         if (this.health > 0) {
-            this.LEVELHANDLER.playerHealth -= damage * 45;
-            // console.log(this.LEVELHANDLER.playerHealth);
+            // Update AI
+            this.knowsWhrePlayerIs = true;
+            // Update Player Health
+            this.LEVELHANDLER.playerHealth -= damage * 70;
+            // Animations
+            document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
+            for (let i = 1; i < 3; i++)
+            {
+                const thisAnim = document.querySelector("#health-anim-" + i);
+                if (!thisAnim.classList.contains("has-begun"))
+                {
+                    thisAnim.beginElement();
+                    thisAnim.classList.add("has-begun");
+                    setTimeout(() => {
+                        thisAnim.endElement();
+                        thisAnim.classList.remove("has-begun");
+                    }, 250);
+                }
+            }
             // snap lookat the player
             this.sceneObject.rotation.set(
                 0,
@@ -219,8 +236,11 @@ export class NPC {
                 0
             );
         }
-        if (this.LEVELHANDLER.playerHealth <= 0) {
+        if (this.LEVELHANDLER.playerHealth <= 0 && this.health > 0) {
+            // Freeze player motion and interactivity
             pauseGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
+            // Fix gun sfx bug
+            this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
             // Outline the killer
             this.LEVELHANDLER.outliner.selectedObjects = [this.npcObject];
             // Draw Last Kill Line
@@ -235,6 +255,11 @@ export class NPC {
                 0xffff63
             );
             this.LEVELHANDLER.scene.add(killArrow);
+            // Fix endless run animation bug
+            this.runAnimation.stop();
+            this.idleAnimation.play();
+            // Prevent further action
+            this.health = -1;
         }
     }
 

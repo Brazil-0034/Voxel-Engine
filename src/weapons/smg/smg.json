@@ -9,6 +9,7 @@
         "damageRange": 3,
         "minimumDistance": 500,
         "followSpeed": 120,
+        "hasMuzzleFlash": true,
         "position": {
             "x": 7.5,
             "y": -10,

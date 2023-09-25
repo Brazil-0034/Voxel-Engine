@@ -163,7 +163,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 levelText.rotation.y = -Math.PI/4;
                 LEVELHANDLER.scene.add(levelText);
 
-                const directedByGeometry = new TextGeometry('Directed by Austin Zaman', {
+                const directedByGeometry = new TextGeometry('by Austin Zaman', {
                     font: font,
                     size: 20,
                     height: 2.5

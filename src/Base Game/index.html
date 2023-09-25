@@ -126,8 +126,15 @@
 			}
 		}
 
-		.fade-in {
-			animation: fade-in 0.15s forwards;
+		@keyframes dead-fade-out {
+			from {
+				opacity: 1;
+				background: rgb(103, 153, 103);
+			}
+			to {
+				background: rgb(11, 11, 216);
+				opacity: 0;
+			}
 		}
 
 		@keyframes pop-up {
@@ -203,6 +210,39 @@
 			height: 100%;
 			border: none;
 		}
+
+		#ui-overlay {
+			overflow: hidden;
+			position: absolute;
+			left: 0; top: 0;
+			width: 100%;
+			height: 100%;
+			pointer-events: none;
+			background-size: 0px 0px;
+			animation-fill-mode: forwards;
+		}
+
+		#dead-overlay {
+			overflow: hidden;
+			position: absolute;
+			left: 0; top: 0;
+			width: 100%;
+			height: 100%;
+			opacity: 0;
+			animation-direction: forwards;
+			pointer-events: none;
+			background: radial-gradient(rgba(0,0,0,0) 75%, rgb(229, 75, 75) 100%);
+		}
+
+		#healthbar {
+			z-index: 1;
+		}
+
+		.health {
+			position: absolute;
+			bottom: 20px;
+			left: 40px;
+		}
 	</style>
 
 </head>
@@ -214,7 +254,7 @@
 	</div>
 
 	<!-- DEBUG BOX -->
-	<div id="vizbox" style="display:none">
+	<div id="vizbox" style="display: none;">
 		<div id="FPSViz">Loading ...</div>
 		<div id="DRAWCALLSViz">Loading ...</div>
 		<div id="NUMVOXELSViz">Loading ...</div>
@@ -222,6 +262,31 @@
 		<div id="XViz">N/A</div>
 		<div id="YViz">N/A</div>
 		<div id="ZViz">N/A</div>
+	</div>
+
+	<!-- PRIMARY UI -->
+	<div id="dead-overlay"></div>
+	<div id="ui-overlay">
+		<!-- The red part -->
+		<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FF0051" fill-rule="evenodd" stroke="none" >
+				<!-- svg animation to pulse the healthbar color and fill and stroke -->
+				<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-1" />
+				<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-2"  />
+				<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-3"  />
+			</path>
+		</svg>
+
+		<!-- The white part -->
+		<svg class="health" width="180px" height="12px" viewBox="0 0 180 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+			<defs>
+			  <filter id="blur" x="0" y="0">
+				<feGaussianBlur in="SourceGraphic" stdDeviation="20" />
+			  </filter>
+			</defs>
+			<path d="M6 0L200 0L200 12L6 12L6 0Z" id="Rectangle" fill="#FFFFFF" fill-rule="evenodd" stroke="none" filter="url(#blur)">
+			</path>
+		</svg>
 	</div>
 
 	<!-- WEB BROWSER -->
@@ -412,7 +477,7 @@
 	// ##########
 	// These mark locations in the local file system that store the map and current weapon
 	const modelURL = 'savedata';
-	const weaponURL = '../weapons/' + 'smg/smg';
+	const weaponURL = '../weapons/' + 'fists/fists';
 	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
 
 	// This starts building the map ...
@@ -492,6 +557,20 @@
 			console.log("\n+==============================+\n")
 		}
 
+		// Use arrow keys to move the WEAPONHANDLER.weaponPosition
+		if (INPUTHANDLER.isKeyPressed("ArrowUp")) {
+			WEAPONHANDLER.weaponPosition.y += 10;
+		}
+		if (INPUTHANDLER.isKeyPressed("ArrowDown")) {
+			WEAPONHANDLER.weaponPosition.y -= 10;
+		}
+		if (INPUTHANDLER.isKeyPressed("ArrowLeft")) {
+			WEAPONHANDLER.weaponPosition.x -= 10;
+		}
+		if (INPUTHANDLER.isKeyPressed("ArrowRight")) {
+			WEAPONHANDLER.weaponPosition.x += 10;
+		}
+
 		// Raycasting for interactables
 		if (frameCounter % 10 == 0) {
 			raycaster.far = 100;
@@ -548,7 +627,7 @@
 		LEVELHANDLER.camera.updateProjectionMatrix();
 	}, false);
 
-	setHelpText("shidfart");
+	setHelpText("");
 </script>
 
 </html>
