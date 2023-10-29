@@ -6,19 +6,7 @@ export const getInteractionText = function() {
     return document.querySelector("#interaction-text").innerHTML;
 }
 export const setInteractionText = (text) => {
-    const interactionText = document.querySelector("#interaction-text");
-	if (document.querySelector("#popup-window").style.display == "block") {
-		interactionText.style.display = "none";
-		setHelpText("Press [F] to Close")
-	}
-	else interactionText.style.display = "block";
-
-	interactionText.innerHTML = "Press [F]: " + text;
-	if (text == "") {
-		interactionText.classList.remove("fade-in");
-		interactionText.style.opacity = 0;
-	}
-	else {
-		interactionText.classList.add("fade-in");
-	}
+	const itext = document.querySelector("#interaction-text");
+    itext.innerHTML = text;
+	itext.style.opacity = 1;
 }

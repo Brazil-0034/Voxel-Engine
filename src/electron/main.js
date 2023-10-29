@@ -7,14 +7,14 @@ const fs = require('fs')
 function createWindow() {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
-        width: 1264,
-        height: 812,
+        width: 1000,
+        height: 700,
         // titleBarStyle: 'hidden',
-        titleBarOverlay: {
-            color: '#cd373e',
-            symbolColor: '#ffffff',
-            height: 40
-        },
+        // titleBarOverlay: {
+        //     color: '#cd373e',
+        //     symbolColor: '#ffffff',
+        //     height: 40
+        // },
         icon: __dirname + '../img/icon.ico',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -33,7 +33,8 @@ function createWindow() {
     })
 
     // and load the index.html of the app.
-    const indexFile = "../Base Game/index.html";
+    // const indexFile = "../Base Game/index.html";
+    const indexFile = "../launcher/menu.html";
     mainWindow.loadFile(path.join(__dirname, indexFile))
 
     // devtools

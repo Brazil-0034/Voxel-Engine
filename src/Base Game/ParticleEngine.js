@@ -75,7 +75,7 @@ export class ParticleMesh extends THREE.InstancedMesh {
                 }
                 particle.direction.y -= (256 - (particle.lifetime / 4)) * delta;
                 particle.position.x += particle.direction.x * delta * particle.speed / ((particle.lifetime + 1) * 10 * delta);
-                particle.position.y += particle.direction.y * delta * particle.speed / 2// ((particle.lifetime + 1) * 10 * delta);
+                particle.position.y += particle.direction.y * delta * particle.speed / (2.5);
                 particle.position.z += particle.direction.z * delta * particle.speed / ((particle.lifetime + 1) * 10 * delta);
                 particle.lifetime += 1;
     

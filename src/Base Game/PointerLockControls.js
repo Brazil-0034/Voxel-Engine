@@ -15,12 +15,13 @@ const _PI_2 = Math.PI / 2;
 
 class PointerLockControls extends EventDispatcher {
 
-	constructor( camera, domElement ) {
+	constructor( LEVELHANDLER ) {
 
 		super();
 
-		this.camera = camera;
-		this.domElement = domElement;
+		this.LEVELHANDLER = LEVELHANDLER;
+		this.camera = LEVELHANDLER.camera;
+		this.domElement = LEVELHANDLER.renderer.domElement;
 
 		this.isLocked = false;
 
@@ -28,8 +29,6 @@ class PointerLockControls extends EventDispatcher {
 		// Range is 0 to Math.PI radians
 		this.minPolarAngle = 0; // radians
 		this.maxPolarAngle = Math.PI; // radians
-
-		this.pointerSpeed = 1.0;
 
 		this._onMouseMove = onMouseMove.bind( this );
 		this._onPointerlockChange = onPointerlockChange.bind( this );
@@ -114,17 +113,9 @@ class PointerLockControls extends EventDispatcher {
 
 // event listeners
 
-let timesPerSecond = 0;
-setInterval(() => {
-	// console.log(timesPerSecond);
-	timesPerSecond = 0;
-}, 1000);
-
 function onMouseMove( event ) {
 
 	if ( this.isLocked === false ) return;
-
-	timesPerSecond++;
 
 	const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
 	const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
@@ -132,12 +123,13 @@ function onMouseMove( event ) {
 	const camera = this.camera;
 	_euler.setFromQuaternion( camera.quaternion );
 
-	_euler.y -= movementX * 0.002 * this.pointerSpeed;
-	_euler.x -= movementY * 0.002 * this.pointerSpeed;
+	_euler.y -= movementX / 500;
+	_euler.x -= movementY / 500;
 
 	_euler.x = Math.max( _PI_2 - this.maxPolarAngle, Math.min( _PI_2 - this.minPolarAngle, _euler.x ) );
 
 	camera.quaternion.setFromEuler( _euler );
+	// camera.rotation.y = _euler.y;
 
 	this.dispatchEvent( _changeEvent );
 

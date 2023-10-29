@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { ConvexHull } from 'three/addons/math/ConvexHull.js';
-import { lerp, clamp, createVizSphere } from './EngineMath.js';
+import { lerp, clamp, createVizSphere, rapidFloat } from './EngineMath.js';
 import { pauseGameState } from './GameStateControl.js';
 import { LevelHandler } from './LevelHandler.js';
+import { globalOffset } from './WorldGenerator.js'
 
 // This will be the main system for spawning and handling NPC behavior
 export class NPC {
     sceneObject // the scene object of the npc - includes the mesh, bones, etc
     npcObject // just the mesh object of the npc (children[0] of sceneObject)
+    shootBar // shooting effect
 
     startingPosition // for reset
     startingRotation // for reset
@@ -67,6 +69,7 @@ export class NPC {
 
             // STEP 2: ASSIGN TRANSFORMS
             this.sceneObject.position.copy(position);
+            this.sceneObject.position.add(globalOffset);
             this.sceneObject.scale.multiplyScalar(0.075);
 
             // STEP 3: APPLY ANIMATIONS
@@ -115,6 +118,21 @@ export class NPC {
             this.npcObject.geometry.computeBoundingSphere();
             this.npcObject.geometry.boundingSphere.set(this.npcObject.position, 512);
             this.sceneObject.rotation.copy(this.startingRotation);
+
+            // Add a shooting effect
+            this.shootBar = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.025, 0.025, 60, 8),
+                new THREE.MeshBasicMaterial({
+                    color: 0xffd359,
+                    emissive: 0xffd359,
+                    emissiveIntensity: 1.25
+                })
+            );
+            this.npcObject.add(this.shootBar);
+            this.shootBar.rotation.set(Math.PI/2, 0, 0);
+            this.shootBar.position.z += 32;
+            this.shootBar.position.y += 4.5;
+            this.shootBar.visible = false;
 
         });
 
@@ -215,6 +233,9 @@ export class NPC {
             // Update Player Health
             this.LEVELHANDLER.playerHealth -= damage * 70;
             // Animations
+            this.shootBar.rotation.set(Math.PI/2, rapidFloat()/100, rapidFloat()/100);
+            this.shootBar.visible = rapidFloat() < 0.85 ? true : false;
+            this.shootBar.scale.y = rapidFloat() * 60;
             document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
             for (let i = 1; i < 3; i++)
             {
@@ -267,5 +288,6 @@ export class NPC {
         this.mixer.stopAllAction();
         this.health = 0;
         this.dieAnimation.play();
+        this.shootBar.visible = false;
     }
 }

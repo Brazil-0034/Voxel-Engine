@@ -4,6 +4,7 @@
 import { lerp, clamp, rapidFloat, moveTowards } from './EngineMath.js'; // math functions
 import { voxelField, generateDestroyedChunkAt } from './VoxelStructures.js'; // data structures for handling voxels
 import { resetGameState } from './GameStateControl.js'; // Level Data
+import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
 import * as THREE from 'three';
 
 /**
@@ -49,23 +50,9 @@ export class PlayerController {
 
     // Update the controller at the framerate
     update(delta) {
+        let isMoving = false;
         if (this.controls.isLocked == true)
         {
-            // // Drugs
-            // if (isCapsLockPressed) {
-            //     this.LEVELHANDLER.renderer.domElement.classList.add("on-drugs");
-            //     this.LEVELHANDLER.timeModifier = 0.25;
-
-            //     bloomPass.threshold = lerp(bloomPass.threshold, 0.25, delta * 5);
-            //     bloomPass.radius = lerp(bloomPass.radius, 2.5, delta * 5);
-            // } else {
-            //     this.LEVELHANDLER.renderer.domElement.classList.remove("on-drugs");
-            //     this.LEVELHANDLER.timeModifier = 1;
-
-            //     bloomPass.threshold = lerp(bloomPass.threshold, 0.75, delta * 0.5);
-            //     bloomPass.radius = lerp(bloomPass.radius, 0, delta * 0.5);
-            // }
-
             // Global RESET Key
             if (this.INPUTHANDLER.isKeyPressed("r")) resetGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
             
@@ -83,7 +70,7 @@ export class PlayerController {
             this.playerMotion.xAxis = clamp(this.playerMotion.xAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
 
             // Walking
-            let moveSpeedOffset = this.INPUTHANDLER.isKeyPressed("shift") ? 0.45 : 1;
+            let moveSpeedOffset = this.INPUTHANDLER.isKeyPressed("shift") ? 1.45 : 1;
             let isInWall = false;
             if (this.USERSETTINGS.disableCollisions == false)
             {
@@ -99,10 +86,10 @@ export class PlayerController {
                     // if there is something in the way
                     if (forward != null) {
                         this.playerMotion.zAxis *= -0.0001;
-                        const distance = footPosition.distanceTo(new THREE.Vector3(forward.x, forward.y, forward.z));
-                        if (distance < 15) {
-                            this.WEAPONHANDLER.weaponTarget.rotation.z = Math.PI/2;
-                        }
+                        // const distance = footPosition.distanceTo(new THREE.Vector3(forward.x, forward.y, forward.z));
+                        // if (distance < 15) {
+                        //     this.WEAPONHANDLER.weaponTarget.rotation.z = Math.PI/2;
+                        // }
                     }
                     else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) this.playerMotion.zAxis *= -0.0001;
                 }
@@ -157,25 +144,22 @@ export class PlayerController {
                 }
             }
 
+
             // Movement
-            let isMoving = false;
             if (this.LEVELHANDLER.playerCanMove == true) {
                 this.controls.moveRight(this.playerMotion.stepSize * this.playerMotion.xAxis * moveSpeedOffset);
                 this.controls.moveForward(-this.playerMotion.stepSize * this.playerMotion.zAxis * moveSpeedOffset);
+                // if moving right and forward at the same time, reduce speed
+                if (this.playerMotion.xAxis != 0 && this.playerMotion.zAxis != 0) {
+                    this.playerMotion.xAxis *= 0.75;
+                    this.playerMotion.zAxis *= 0.75;
+                }
                 if (this.playerMotion.zAxis > this.playerMotion.maxSpeed/2 || this.playerMotion.xAxis > this.playerMotion.maxSpeed/2 || this.playerMotion.zAxis < -this.playerMotion.maxSpeed/2 || this.playerMotion.xAxis < -this.playerMotion.maxSpeed/2) {
                     isMoving = true;
                 }
     
-                // Head Bop
-                var headPosition = this.LEVELHANDLER.playerHeight
-                if (isMoving) {
-                    const freq = 75;
-                    const strength = 2.5;
-                    headPosition = this.LEVELHANDLER.playerHeight + (Math.sin(Date.now() / freq) * strength);
-                }
-    
                 // WEAPON ACTION HANDLING
-                if (this.INPUTHANDLER.isLeftClicking) {
+                if (this.INPUTHANDLER.isLeftClicking && this.LEVELHANDLER.controls.isLocked == true) {
                     switch (this.WEAPONHANDLER.weaponType) {
                         case undefined:
                             break;
@@ -184,7 +168,32 @@ export class PlayerController {
                             break;
                         case "melee":
                             // move weaponModel position forward relative to player LEVELDATA.camera
-                            if (this.WEAPONHANDLER.isAttackAvailable) this.WEAPONHANDLER.weaponModel.translateX(50);
+                            if (this.WEAPONHANDLER.isAttackAvailable) {
+                                this.WEAPONHANDLER.weaponTarget.position.z = this.WEAPONHANDLER.weaponPosition.z - 25;
+
+                                this.calculateWeaponShot();
+    
+                                this.raycaster.far = this.WEAPONHANDLER.weaponRange;
+                                this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+                                const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+    
+                                for (let i = 0; i < intersects.length; i++) {
+                                    const mainObj = intersects[i].object;
+                                    if (mainObj.npcHandler.health > 0) {
+                                        // Register Hit
+                                        mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
+                                    }
+                                    // Squelch!
+                                    this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
+                                    // TODO - create a shoot effect
+                                }
+
+                                this.WEAPONHANDLER.isAttackAvailable = false;
+                                setTimeout(() => {
+                                    this.WEAPONHANDLER.isAttackAvailable = true
+                                }, 200, this.WEAPONHANDLER);
+                            }
+                            break;
                         case "ranged":
                             if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
                             {
@@ -220,13 +229,15 @@ export class PlayerController {
         
                                     for (let i = 0; i < intersects.length; i++) {
                                         const mainObj = intersects[i].object;
-                                        if (mainObj.npcHandler.health > 0) {
-                                            // Register Hit
-                                            mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
+                                        if (mainObj.npcHandler)
+                                        {
+                                            if (mainObj.npcHandler.health > 0) {
+                                                // Register Hit
+                                                mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
+                                            }
+                                            // Squelch!
+                                            this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
                                         }
-                                        // Squelch!
-                                        this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
-                                        // TODO - create a shoot effect
                                     }
         
                                     this.WEAPONHANDLER.isAttackAvailable = false;
@@ -243,34 +254,65 @@ export class PlayerController {
                     // Stop Animation
                     if (this.WEAPONHANDLER.fireAnimation) this.WEAPONHANDLER.fireAnimation.stop();
                 }
-
+                
                 // Weapon Bouncing (For Juice!!!)
-                if (this.WEAPONHANDLER.isAnimated) this.WEAPONHANDLER.mixer.update(delta);
                 if (this.WEAPONHANDLER.weaponModel && this.WEAPONHANDLER.weaponTarget && delta > 0) {
                     // SIN the weapon's position
-                    const bounceRange = new THREE.Vector3(10, 10, 0);
-                    let speed = new THREE.Vector3(0.01, 0.02, 0.01);
-                    if (this.isCapsLockPressed) speed.multiplyScalar(0.5)
+                    if (this.WEAPONHANDLER.disableHeadBop != true)
+                    {
+                        const bounceRange = new THREE.Vector3(10, 10, 0);
+                        let speed = new THREE.Vector3(0.01, 0.02, 0.01);
+                        if (this.isCapsLockPressed) speed.multiplyScalar(0.5)
+        
+                        this.WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
+                        this.WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
     
-                    this.WEAPONHANDLER.weaponTarget.position.x += (Math.sin(Date.now() * speed.x) * bounceRange.x) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
-                    this.WEAPONHANDLER.weaponTarget.position.y += (Math.sin(Date.now() * speed.y) * bounceRange.y) * (isMoving) * delta * 1 / this.LEVELHANDLER.timeModifier;
-
-                    if (!isInWall) this.WEAPONHANDLER.weaponTarget.setRotationFromEuler(new THREE.Euler(
-                        -(this.playerMotion.zAxis * 0.5),
-                        0,
-                        (this.playerMotion.xAxis * 5)
-                    ));
+                        if (!isInWall) this.WEAPONHANDLER.weaponTarget.setRotationFromEuler(new THREE.Euler(
+                            -(this.playerMotion.zAxis * 0.5) + this.WEAPONHANDLER.weaponRotation.x,
+                            0 + this.WEAPONHANDLER.weaponRotation.y,
+                            (this.playerMotion.xAxis * 5) + this.WEAPONHANDLER.weaponRotation.z
+                        ));
+                    }
                 
                     // LERP the weapon's position
                     const instancedWeaponTargetWorldPosition = new THREE.Vector3();
                     this.WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-                    this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
+                    if (!this.WEAPONHANDLER.isAttackAvailable)
+                    {
+                        this.WEAPONHANDLER.weaponModel.position.set(
+                            lerp(this.WEAPONHANDLER.weaponModel.position.x, instancedWeaponTargetWorldPosition.x, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
+                            lerp(this.WEAPONHANDLER.weaponModel.position.y, instancedWeaponTargetWorldPosition.y, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
+                            lerp(this.WEAPONHANDLER.weaponModel.position.z, instancedWeaponTargetWorldPosition.z, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1))
+                        );
+                    }
+                    else
+                    {
+                        this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
+                    }
                     this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                 }
-
-                // throwing
-                if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
             }
+
+            // Weapon Pickups
+            let isNearPickup = false;
+            this.LEVELHANDLER.weaponPickups.forEach(pickup => {
+                if (pickup.position.distanceTo(this.LEVELHANDLER.camera.position.clone().setY(1)) < 25)
+                {
+                    if (pickup.isActive)
+                    {
+                        isNearPickup = true;
+                        setInteractionText("[E] PICK UP WEAPON");
+                        if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true)
+                        {
+                            pickup.scale.set(0,0,0);
+                            pickup.isActive = false;
+                        }
+                    }
+                }
+            })
+
+            // throwing
+            if (!isNearPickup && this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
         }
 
         // Assign Weapon Position
@@ -285,7 +327,7 @@ export class PlayerController {
 
     calculateWeaponShot = function () {
         // Impact Effect
-        if (this.WEAPONHANDLER.fireSprite) {
+        if (this.WEAPONHANDLER.fireSprite && this.WEAPONHANDLER.hideMuzzleFlash != true) {
             const scale = 125 + rapidFloat() * 100;
             this.WEAPONHANDLER.fireSprite.scale.set(scale, scale);
             this.WEAPONHANDLER.fireSprite.material.rotation = rapidFloat() * Math.PI * 2;

@@ -235,8 +235,8 @@
         #big-text-at-the-top {
             position: absolute;
             top: 60px;
-            left: 40px;
-            max-width: max(250px, 20%);
+            left: 60px;
+            max-width: max(350px, 20%);
         }
 
         body {
@@ -285,7 +285,7 @@
             height: 40px;
             width: 90%;
             -webkit-app-region: drag;
-            background: #cd373e;
+            background: #000000;
             position: absolute;
             top: 0;
             left: 0;
@@ -330,6 +330,10 @@
                 opacity: 1;
             }
         }
+
+        a {
+            text-decoration: none;
+        }
     </style>
 </head>
 
@@ -337,37 +341,32 @@
 
     <div id="all-overlay"></div>
 
+    <div id="cover" style="width: 100%; height: 100%; background: black; position: absolute; z-index: 1000; top:0; left:0; opacity: 0; animation-fill-mode: forwards; pointer-events: none;"></div>
+
     <div id="main">
         <img src="../img/menu_logo.png" id="big-text-at-the-top" />
         <div id="left-menu-tray">
             <div class="menu-space"></div>
-            <div class="left-menu-item" onclick="toggleMapSelect(this)">Play</div>
-            <div class="left-menu-item">Mods</div>
+            <div class="left-menu-item" onclick="/*toggleMapSelect(this)*/document.querySelector('#cover').style.animation = 'fade-in 0.25s ease-out'; setTimeout(() => {window.location.href = '../Base Game/index.html'}, 225)">Start Demo</div>
+            <div style="opacity:0.5; pointer-events: none;">
+                <div class="left-menu-item">Multiplayer</div>
+                <div class="left-menu-item">Mods</div>
+            </div>
             <div class="left-menu-item">Settings</div>
             <div class="menu-space"></div>
-            <div class="left-menu-divider subtle-text">Version 0.1.0</div>
+            <div class="left-menu-divider subtle-text">Pre-Release 0.1.0</div>
         </div>
         <div id="map-select-tray" style="display: none">
             <div class="menu-space"></div>
             <ul>
-                <div class="list-divider" style="margin-top: 5px;"><b>Story</b> Maps</div>
+                <div class="list-divider" style="margin-top: 5px;"><b>Story</b> Mode</div>
                 <!-- The protagonist takes a psychadelic drug, sees visions and travels through time ... -->
                 <!-- Part 1: An office chaos map, where the protagonist 'breaks free' of their cubicle desk-job and assails their coworkers as if they were demons, then attempts to fight their boss as a 'boss' -->
-                <li>Breakroom Brawl</li>
-                <!-- Part 2: The protagonist is now fighting their both in mideival times, sieging between two castles -->
-                <li>Castle Carnage</li>
-                <!-- Part 3: The protagonist is now fighting their coworkers in a modern, urban desert battlefield -->
-                <li>Demolition District</li>
-                <!-- Part 4: The protagonist is now fighting their boss in a futuristic, cyberpunk subway station -->
-                <li>Subway Showdown</li>
-                <!-- Part 5: The protagonist is now fighting their coworkers in a midieval, magical castle. The magic wand is the only weapon available. -->
-                <li>Mythical Mayhem</li>
-                <div class="list-divider"><b>Custom</b> Maps</div>
-                <li>Map 1</li>
-                <li>Map 2</li>
-                <li>Map 3</li>
-                <li>Map 4</li>
-                <li>Map 5</li>
+                <li>Start Demo</li>
+                <div style="opacity:0.5; pointer-events: none">
+                    <div class="list-divider"><b>Custom</b> Maps</div>
+                    <li>Not Available in Demo</li>
+                </div>
             </ul>
         </div>
         <div id="start-game-tray" style="display: none">
@@ -444,8 +443,8 @@
         </div>
     </div>
 
-    <div id="drag-region"></div>
-    <div id="x" onclick="window.close()">&#128929;</div>
+    <!-- <div id="drag-region"></div>
+    <div id="x" onclick="window.close()">&#128929;</div> -->
 
     <script>
         document.querySelector("#play-btn").addEventListener('click', (e) => {
@@ -498,7 +497,7 @@
                     thisChild.style.opacity = "1";
                     thisChild.style.pointerEvents = "auto";
                     // reinstate hover effect
-                    if (thisChild.classList.contains("left-menu-item")) {
+                    if (thisChild.classList.contains("left-menu-item") && thisChild.style.opacity > 0.5) {
                         thisChild.onmouseover = function () {
                             this.style.opacity = "0.5";
                         }

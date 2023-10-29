@@ -28,7 +28,6 @@ const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
 // It is best to alter this dynamically between maps for performance
 // TODO implement some algorithm to determine this value on the fly
 const squareChunkSize = 64;
-export const instancedWorldSafetyOffset = new THREE.Vector3(-10000, -10000, -10000); // to account for memory issues when rendering the dead point ... i know it's messy, but it is the most widely compatible solution. sue me.
 
 let itemsBuiltSoFar = 0, itemsToBuild = 0;
 
@@ -57,12 +56,12 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 position: JSON.parse(arg.metaData).cameraData.cameraPosition,
                 rotation: JSON.parse(arg.metaData).cameraData.cameraRotation
             };
-            LEVELHANDLER.camera.position.set(mapCameraData.position.x, LEVELHANDLER.playerHeight, mapCameraData.position.z);
+            LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
             LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
 
             const ambientColorData = JSON.parse(arg.metaData).ambientColor;
             const ambientColor = new THREE.Color(ambientColorData.r, ambientColorData.g, ambientColorData.b);
-            worldSphere.material.color = ambientColor;
+            worldSphere.material.color = ambientColor.clone().multiplyScalar(0.25);
             LEVELHANDLER.backlight.color = ambientColor;
 
             const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
@@ -70,7 +69,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
             // Filter 0: Count Boxes
             mapObjects.forEach(mapObject => {
-                if (mapObject.isCutaway != true && mapObject.isEnemyNPC != true) {
+                if (mapObject.isCutaway != true && (mapObject.type == "Detail" || mapObject.type == "Wall" || mapObject.type == "Floor")) {
                     itemsToBuild++;
                 }
             });
@@ -92,7 +91,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 }
             });
 
-            // Filter 2: Boxes
+            // Filter 2: Boxes & Entities
             // These are the most standard world object, and are the quickest to process
             mapObjects.forEach(mapMakerObject => {
 
@@ -115,7 +114,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
                 // Lights
                 let light = null;
-                if (mapMakerObject.isLight && mapMakerObject.isLight == true) {
+                if (mapMakerObject.isLight && mapMakerObject.isLight == true && mapMakerObject.lightBrightness > 1) {
                     // create a point light at this position with mapObject.lightBrightness
                     light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness * 10, 0, 2);
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
@@ -144,14 +143,21 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     );
                     return;
                 }
-                
-                buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
+
+                // Weapon Pickups
+                if (mapMakerObject.weaponType != undefined) {
+                    WEAPONHANDLER.createWeaponPickup(mapMakerObject.weaponType, new THREE.Vector3(position.x, 1, position.z));
+                }
+                else
+                {
+                    buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
+                }
             });
 
             // Final Step: Level Text
             const loader = new FontLoader();
             loader.load('../opensource/fonts/Lilita/Lilita One_Regular.json', (font) => {
-                const levelTitleGeometry = new TextGeometry('THE CLUB', {
+                const levelTitleGeometry = new TextGeometry('TEST LEVEL', {
                     font: font,
                     size: 120,
                     height: 2.5
@@ -163,7 +169,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 levelText.rotation.y = -Math.PI/4;
                 LEVELHANDLER.scene.add(levelText);
 
-                const directedByGeometry = new TextGeometry('by Austin Zaman', {
+                const directedByGeometry = new TextGeometry('TEST LEVEL', {
                     font: font,
                     size: 20,
                     height: 2.5
@@ -176,10 +182,19 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 LEVELHANDLER.scene.add(directedByText);
             })
         });
+
+    
+        const messages = document.getElementsByClassName("message");
+        console.log(messages);
+        for (let i = 0; i < messages.length; i++)
+        {
+            const message = messages[i];
+            message.classList.add("pop-up");
+        }
     });
 }
 
-
+export const globalOffset = new THREE.Vector3(1000000, 0, 1000000);
 const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
 
     if (scale.x > 2) scale.x -= 1;
@@ -187,6 +202,16 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
     if (scale.z > 2) scale.z -= 1;
 
     const chunkConnector = new BoxData();
+
+    // const preview = new THREE.Mesh(
+    //     new THREE.BoxGeometry(scale.x, scale.y, scale.z),
+    //     new THREE.MeshBasicMaterial({
+    //         color: 0xff0000
+    //     })
+    // );
+    // LEVELHANDLER.scene.add(preview)
+    // preview.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2), position.z + (scale.z / 2));
+    // preview.position.add(globalOffset);
 
     // Interactions
     if (interactionEvent != "none" || USERSETTINGS.blockoutMode == true) {
@@ -259,7 +284,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             instancedWorldModel.material.emissive = boxColor;
             instancedWorldModel.material.emissiveIntensity = lightBrightness;
             instancedWorldModel.visible = false;
-            instancedWorldModel.position.copy(instancedWorldSafetyOffset);
+            instancedWorldModel.useCoverBox = true;
             instancedWorldModel.name = chunkCounter.toString();
             if (light != null) instancedWorldModel.attachedLight = light;
             // Update Counters
@@ -595,6 +620,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
         const setVoxel = function (voxelPosition, voxelFace, voxelColor) {
             // set voxelColor based on the voxelFace
             // first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
+            voxelPosition.add(globalOffset);
             voxelPosition = voxelPosition.round();
             if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) {
                 instancedWorldModel.useCoverBox = false;
@@ -605,12 +631,12 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             chunkMaxPosition.max(voxelPosition);
             if (voxel != null) {
                 // removing  clones ...
-                voxelPosition.copy(instancedWorldSafetyOffset);
+                voxelPosition.set(0,0,0);
             }
             // Commit to the global voxel field
             // update min/max positions for this chunk (for culling)
             voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace);
-            instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x - instancedWorldSafetyOffset.x, voxelPosition.y - instancedWorldSafetyOffset.y, voxelPosition.z - instancedWorldSafetyOffset.z)));
+            instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x, voxelPosition.y, voxelPosition.z)));
             voxelColor.multiply(colorData);
             if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
             // if (voxelFace == VoxelFace.FRONT) voxelColor = new THREE.Color(0xff0000)
@@ -820,6 +846,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
         document.querySelector("#loader").textContent = Math.round((itemsBuiltSoFar/itemsToBuild)*100) + "%";
         // When all objects are finished loading ...
         if (itemsBuiltSoFar >= itemsToBuild) {
+            console.log("COMPLETE")
             // Remove the Pump Cover
             const loader = document.querySelector("#loader-bg");
             loader.style.animation = "fade-out 1s ease";

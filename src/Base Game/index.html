@@ -67,7 +67,6 @@
 			transform: translateX(-50%);
 			padding: 15px;
 			background: rgba(0, 0, 0, 0.85);
-			opacity: 0;
 		}
 
 		#help-text {
@@ -126,31 +125,27 @@
 			}
 		}
 
-		@keyframes dead-fade-out {
-			from {
-				opacity: 1;
-				background: rgb(103, 153, 103);
-			}
-			to {
-				background: rgb(11, 11, 216);
-				opacity: 0;
-			}
-		}
-
 		@keyframes pop-up {
 			0% {
-				transform: translate(-50%, 150%);
+				transform: translateX(-100%);
 				opacity: 0;
+				position: initial; visibility: visible;
+				height: initial;
 			}
 
 			100% {
-				transform: translate(-50%, -50%);
+				transform: translateX(0%);
 				opacity: 1;
+				position: initial; visibility: visible;
+				height: initial;
 			}
 		}
 
 		.pop-up {
+			opacity: 0;
 			animation: pop-up 0.75s forwards;
+			position: absolute; visibility: hidden;
+				height: 0;
 		}
 
 		#popup-window {
@@ -222,6 +217,17 @@
 			animation-fill-mode: forwards;
 		}
 
+		@keyframes dead-fade-out {
+			from {
+				opacity: 1;
+				background: rgb(103, 153, 103);
+			}
+			to {
+				background: rgb(11, 11, 216);
+				opacity: 0;
+			}
+		}
+
 		#dead-overlay {
 			overflow: hidden;
 			position: absolute;
@@ -229,7 +235,6 @@
 			width: 100%;
 			height: 100%;
 			opacity: 0;
-			animation-direction: forwards;
 			pointer-events: none;
 			background: radial-gradient(rgba(0,0,0,0) 75%, rgb(229, 75, 75) 100%);
 		}
@@ -240,8 +245,53 @@
 
 		.health {
 			position: absolute;
+			left: 50%;
 			bottom: 20px;
-			left: 40px;
+			transform: translate(-50%, 0);
+		}
+
+		#phone {
+			position: absolute;
+			bottom: 20px;
+			left: 30px;
+			width: 200px;
+			/* background: rgb(241, 241, 241);
+			border: 20px solid black;
+			border-radius: 20px; */
+		}
+
+		.message {
+			padding: 10px;
+			margin: 10px;
+			width: 80%;
+		}
+
+		.phone-vibrate {
+			color: white;
+		}
+
+		.message-left {
+			background: #6aabf7;
+			color: white;
+			border-radius: 10px 10px 10px 0px;
+			float: left;
+		}
+
+		.message-right {
+			background: #c5c5c5;
+			color: black;
+			border-radius: 10px 10px 0px 10px;
+			float: right;
+		}
+
+		.choice {
+			background: #c5c5c56e;
+			border: 1px double #c5c5c5;
+			color: white;
+		}
+
+		#indicator {
+			animation: fade-out 0.25s forwards;
 		}
 	</style>
 
@@ -254,7 +304,7 @@
 	</div>
 
 	<!-- DEBUG BOX -->
-	<div id="vizbox" style="display: none;">
+	<div id="vizbox" style="display: block;">
 		<div id="FPSViz">Loading ...</div>
 		<div id="DRAWCALLSViz">Loading ...</div>
 		<div id="NUMVOXELSViz">Loading ...</div>
@@ -287,6 +337,28 @@
 			<path d="M6 0L200 0L200 12L6 12L6 0Z" id="Rectangle" fill="#FFFFFF" fill-rule="evenodd" stroke="none" filter="url(#blur)">
 			</path>
 		</svg>
+
+		<!-- PHONE -->
+		<div id="phone" style="display:none">
+			<div id="indicator"  style="animation-delay: 16s">
+				<div class="message phone-vibrate" style="animation-delay: 8s; display: flex; align-items: center;">
+					<img src="../img/phone/vibrate.gif" style="width: 80px; height: 80px;" />
+					<span><b>Unknown Sender</b></span>
+				</div>
+			</div>
+			<div class="message message-left" style="animation-delay: 13s">
+				<p>Hey, Listen Closely!</p>
+			</div>
+			<div class="message message-left" style="animation-delay: 15s">
+				<p>There are people downstairs waiting for you. You need to get out of there.</p>
+			</div>
+			<!-- <div class="message message-right choice" style="animation-delay: 16.5s">
+				<p>[ 1 ] Who is this?</p>
+			</div>
+			<div class="message message-right choice" style="animation-delay: 17s">
+				<p>[ 2 ] Where am I?</p>
+			</div> -->
+		</div>
 	</div>
 
 	<!-- WEB BROWSER -->
@@ -331,7 +403,7 @@
 	import { mix, range, normalWorld, oscSine, timerLocal } from 'three/nodes';
 	// import WebGPU from 'three/addons/capabilities/WebGPU.js';
 	// import WebGPURenderer from 'three/addons/renderers/webgpu/WebGPURenderer.js';
-	import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+	import { PointerLockControls } from './PointerLockControls.js';
 	import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 	import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 	import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -350,8 +422,8 @@
 	import { lerp, clamp, rapidFloat, moveTowards, createVizSphere } from './EngineMath.js'; // math functions
 	import { voxelField, recentlyEditedWorldModels } from './VoxelStructures.js'; // data structures for handling voxels
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
-	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
-	import { generateWorld, voxelGeometry, voxelMaterial} from './WorldGenerator.js'; // Map Generation
+	import { setHelpText } from './UIHandler.js'; // User Interface
+	import { generateWorld, voxelGeometry, voxelMaterial, globalOffset} from './WorldGenerator.js'; // Map Generation
 	import { PlayerController } from './PlayerMotionController.js'; // First Person Controller
 
 	// ##########
@@ -468,16 +540,17 @@
 	// ##########
 	// DOM CONTROLS (POINTERLOCKAPI)
 	// ##########
-	const controls = new PointerLockControls(LEVELHANDLER.camera, LEVELHANDLER.renderer.domElement);
+	const controls = new PointerLockControls(LEVELHANDLER);
 	LEVELHANDLER.scene.add(controls.getObject());
 	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => controls.lock());
+	LEVELHANDLER.controls = controls;
 
 	// ##########
 	// FILESYSTEM CONSTANTS
 	// ##########
 	// These mark locations in the local file system that store the map and current weapon
 	const modelURL = 'savedata';
-	const weaponURL = '../weapons/' + 'fists/fists';
+	const weaponURL = '../weapons/' + 'smg/smg';
 	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
 
 	// This starts building the map ...
@@ -521,6 +594,8 @@
 		const delta = clock.getDelta() * LEVELHANDLER.timeModifier;
 		// Debug Visualizer
 		updateDebugViz(delta);
+		// Update UI Text
+		document.querySelector("#interaction-text").style.opacity -= delta * 5;
 		// Update Active NPC's
 		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
 		// Update Active Particles
@@ -571,34 +646,10 @@
 			WEAPONHANDLER.weaponPosition.x += 10;
 		}
 
-		// Raycasting for interactables
-		if (frameCounter % 10 == 0) {
-			raycaster.far = 100;
-			raycaster.setFromCamera(new THREE.Vector2(0, 0), LEVELHANDLER.camera);
-			const intersects = raycaster.intersectObjects(LEVELHANDLER.interactableObjects);
-			if (intersects.length > 0) {
-				if (getInteractionText().innerHTML != intersects[0].object.interactionEvent) setInteractionText(intersects[0].object.interactionEvent);
-			}
-			else {
-				if (getInteractionText().innerHTML != "") setInteractionText("");
-			}
-		}
-
-		// Computer
-		if (INPUTHANDLER.isKeyPressed("f")) {
-			console.log(1);
-			if (getInteractionText().includes("computer")) {
-				console.log(2);
-				const popup = document.querySelector("#popup-window");
-				document.getElementById('fullframe').src = '../storymode_computer/browser.html';
-				popup.style.display = "block";
-				popup.classList.add("pop-up");
-				controls.unlock();
-			}
-		}
-
 		frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(LEVELHANDLER.camera.projectionMatrix, LEVELHANDLER.camera.matrixWorldInverse));
 		instancedModelIndex.forEach(model => {
+			// model.visible = true;
+
 			if (frustum.intersectsBox(model.frustumBox)) {
 				if (!model.isCovered) {
 					model.visible = true;

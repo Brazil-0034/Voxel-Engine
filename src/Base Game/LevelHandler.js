@@ -33,6 +33,7 @@ export class LevelHandler {
 
 	// Data about World
 	interactableObjects
+	weaponPickups
 	numCoverBoxes
 	numVoxels
 	timeModifier
@@ -44,6 +45,7 @@ export class LevelHandler {
 	playerHealth
 	playerCanMove
 	lastKiller
+	controls
 
 	// Data about WorldBuilding
 	globalTextureLoader
@@ -59,6 +61,7 @@ export class LevelHandler {
 	constructor(scene, camera) {
 		this.scene = scene;
 		this.camera = camera;
+		this.camera.nextEuler = new THREE.Euler(0, 0, 0, 'XYZ');
 		this.renderer = new THREE.WebGLRenderer({ /* antialias: true */ });
 
 		this.potentialCleanCalls = 0;
@@ -66,6 +69,7 @@ export class LevelHandler {
 		this.SFXPlayer = new SoundEffectPlayer(USERSETTINGS);
 
 		this.interactableObjects = [];
+		this.weaponPickups = [];
 		this.numCoverBoxes = 0;
 		this.numVoxels = 0;
 		this.timeModifier = 1;

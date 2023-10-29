@@ -174,7 +174,7 @@ const human = new THREE.Mesh(
         side: THREE.DoubleSide,
     })
 );
-human.type="human"
+human.type = "human";
 human.material.map.magFilter = THREE.NearestFilter;
 human.material.map.minFilter = THREE.NearestFilter;
 human.scale.set(11.10625, 40);
@@ -198,8 +198,8 @@ renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.logarithmicDepthBuffer = true;
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x1e2021, 1);
 
 // MATERIALS
@@ -335,6 +335,7 @@ const updateRightPanel = function (item, clear=false) {
         scaleZ.addEventListener("input", function () {
             selectedObjects.scale.z = scaleZ.value;
         });
+
         // isLight
         const isLight = document.createElement("div");
         isLight.classList.add("inspector-element");
@@ -363,6 +364,7 @@ const updateRightPanel = function (item, clear=false) {
         });
         lightBrightness.appendChild(lightBrightnessInput);
         inspector.appendChild(lightBrightness);
+
         // interactionEvent (if it has one)
         if (item.userData.interactionEvent != undefined) {
             const interactionEvent = document.createElement("div");
@@ -379,6 +381,24 @@ const updateRightPanel = function (item, clear=false) {
             interactionEvent.appendChild(interactionEventInput);
             inspector.appendChild(interactionEvent);
         }
+
+        // weapon pickup (if it has one)
+        if (item.userData.weaponType != undefined) {
+            const weaponType = document.createElement("div");
+            weaponType.classList.add("inspector-element");
+            weaponType.innerHTML = "<h3>Weapon Pickup Type</h3><br/><h6>Ex. <code>SMG</code>, <code>DUALUZI</code>, <code>PISTOL</code> </h6>";
+            const weaponTypeInput = document.createElement("input");
+            weaponTypeInput.type = "text";
+            weaponTypeInput.value = item.userData.weaponType;
+            weaponTypeInput.addEventListener("input", function () {
+                selectedObjects.children.forEach(childObject => {
+                    childObject.userData.weaponType = weaponTypeInput.value;
+                });
+            });
+            weaponType.appendChild(weaponTypeInput);
+            inspector.appendChild(weaponType);
+        }
+
         // finalize
         scale.appendChild(scaleX);
         scale.appendChild(scaleY);
@@ -635,6 +655,9 @@ transformControls.addEventListener('dragging-changed', function (event) {
                         default:
                             console.error("Failed to process transform for type: " + child.userData.gameObjectType);
                             break;
+                        case "WeaponPickup":
+                            child.scale.set(1,1,1);
+                            break;
                         case "Wall":
                             if (child.userData.isRotated == false) {
                                 child.scale.x = clamp(multipleCheck(child.scale.x, 64), 64, Infinity);
@@ -662,6 +685,9 @@ transformControls.addEventListener('dragging-changed', function (event) {
                             child.position.z = multipleCheck(child.position.z, 32);
                             break;
                         case "Detail":
+                            if (child.scale.x < 1) child.scale.x = 1;
+                            if (child.scale.y < 1) child.scale.y = 1;
+                            if (child.scale.z < 1) child.scale.z = 1;
                             child.scale.round();
                             break;
                     }
@@ -732,7 +758,7 @@ const updateLeftPanel = function () {
         }
     }
 }
-const clearSelectedObjects = function () {
+const clearSelectedObjects = function (skipUpdate=false) {
     transformControls.visible = false;
     for (let i = 0; i < selectedObjects.children.length; i++) {
         const child = selectedObjects.children[i];
@@ -753,7 +779,7 @@ const clearSelectedObjects = function () {
         child.rotation.set(newRot.x, newRot.y, newRot.z);
         clearSelectedObjects();
     }
-    updateLeftPanel();
+    if (!skipUpdate) updateLeftPanel();
 }
 clearSelectedObjects();
 const removeFromSelection = function (item) {
@@ -780,7 +806,7 @@ const removeHandles = function(item) {
     }
 }
 
-const attachHandles = function (item, dontResetSelections=false) {
+const attachHandles = function (item, dontResetSelections=false, skipUpdate=false) {
     // bug fix for double-click attach:
     if (!retachAvailable) return;
     // make sure we dont select the ground floor
@@ -797,7 +823,7 @@ const attachHandles = function (item, dontResetSelections=false) {
     }
     // if we are holding shift, add to the selection
     if (isHoldingShift == false && dontResetSelections == false) {
-        clearSelectedObjects();
+        clearSelectedObjects(skipUpdate);
     }
 
     const cacheSelectedObjects = [];
@@ -805,7 +831,7 @@ const attachHandles = function (item, dontResetSelections=false) {
         cacheSelectedObjects.push(child);
     });
     cacheSelectedObjects.push(item);
-    clearSelectedObjects();
+    clearSelectedObjects(skipUpdate);
     // selectedObjects.scale.copy(item.scale);
     selectedObjects.position.copy(item.position);
 
@@ -820,7 +846,7 @@ const attachHandles = function (item, dontResetSelections=false) {
     //     child.position.set(itemWorldPos.x, itemWorldPos.y, itemWorldPos.z);
     // });
 
-    updateRightPanel(item);
+    if (!skipUpdate) updateRightPanel(item);
 
 }
 const addToScene = function (item) {
@@ -984,7 +1010,7 @@ document.body.addEventListener('keydown', function (event) {
                         for (let i = 0; i < MAPOBJECTS.length; i++) {
                             const thisObj = MAPOBJECTS[i];
                             if (thisObj.userData.existInGame == true) {
-                                attachHandles(thisObj, true);
+                                attachHandles(thisObj, true, true);
                             }
                         }
                     }
@@ -1067,6 +1093,27 @@ const createEnemyNPC = function(position, rotationIntervals) {
     return enemyNPC;
 }
 
+const createWeaponPickup = function(position, weaponType) {
+    const weaponPickup = new THREE.Mesh(
+        new THREE.SphereGeometry(10),
+        new THREE.MeshBasicMaterial({
+            color: 0x0000ff,
+            side: THREE.DoubleSide
+        })
+    );
+    weaponPickup.position.copy(position);
+    weaponPickup.userData.existInGame = true;
+    weaponPickup.userData.isEnemyNPC = false;
+    weaponPickup.userData.isLight = false;
+    weaponPickup.userData.gameObjectType = "WeaponPickup";
+    weaponPickup.userData.weaponType = weaponType;
+
+    weaponPickup.name = "Weapon Pickup - " + Math.floor(Math.random() * 1000);
+    addToScene(weaponPickup);
+    MAPOBJECTS.push(weaponPickup);
+    return weaponPickup;
+}
+
 const createBox = function(type) {
     const cube = new THREE.Mesh(
         new THREE.BoxGeometry(1, 1, 1),
@@ -1142,6 +1189,13 @@ const contextMenuClick = function (action) {
 
             createEnemyNPC(enemyNPCPosition, 0);
             break;
+        case "Create Weapon Pickup":
+            const weaponPickupPosition = new THREE.Vector3();
+            weaponPickupPosition.copy(camera.position);
+            weaponPickupPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
+
+            createWeaponPickup(weaponPickupPosition, "SMG");
+            break;
         //  ### Object Manipulation
         case "Delete Object":
             selectedObjects.forEach(selectedObject => {
@@ -1173,8 +1227,9 @@ const invokeContextMenu = function (e) {
         options.push("Create Wall");
         options.push("Create Floor/Ceiling");
         options.push("Create Detail Object");
-        options.push("[] Add Characters");
+        options.push("[] Add Entities");
         options.push("Create NPC Enemy");
+        options.push("Create Weapon Pickup");
     }
     if (clickedElement.parentElement.id == "scene-objects-list") {
         options.push("Delete Object");
@@ -1331,6 +1386,7 @@ const saveProject = function () {
                 "isLight": mapObject.userData.isLight,
                 "lightBrightness": mapObject.userData.lightBrightness,
                 "isEnemyNPC": mapObject.userData.isEnemyNPC,
+                "weaponType": mapObject.userData.weaponType,
                 "rotationIntervals": mapObject.userData.rotationIntervals,
                 "interactionEvent": mapObject.userData.interactionEvent
             });
@@ -1426,6 +1482,12 @@ const importProject = function () {
                     createEnemyNPC(
                         new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
                         mapMakerObject.rotationIntervals
+                    );
+                }
+                else if (mapMakerObject.weaponType != undefined) {
+                    createWeaponPickup(
+                        new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
+                        mapMakerObject.weaponType
                     );
                 }
                 else
