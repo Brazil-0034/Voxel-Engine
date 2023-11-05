@@ -74,7 +74,7 @@ export class LevelHandler {
 		this.numVoxels = 0;
 		this.timeModifier = 1;
 		
-		this.playerHeight = 40;
+		this.playerHeight = 30;
 		this.playerHealth = 100;
 		this.playerCanMove = true;
 		this.lastKiller = [];

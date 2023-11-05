@@ -304,7 +304,7 @@
 	</div>
 
 	<!-- DEBUG BOX -->
-	<div id="vizbox" style="display: block;">
+	<div id="vizbox" style="display: none;">
 		<div id="FPSViz">Loading ...</div>
 		<div id="DRAWCALLSViz">Loading ...</div>
 		<div id="NUMVOXELSViz">Loading ...</div>
@@ -329,12 +329,7 @@
 
 		<!-- The white part -->
 		<svg class="health" width="180px" height="12px" viewBox="0 0 180 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-			<defs>
-			  <filter id="blur" x="0" y="0">
-				<feGaussianBlur in="SourceGraphic" stdDeviation="20" />
-			  </filter>
-			</defs>
-			<path d="M6 0L200 0L200 12L6 12L6 0Z" id="Rectangle" fill="#FFFFFF" fill-rule="evenodd" stroke="none" filter="url(#blur)">
+			<path d="M6 0L200 0L200 12L6 12L6 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25" fill-rule="evenodd" stroke="none">
 			</path>
 		</svg>
 
@@ -386,9 +381,7 @@
 	<!-- STATS.JS -->
 	<!-- <script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); stats.dom.style.zIndex = 1000; requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script> -->
 	<!-- DOT CROSSHAIR -->
-	<div id="middle-crosshair"
-		style="position: absolute; top: 50%; left: 50%; transform: translate(-100%, -100%); width: 2px; height: 2px; background: white; z-index: 1000;">
-	</div>
+	<img src="../img/diamond.png" id="middle-crosshair" style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 32px; z-index: 1000; opacity: 0.25">
 
 	<div id="interaction-text"></div>
 	<div id="help-text">Loading . . .</div>
@@ -459,7 +452,7 @@
 	// Initializes the THREE.js renderer
 	LEVELHANDLER.renderer.powerPreference = "high-performance";
 	LEVELHANDLER.renderer.debug.checkShaderErrors = false;
-	LEVELHANDLER.renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
+	// LEVELHANDLER.renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
 	LEVELHANDLER.renderer.outputEncoding = THREE.sRGBEncoding;
 	LEVELHANDLER.renderer.outputColorSpace = THREE.SRGBColorSpace;
 	LEVELHANDLER.renderer.info.autoReset = false;
@@ -470,8 +463,7 @@
 	LEVELHANDLER.renderer.domElement.style.zIndex = "-1";
 	LEVELHANDLER.renderer.shadowMap.enabled = false
 	LEVELHANDLER.renderer.setClearColor(0xffffff)
-	THREE.ColorManagement.enabled = true;
-	THREE.ColorManagement.legacyMode = false;
+	// THREE.ColorManagement.legacyMode = false;
 
 	// ##########
 	// ENVIRONMENT LIGHTING SETUP

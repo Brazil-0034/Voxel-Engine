@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rapidFloat } from './EngineMath.js'; // math functions
 import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
+import { globalOffset } from './WorldGenerator.js'
 
 class blockData {
 	value
@@ -259,9 +260,9 @@ export const addToCutawayStack = function (scale, position) {
 		for (let y = position.y - (scale.y / 2); y < position.y + (scale.y / 2); y++) {
 			for (let z = position.z - (scale.z / 2); z < position.z + (scale.z / 2); z++) {
 				cutawayField.set(
-					Math.round(x),
+					Math.round(x) + globalOffset.x,
 					Math.round(y),
-					Math.round(z),
+					Math.round(z) + globalOffset.z,
 					1
 				);
 			}
@@ -269,8 +270,22 @@ export const addToCutawayStack = function (scale, position) {
 	}
 }
 
+class DisplacedVoxel {
+	chunk
+	indexInChunk
+	position
+
+	constructor(chunk, index, position) {
+		this.chunk = chunk;
+		this.indexInChunk = index;
+		this.position = position;
+	}
+}
+
 export const recentlyEditedWorldModels = [];
 const maxChunksInPhysicsCache = 15;
+export let displacedVoxels = [];
+export const resetDisplacedVoxels = function() { displacedVoxels = [] }
 
 // Adjusts a chunk for destroyed voxels
 export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSETTINGS, LEVELHANDLER, particleHandler, currentModel) {
@@ -281,42 +296,21 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 		let position = destroyedVoxelsInChunk[x];
 		const thisVoxel = voxelField.get(position.x, position.y, position.z);
 		if (thisVoxel != null && thisVoxel.value != 0) {
+			displacedVoxels.push(new DisplacedVoxel(thisVoxel.chunk, thisVoxel.indexInChunk, position))
 			thisVoxel.chunk.uncover();
-			thisVoxel.chunk.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4());
+			thisVoxel.chunk.setMatrixAt(thisVoxel.indexInChunk, new THREE.Matrix4().makeTranslation(new THREE.Vector3(0,0,0)));
 			thisVoxel.chunk.instanceMatrix.needsUpdate = true;
 			voxelField.set(position.x, position.y, position.z, 0, thisVoxel.indexInChunk, thisVoxel.chunk);
-			if (rapidFloat() < USERSETTINGS.particleQualityMode/3) {
+			// Create a Particle:
+			if (rapidFloat() < particleChance) {
 				const voxelColor = new THREE.Color();
 				thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
 				const cameraDirection = new THREE.Vector3();
 				LEVELHANDLER.camera.getWorldDirection(cameraDirection);
-				// add some randomness to the direction (x and z only)
 				cameraDirection.x += (rapidFloat() - 0.5) / 2;
 				cameraDirection.z += (rapidFloat() - 0.5) / 2;
 				cameraDirection.y = -1/10;
-				if (rapidFloat() < particleChance) new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2).setY(-2.5), voxelColor, 50);
-				// const dir = new THREE.Vector3(rapidFloat(), rapidFloat(), rapidFloat());
-				// switch (thisVoxel.face) {
-				// 	case VoxelFace.TOP:
-				// 		dir.y = 1;
-				// 		break;
-				// 	case VoxelFace.BOTTOM:
-				// 		dir.y = -1;
-				// 		break;
-				// 	case VoxelFace.LEFT:
-				// 		dir.x = -1;
-				// 		break;
-				// 	case VoxelFace.RIGHT:
-				// 		dir.x = 1;
-				// 		break;
-				// 	case VoxelFace.FRONT:
-				// 		dir.z = -1;
-				// 		break;
-				// 	case VoxelFace.BACK:
-				// 		dir.z = 1;
-				// 		break;
-				// }
-				// new Particle(particleHandler, thisVoxel.position, dir, voxelColor, 50);
+				new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2).setY(-2.5), voxelColor, 50);
 			}
 		}
 	}

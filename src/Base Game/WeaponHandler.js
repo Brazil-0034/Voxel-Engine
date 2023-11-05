@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { globalOffset } from './WorldGenerator.js';
 export class WeaponHandler {
     // MAIN
     LEVELHANDLER
@@ -55,7 +56,17 @@ export class WeaponHandler {
 	generateWeaponModel(basePath) {
 		const LEVELHANDLER = this.LEVELHANDLER;
 		const WEAPONHANDLER = this;
-		// Initialize
+		// Initialize with HANDS
+		LEVELHANDLER.globalModelLoader.load(
+			'../weapons/fists/fists.fbx',
+			function (object) {
+				object.scale.divideScalar(50);
+				WEAPONHANDLER.weaponModel = object;
+				LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
+				WEAPONHANDLER.weaponModel.material.map = LEVELHANDLER.globalTextureLoader.load('../weapons/fists/fists.png');
+				WEAPONHANDLER.weaponModel.rotation.set(Math.PI/2,Math.PI/2,Math.PI/2)
+			}
+		);
 		// Then, load the weapon metadata from the .json file
 		if (basePath)
 		{
@@ -67,14 +78,12 @@ export class WeaponHandler {
 					LEVELHANDLER.globalModelLoader.load(
 						basePath + '.fbx',
 						function (object) {
-							WEAPONHANDLER.weaponModel = object;
+							WEAPONHANDLER.weaponModel.add(object);
 							WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped = true;
 							// Load in the texture for the weapon
-							WEAPONHANDLER.weaponModel.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
-							LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
+							object.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
 							// Adjust the scale from standard magicavoxel scaling
-							WEAPONHANDLER.weaponModel.scale.divideScalar(50);
-							WEAPONHANDLER.weaponModel.name = jsonModel.weaponData.name;
+							object.name = jsonModel.weaponData.name;
 							// json reads for weapon data
 							WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType = jsonModel.weaponData.type;
 							WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = jsonModel.weaponData.totalAmmo;
@@ -115,7 +124,7 @@ export class WeaponHandler {
 									depthTest: false,
 									transparent: true,
 								}));
-								WEAPONHANDLER.weaponModel.add(WEAPONHANDLER.fireSprite);
+								object.add(WEAPONHANDLER.fireSprite);
 								WEAPONHANDLER.fireSprite.position.x = 50;
 								WEAPONHANDLER.fireSprite.position.y = 250;
 								WEAPONHANDLER.fireSprite.position.z = -700;
@@ -131,23 +140,11 @@ export class WeaponHandler {
 										transparent: true,
 									})
 								);
-								WEAPONHANDLER.weaponModel.add(WEAPONHANDLER.muzzleFire);
+								object.add(WEAPONHANDLER.muzzleFire);
 								WEAPONHANDLER.muzzleFire.position.x = 50;
 								WEAPONHANDLER.muzzleFire.position.y = 250;
 								WEAPONHANDLER.muzzleFire.position.z = -3600;
 								WEAPONHANDLER.muzzleFire.rotation.y = Math.PI / 2;
-
-								// HANDS
-		
-								LEVELHANDLER.globalModelLoader.load(
-									'../weapons/fists/fists.fbx',
-									function (object) {
-										WEAPONHANDLER.weaponModel.add(object);
-										object.material.map = LEVELHANDLER.globalTextureLoader.load('../weapons/fists/fists.png');
-										object.scale.divideScalar(50);
-										object.rotation.set(Math.PI/2,Math.PI/2,Math.PI/2)
-									}
-								);
 							}
 						},
 						function (err) {
@@ -171,6 +168,7 @@ export class WeaponHandler {
 				LEVELHANDLER.weaponPickups.push(object);
 				object.isActive = true;
 				object.position.set(position.x, position.y+1, position.z);
+				object.position.add(globalOffset);
 				object.scale.divideScalar(50);
 				object.rotation.set(0, Math.random(), Math.PI/2)
 			}

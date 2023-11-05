@@ -34,7 +34,7 @@ export class NPC {
     deathSound // on death
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
-    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELDATA, voxelField, WEAPONHANDLER, deathSound) {
+    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, deathSound) {
         this.startingPosition = position;
         this.startingRotation = new THREE.Euler(0, rotationIntervals * Math.PI/4, 0);
         this.startingHealth = health;
@@ -44,13 +44,13 @@ export class NPC {
         this.voxelField = voxelField;
         this.WEAPONHANDLER = WEAPONHANDLER;
 
-        this.LEVELHANDLER = LEVELDATA;
+        this.LEVELHANDLER = LEVELHANDLER;
 
         this.speed = speed;
         this.health = health;
         this.knowsWherePlayerIs = false;
         const basePath = '../character_models/' + npcName + '/';
-        LEVELDATA.globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
+        LEVELHANDLER.globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
             // STEP 1: ASSIGN MATERIALS
             this.sceneObject = object;
             this.npcObject = object.children[0];
@@ -60,7 +60,7 @@ export class NPC {
                     // childObject.castShadow = true;
                     // childObject.receiveShadow = true;
                     childObject.material = new THREE.MeshPhongMaterial({
-                        map: LEVELDATA.globalTextureLoader.load(basePath + npcName + '.png'),
+                        map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png'),
                         shininess: 0,
                         specular: 0x000000
                     });
@@ -70,15 +70,15 @@ export class NPC {
             // STEP 2: ASSIGN TRANSFORMS
             this.sceneObject.position.copy(position);
             this.sceneObject.position.add(globalOffset);
-            this.sceneObject.scale.multiplyScalar(0.075);
+            this.sceneObject.scale.multiplyScalar(0.065);
 
             // STEP 3: APPLY ANIMATIONS
             this.mixer = new THREE.AnimationMixer(this.sceneObject);
             // load run animation
-            LEVELDATA.globalModelLoader.load(basePath + npcName + '_run.fbx', object => {
+            LEVELHANDLER.globalModelLoader.load(basePath + npcName + '_run.fbx', object => {
                 this.runAnimation = this.mixer.clipAction(object.animations[0]);
             });
-            LEVELDATA.globalModelLoader.load(basePath + npcName + '_die_' + Math.floor(Math.random() * 3) + '.fbx', object => {
+            LEVELHANDLER.globalModelLoader.load(basePath + npcName + '_die_' + Math.floor(Math.random() * 3) + '.fbx', object => {
                 this.dieAnimation = this.mixer.clipAction(object.animations[0]);
                 this.dieAnimation.setLoop(THREE.LoopOnce);
                 this.dieAnimation.clampWhenFinished = true;
@@ -123,20 +123,22 @@ export class NPC {
             this.shootBar = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.025, 0.025, 60, 8),
                 new THREE.MeshBasicMaterial({
-                    color: 0xffd359,
-                    emissive: 0xffd359,
-                    emissiveIntensity: 1.25
+                    map: LEVELHANDLER.globalTextureLoader.load("../img/shootbar.png"),
+                    transparent: true,
+                    emissive: 0xffffff,
+                    emissiveIntensity: 2.5,
                 })
             );
             this.npcObject.add(this.shootBar);
+            this.shootBar.material.map.wrapS = this.shootBar.material.map.wrapT = THREE.RepeatWrapping;
             this.shootBar.rotation.set(Math.PI/2, 0, 0);
             this.shootBar.position.z += 32;
-            this.shootBar.position.y += 4.5;
+            this.shootBar.position.y += 4;
             this.shootBar.visible = false;
 
         });
 
-        LEVELDATA.NPCBank.push(this);
+        LEVELHANDLER.NPCBank.push(this);
     }
 
     depleteHealth(amount) {
@@ -181,6 +183,10 @@ export class NPC {
                     if (this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
                     {
                         this.shootPlayer(delta);
+                    }
+                    else
+                    {
+                        this.shootBar.visible = false;
                     }
 
                 }
@@ -233,7 +239,7 @@ export class NPC {
             // Update Player Health
             this.LEVELHANDLER.playerHealth -= damage * 70;
             // Animations
-            this.shootBar.rotation.set(Math.PI/2, rapidFloat()/100, rapidFloat()/100);
+            this.shootBar.material.map.repeat.set(1, 64 + (rapidFloat() * 128));
             this.shootBar.visible = rapidFloat() < 0.85 ? true : false;
             this.shootBar.scale.y = rapidFloat() * 60;
             document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
@@ -265,17 +271,17 @@ export class NPC {
             // Outline the killer
             this.LEVELHANDLER.outliner.selectedObjects = [this.npcObject];
             // Draw Last Kill Line
-            const killArrow = new THREE.ArrowHelper(
-                new THREE.Vector3(
-                    this.LEVELHANDLER.camera.position.x - this.sceneObject.position.x,
-                    this.LEVELHANDLER.camera.position.y - this.sceneObject.position.y - this.LEVELHANDLER.playerHeight,
-                    this.LEVELHANDLER.camera.position.z - this.sceneObject.position.z
-                ).normalize(),
-                this.sceneObject.position.clone().setY(this.LEVELHANDLER.playerHeight),
-                this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position) + 5000,
-                0xffff63
-            );
-            this.LEVELHANDLER.scene.add(killArrow);
+            // const killArrow = new THREE.ArrowHelper(
+            //     new THREE.Vector3(
+            //         this.LEVELHANDLER.camera.position.x - this.sceneObject.position.x,
+            //         this.LEVELHANDLER.camera.position.y - this.sceneObject.position.y - this.LEVELHANDLER.playerHeight,
+            //         this.LEVELHANDLER.camera.position.z - this.sceneObject.position.z
+            //     ).normalize(),
+            //     this.sceneObject.position.clone().setY(this.LEVELHANDLER.playerHeight),
+            //     this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position) + 5000,
+            //     0xffff63
+            // );
+            // this.LEVELHANDLER.scene.add(killArrow);
             // Fix endless run animation bug
             this.runAnimation.stop();
             this.idleAnimation.play();

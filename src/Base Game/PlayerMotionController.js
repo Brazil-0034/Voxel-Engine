@@ -158,6 +158,10 @@ export class PlayerController {
                     isMoving = true;
                 }
     
+                // Animate Crosshair
+                const mc = document.querySelector("#middle-crosshair");
+                mc.style.maxWidth = lerp(parseInt(mc.style.maxWidth), 32, 10 * delta) + "px";
+
                 // WEAPON ACTION HANDLING
                 if (this.INPUTHANDLER.isLeftClicking && this.LEVELHANDLER.controls.isLocked == true) {
                     switch (this.WEAPONHANDLER.weaponType) {
@@ -197,6 +201,9 @@ export class PlayerController {
                         case "ranged":
                             if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
                             {
+                                // Animate Crosshair
+                                mc.style.maxWidth = lerp(parseInt(mc.style.maxWidth), 0, 10 * delta) + "px";
+                                
                                 if (this.WEAPONHANDLER.isAttackAvailable) {
                                     this.WEAPONHANDLER.weaponRemainingAmmo--;
                                     if (this.WEAPONHANDLER.fireSprite) {
@@ -211,7 +218,7 @@ export class PlayerController {
                                     if (this.WEAPONHANDLER.fireAnimation) {
                                         this.WEAPONHANDLER.fireAnimation.play();
                                     }
-        
+                                    
                                     // Play Sound
                                     // this.LEVELHANDLER.SFXPlayer.playSound("shootSound", false);
                                     this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", true);
@@ -277,19 +284,22 @@ export class PlayerController {
                     // LERP the weapon's position
                     const instancedWeaponTargetWorldPosition = new THREE.Vector3();
                     this.WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
-                    if (!this.WEAPONHANDLER.isAttackAvailable)
+                    if (!this.INPUTHANDLER.isKeyPressed("t"))
                     {
-                        this.WEAPONHANDLER.weaponModel.position.set(
-                            lerp(this.WEAPONHANDLER.weaponModel.position.x, instancedWeaponTargetWorldPosition.x, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
-                            lerp(this.WEAPONHANDLER.weaponModel.position.y, instancedWeaponTargetWorldPosition.y, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
-                            lerp(this.WEAPONHANDLER.weaponModel.position.z, instancedWeaponTargetWorldPosition.z, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1))
-                        );
+                        if (!this.WEAPONHANDLER.isAttackAvailable)
+                        {
+                            this.WEAPONHANDLER.weaponModel.position.set(
+                                lerp(this.WEAPONHANDLER.weaponModel.position.x, instancedWeaponTargetWorldPosition.x, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
+                                lerp(this.WEAPONHANDLER.weaponModel.position.y, instancedWeaponTargetWorldPosition.y, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
+                                lerp(this.WEAPONHANDLER.weaponModel.position.z, instancedWeaponTargetWorldPosition.z, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1))
+                            );
+                        }
+                        else
+                        {
+                            this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
+                        }
+                        this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                     }
-                    else
-                    {
-                        this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
-                    }
-                    this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                 }
             }
 

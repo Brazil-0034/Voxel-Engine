@@ -118,6 +118,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     // create a point light at this position with mapObject.lightBrightness
                     light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness * 10, 0, 2);
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
+                    light.position.add(globalOffset);
                     light.decay = 1.15;
                     LEVELHANDLER.scene.add(light);
                 }
@@ -166,20 +167,22 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     color: ambientColor.clone().multiplyScalar(0.15)
                 }));
                 levelText.position.set(0, 256, 0);
+                levelText.position.add(globalOffset);
                 levelText.rotation.y = -Math.PI/4;
                 LEVELHANDLER.scene.add(levelText);
 
-                const directedByGeometry = new TextGeometry('TEST LEVEL', {
+                const assistGeometry = new TextGeometry('HINT:\nSHOOT THROUGH\nTHE WALL', {
                     font: font,
-                    size: 20,
-                    height: 2.5
+                    size: 5,
+                    height: 0.5
                 });
-                const directedByText = new THREE.Mesh(directedByGeometry, new THREE.MeshBasicMaterial({
-                    color: ambientColor.clone().multiplyScalar(0.15)
+                const assistText = new THREE.Mesh(assistGeometry, new THREE.MeshBasicMaterial({
+                    color: 0x998831
                 }));
-                directedByText.position.set(0, 200, 0);
-                directedByText.rotation.y = -Math.PI/4;
-                LEVELHANDLER.scene.add(directedByText);
+                assistText.position.set(410, 40, 75);
+                assistText.position.add(globalOffset);
+                assistText.rotation.y = -Math.PI/2;
+                LEVELHANDLER.scene.add(assistText);
             })
         });
 
@@ -194,7 +197,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
     });
 }
 
-export const globalOffset = new THREE.Vector3(1000000, 0, 1000000);
+export const globalOffset = new THREE.Vector3(10000, 0, 10000);
 const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
 
     if (scale.x > 2) scale.x -= 1;
@@ -305,9 +308,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             new THREE.MeshLambertMaterial({
                 map: texture,
                 side: THREE.DoubleSide,
-                color: boxColor,
-                emissive: boxColor,
-                emissiveIntensity: lightBrightness
+                color: boxColor
             })
         );
         coverBox.material.dithering = true;

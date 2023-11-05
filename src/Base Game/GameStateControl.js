@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { globalOffset } from './WorldGenerator.js'
+import { displacedVoxels, resetDisplacedVoxels } from './VoxelStructures.js'
+import { voxelField } from './VoxelStructures.js';
 
 export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.playerCanMove = false;
@@ -17,6 +19,15 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	WEAPONHANDLER.setWeaponVisible(true);
 	LEVELHANDLER.playerHealth = 100;
 	// LEVELHANDLER.camera.rotation.x = Math.PI/4;
+	// Reset Voxels ...
+	for (let i = 0; i < displacedVoxels.length; i++)
+	{
+		const dv = displacedVoxels[i];
+		dv.chunk.setMatrixAt(dv.indexInChunk, new THREE.Matrix4().makeTranslation(dv.position));
+		dv.chunk.instanceMatrix.needsUpdate = true;
+		voxelField.set(dv.position.x, dv.position.y, dv.position.z, 1, dv.indexInChunk, dv.chunk);
+	}
+	resetDisplacedVoxels();
 	// Reset Weapon
 	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
 	WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType;
@@ -30,6 +41,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		thisNPC.sceneObject.rotation.set(thisNPC.startingRotation.x, thisNPC.startingRotation.y, thisNPC.startingRotation.z);
 		thisNPC.sceneObject.position.set(thisNPC.startingPosition.x, thisNPC.startingPosition.y, thisNPC.startingPosition.z);
 		thisNPC.sceneObject.position.add(globalOffset);
+        thisNPC.shootBar.visible = false;
 		thisNPC.health = thisNPC.startingHealth;
 		thisNPC.knowsWherePlayerIs = false;
 		thisNPC.mixer.stopAllAction();
