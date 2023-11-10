@@ -201,7 +201,10 @@ export class VoxelChunk extends THREE.InstancedMesh {
 	uncover() {
 		if (this.isCovered == true) {
 			if (this.coverBox.isInstancedMesh == true) {
-				this.coverBox.setMatrixAt(this.coverBoxIndex, new THREE.Matrix4());
+				const m = new THREE.Matrix4();
+				this.coverBox.getMatrixAt(this.coverBoxIndex, m);
+				m.scale(new THREE.Vector3(1/10000, 1/10000, 1/10000));
+				this.coverBox.setMatrixAt(this.coverBoxIndex, m);
 				this.coverBox.instanceMatrix.needsUpdate = true;
 			} else {
 				this.coverBox.forEach(box => {
@@ -217,6 +220,30 @@ export class VoxelChunk extends THREE.InstancedMesh {
 			this.connectedBox.voxelChunks.forEach(chunk => {
 				if (chunk.isSideChunk == true) {
 					chunk.uncover();
+				}
+			});
+		}
+	}
+
+	recover() {
+		if (this.isDetail && this.isDetail == true) this.visible = true;
+		if (this.isCovered == false) {
+			if (this.coverBox.isInstancedMesh == true) {
+				const m = new THREE.Matrix4();
+				this.coverBox.getMatrixAt(this.coverBoxIndex, m);
+				m.scale(new THREE.Vector3(10000, 10000, 10000));
+				this.coverBox.setMatrixAt(this.coverBoxIndex, m);
+				this.coverBox.instanceMatrix.needsUpdate = true;
+			} else {
+				this.coverBox.forEach(box => {
+					this.visible = true;
+				})
+			}
+			this.isCovered = true;
+			this.visible = false;
+			this.connectedBox.voxelChunks.forEach(chunk => {
+				if (chunk.isSideChunk == true) {
+					chunk.recover();
 				}
 			});
 		}

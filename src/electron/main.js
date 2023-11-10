@@ -35,6 +35,7 @@ function createWindow() {
     // and load the index.html of the app.
     // const indexFile = "../Base Game/index.html";
     const indexFile = "../launcher/menu.html";
+    // const indexFile = "../Base Game/uitest.html";
     mainWindow.loadFile(path.join(__dirname, indexFile))
 
     // devtools

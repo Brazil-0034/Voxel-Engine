@@ -293,6 +293,127 @@
 		#indicator {
 			animation: fade-out 0.25s forwards;
 		}
+		
+		@keyframes slide-in-right {
+			0% {
+				transform: translateX(-100%);
+			}
+
+			100% {
+				transform: translateX(0%);
+			}
+		}
+
+		@keyframes fade-in-blink {
+			20% {
+				opacity: 0;
+			}
+			30% {
+				opacity: 1;
+			}
+			40% {
+				opacity: 0;
+			}
+			100% {
+				opacity: 1;
+			}
+		}
+
+		@keyframes fade-in {
+			0% {
+				opacity: 0;
+			}
+
+			100% {
+				opacity: 1;
+			}
+		}
+
+		#widebar {
+			background: rgba(0, 0, 0, 0.75);
+			width: 100%;
+			height: 120px;
+
+			position: absolute;
+			top: calc(50% - 60px);
+			transform: translateY(-50%);
+
+			animation: slide-in-right 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+			animation-fill-mode: forwards;
+		}
+
+		#widebar-text {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 100%;
+			text-align: center;
+
+			color: white;
+			font-weight: bolder;
+			font-size: 5em;
+
+			animation: fade-in-blink 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+			animation-fill-mode: forwards;
+			animation-delay: 1s;
+			opacity: 0;
+		}
+
+		@keyframes shift-up {
+			0% {
+				transform: translateY(0%);
+			}
+
+			100% {
+				transform: translateY(-20%);
+			}
+		}
+
+		#widebar-carrier {
+			pointer-events: none;
+
+			position: absolute;
+			top: 0; left: 0;
+			width: 100%; height: 100%;
+
+			animation: shift-up 1s cubic-bezier(0.16, 1, 0.3, 1);
+			animation-fill-mode: forwards;
+			animation-delay: 1.85s;
+		}
+
+		#level-stats {
+			display: inline-block;
+
+			position: absolute;
+			top: calc(50% + 140px);
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 45%;
+			color: white;
+			text-align: center;
+		}
+
+		.stat-holder {
+			width: 100%;
+			height: 25px;
+			margin-bottom: 10px;
+
+			opacity: 0;
+			
+			animation: fade-in 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+			animation-fill-mode: forwards;
+			font-size: 150%;
+		}
+
+		.left-stat {
+			float: left;
+		}
+
+		.right-stat {
+			float: right;
+			font-weight: bold;
+		}
 	</style>
 
 </head>
@@ -319,7 +440,7 @@
 	<div id="ui-overlay">
 		<!-- The red part -->
 		<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FF0051" fill-rule="evenodd" stroke="none" >
+			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#ababab" fill-rule="evenodd" stroke="none" >
 				<!-- svg animation to pulse the healthbar color and fill and stroke -->
 				<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-1" />
 				<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-2"  />
@@ -382,6 +503,8 @@
 	<!-- <script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); stats.dom.style.zIndex = 1000; requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script> -->
 	<!-- DOT CROSSHAIR -->
 	<img src="../img/diamond.png" id="middle-crosshair" style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 32px; z-index: 1000; opacity: 0.25">
+
+	<div id="end-screen" style="width:100%;height:100%;position:absolute;top:0;left:0;pointer-events:none"></div>
 
 	<div id="interaction-text"></div>
 	<div id="help-text">Loading . . .</div>
@@ -592,6 +715,7 @@
 		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
 		// Update Active Particles
 		particleHandler.update(delta);
+		LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
 		// Update Skybox Attributes
 		worldSphere.position.copy(LEVELHANDLER.camera.position);
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ConvexHull } from 'three/addons/math/ConvexHull.js';
 import { lerp, clamp, createVizSphere, rapidFloat } from './EngineMath.js';
-import { pauseGameState } from './GameStateControl.js';
+import { pauseGameState, endGameState } from './GameStateControl.js';
 import { LevelHandler } from './LevelHandler.js';
 import { globalOffset } from './WorldGenerator.js'
 
@@ -24,6 +24,7 @@ export class NPC {
     mixer // 3js anim mixer (per-npc until instanced skinning makes its way into main branch)
     fovConeMesh // for vision calculation
     fovConeHull // for vision calculation
+    floorgore // for gore
 
     knowsWherePlayerIs // self explanatory
     voxelField // for raycasting
@@ -31,15 +32,11 @@ export class NPC {
     WEAPONHANDLER // how far he can see
     LEVELHANDLER // what it sound like
 
-    deathSound // on death
-
     // This will build the NPC (setting idle/run animation and loading model into scene)
-    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, deathSound) {
+    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER) {
         this.startingPosition = position;
         this.startingRotation = new THREE.Euler(0, rotationIntervals * Math.PI/4, 0);
         this.startingHealth = health;
-
-        this.deathSound = deathSound;
 
         this.voxelField = voxelField;
         this.WEAPONHANDLER = WEAPONHANDLER;
@@ -86,6 +83,23 @@ export class NPC {
             this.idleAnimation = this.mixer.clipAction(this.sceneObject.animations[0]);
             this.idleAnimation.play();
 
+            // also, grab the floor gore effect
+            LEVELHANDLER.globalTextureLoader.load("../img/floorgore.png", texture => {
+                this.floorgore = new THREE.Mesh(
+                    new THREE.PlaneGeometry(1, 1),
+                    new THREE.MeshLambertMaterial({
+                        map: texture,
+                        transparent: true
+                    })
+                );
+                this.floorgore.material.map.magFilter = this.floorgore.material.map.minFilter = THREE.NearestFilter;
+                this.floorgore.visible = false;
+                this.floorgore.rotation.set(-Math.PI/2, 0, 0);
+                const scale = 100;
+                this.floorgore.scale.set(scale, scale, scale);
+                this.LEVELHANDLER.scene.add(this.floorgore);
+            });
+
             // create a "Field of View" cone in front of the head
             this.fovConeMesh = new THREE.Mesh(
                 new THREE.ConeGeometry(2, 6, 4),
@@ -131,6 +145,7 @@ export class NPC {
             );
             this.npcObject.add(this.shootBar);
             this.shootBar.material.map.wrapS = this.shootBar.material.map.wrapT = THREE.RepeatWrapping;
+            this.shootBar.material.map.repeat.set(1, 3);
             this.shootBar.rotation.set(Math.PI/2, 0, 0);
             this.shootBar.position.z += 32;
             this.shootBar.position.y += 4;
@@ -139,6 +154,7 @@ export class NPC {
         });
 
         LEVELHANDLER.NPCBank.push(this);
+        LEVELHANDLER.totalNPCs++;
     }
 
     depleteHealth(amount) {
@@ -147,8 +163,6 @@ export class NPC {
 		this.npcObject.material.color.r = 20 - (Math.random() * 5);
         this.health -= amount;
         if (this.health <= 0) {
-            this.deathSound.rate(clamp(Math.random() + 0.8, 0, 1))
-            this.deathSound.play();
             this.kill();
         }
     }
@@ -237,11 +251,10 @@ export class NPC {
             // Update AI
             this.knowsWhrePlayerIs = true;
             // Update Player Health
-            this.LEVELHANDLER.playerHealth -= damage * 70;
+            this.LEVELHANDLER.playerHealth -= damage * 170;
             // Animations
-            this.shootBar.material.map.repeat.set(1, 64 + (rapidFloat() * 128));
-            this.shootBar.visible = rapidFloat() < 0.85 ? true : false;
-            this.shootBar.scale.y = rapidFloat() * 60;
+            this.shootBar.visible = true;
+            this.shootBar.material.map.offset.y -= damage * 15;
             document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
             for (let i = 1; i < 3; i++)
             {
@@ -295,5 +308,113 @@ export class NPC {
         this.health = 0;
         this.dieAnimation.play();
         this.shootBar.visible = false;
+        this.floorgore.visible = true;
+        this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
+        this.LEVELHANDLER.totalNPCs--;
+
+        this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
+
+        const count = 1000;
+        const blob = new THREE.InstancedMesh(
+            new THREE.BoxGeometry(3, 3, 3),
+            new THREE.MeshLambertMaterial({color: new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0)}),
+            count
+        );
+        blob.frustumCulled = false;
+        this.LEVELHANDLER.scene.add(blob);
+        for (let i = 0; i < count; i++)
+        {
+            const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() + 0.25, rapidFloat() * 2 - 1).normalize();
+            const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + 30 + (rapidFloat() * 10));
+
+            const r = this.voxelField.raycast(
+                pos,
+                dir,
+                1000
+            );
+            let endPosition;
+            if (r != null) endPosition = new THREE.Vector3(r.x, r.y, r.z);
+
+            const s = 2 * rapidFloat();
+            blob.setMatrixAt(i, new THREE.Matrix4().compose(this.sceneObject.position, this.sceneObject.quaternion, new THREE.Vector3(s, s, s)));
+            blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0));
+            const thisBlob = new killBlob(
+                dir,
+                pos,
+                200 + (rapidFloat() * 100),
+                endPosition,
+                blob,
+                i,
+                this.voxelField
+            );
+            this.LEVELHANDLER.killBlobs.push(thisBlob);
+        }
+        this.LEVELHANDLER.scene.add(blob);
+
+        if (this.LEVELHANDLER.totalNPCs == 0) {
+            endGameState();
+        }
+    }
+}
+
+class killBlob {
+    dir
+    speed
+    sceneObject
+    lifetime
+    isAlive
+    endPosition
+
+    iMesh
+    iMeshIndex
+
+    constructor(dir, position, speed, endPosition, iMesh, iMeshIndex, voxelField) {
+        this.dir = dir;
+        this.speed = speed;
+        this.lifetime = 0;
+        this.isAlive = true;
+        this.iMesh = iMesh;
+        this.iMeshIndex = iMeshIndex;
+        this.voxelField = voxelField;
+
+        if (endPosition) this.endPosition = endPosition;
+
+    }
+
+    move(delta) {
+        const m = new THREE.Matrix4();
+        this.iMesh.getMatrixAt(this.iMeshIndex, m);
+
+        // constraints
+        const pos = new THREE.Vector3().setFromMatrixPosition(m);
+
+        if (this.endPosition && pos.distanceTo(this.endPosition) < 25)
+        {
+            this.iMesh.setMatrixAt(this.iMeshIndex, m.setPosition(this.endPosition));
+            this.isAlive = false;
+        }
+
+        // motion
+        if (this.isAlive == true)
+        {
+            const npos = pos.addScaledVector(this.dir, this.speed * delta);
+            this.dir.y -= delta;
+            this.dir.normalize();
+            const r = this.voxelField.raycast(
+                npos,
+                this.dir,
+                1000
+            );
+            if (!r) {
+                this.isAlive = false;
+                this.iMesh.setMatrixAt(this.iMeshIndex, m.setPosition(new THREE.Vector3(0, 0, 0)));
+                this.iMesh.instanceMatrix.needsUpdate = true;
+                return;
+            }
+            this.endPosition.set(r.x, r.y, r.z);
+            this.iMesh.setMatrixAt(this.iMeshIndex, m.setPosition(npos));
+            this.lifetime++;
+            this.iMesh.instanceMatrix.needsUpdate = true;
+        }
     }
 }

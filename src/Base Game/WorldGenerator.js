@@ -136,11 +136,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                         100,
                         LEVELHANDLER,
                         voxelField,
-                        WEAPONHANDLER,
-                        new Howl({
-                            src: ['../sfx/kill_ding.wav'],
-                            volume: USERSETTINGS.SFXVolume * 7.5
-                        })
+                        WEAPONHANDLER
                     );
                     return;
                 }
@@ -446,11 +442,12 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             }
             else if (boxType == "Detail") {
                 instancedWorldModel.visible = true;
+                instancedWorldModel.isDetail = true;
                 resetChunkBounds();
                 resetInstancedWorldModel();
                 return;
             }
-
+// ADD GORE ADD GORE ADD GORE ADD GORE ADD GORE!!!!!!!!!
             if (instancedWorldModel.useCoverBox != false)
             {
                 switch (voxelFace) {

@@ -1,3 +1,5 @@
+import { rapidFloat } from "./EngineMath";
+
 const cubeSprite = LEVELHANDLER.globalTextureLoader.load("../img/cubesprite.png");
 const conjunctionCheckTimesPerSecond = 1;
 const conjunctionCheck = function () {
@@ -103,7 +105,7 @@ const conjunctionCheck = function () {
         console.log("conjunction check took " + (endTime - startTime) + " milliseconds");
 
         if (fullHole.length > 5) {
-            LEVELHANDLER.SFXPlayer.playRandomSound("bigDropSounds");
+            LEVELHANDLER.SFXPlayer.playRandomSound("bigDropSounds", 1 + rapidFloat());
         }
         
         // fullhole = array of voxels that are in the hole, and need to be removed

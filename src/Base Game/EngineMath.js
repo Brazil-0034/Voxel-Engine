@@ -13,7 +13,7 @@ export const elasticLerp = function (a, b, t) {
 }
 
 // RANDOM BANK
-const bankLength = 10;
+const bankLength = 1000;
 const randomBank = [];
 for (let i = 0; i < bankLength; i++) {
 	randomBank.push(Math.random());

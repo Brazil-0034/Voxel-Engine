@@ -53,6 +53,8 @@ export class LevelHandler {
 
 	// Data about NPCs
 	NPCBank
+	totalNPCs
+	killBlobs
 
 	// Data about Weapons
 	WEAPONHANDLER
@@ -83,6 +85,9 @@ export class LevelHandler {
 		this.globalModelLoader = new FBXLoader();
 
 		this.NPCBank = [];
+		this.totalNPCs = 0;
+		this.killBlobs =[];
+		
 		this.thrownWeaponBank = [];
 	}
 

@@ -1,0 +1,155 @@
+<style>
+    * {
+        margin: 0;
+		font-family: 'Montserrat', sans-serif;
+    }
+
+    body {
+        background: url('../img/backdrop.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    @keyframes slide-in-right {
+        0% {
+            transform: translateX(-100%);
+        }
+
+        100% {
+            transform: translateX(0%);
+        }
+    }
+
+    @keyframes fade-in-blink {
+        20% {
+            opacity: 0;
+        }
+        30% {
+            opacity: 1;
+        }
+        40% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes fade-in {
+        0% {
+            opacity: 0;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    #widebar {
+        background: rgba(0, 0, 0, 0.75);
+        width: 100%;
+        height: 120px;
+        /* perfect vertical center */
+        position: absolute;
+        top: calc(50% - 60px);
+        transform: translateY(-50%);
+        animation: slide-in-right 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+        animation-fill-mode: forwards;
+    }
+
+    #widebar-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        text-align: center;
+
+        color: white;
+        font-weight: bolder;
+        font-size: 5em;
+
+        animation: fade-in-blink 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+        animation-fill-mode: forwards;
+        animation-delay: 1s;
+        opacity: 0;
+    }
+
+    @keyframes shift-up {
+        0% {
+            transform: translateY(0%);
+        }
+
+        100% {
+            transform: translateY(-20%);
+        }
+    }
+
+    #widebar-carrier {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+
+        animation: shift-up 1s cubic-bezier(0.16, 1, 0.3, 1);
+        animation-fill-mode: forwards;
+        animation-delay: 1.85s;
+    }
+
+    #level-stats {
+        display: inline-block;
+
+        position: absolute;
+        top: calc(50% + 160px);
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60%;
+        color: white;
+        text-align: center;
+    }
+
+    .stat-holder {
+        width: 100%;
+        height: 25px;
+        margin-bottom: 10px;
+
+        opacity: 0;
+        animation: fade-in 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+        animation-fill-mode: forwards;
+        animation-delay: 2.85s;
+    }
+
+    .left-stat {
+        float: left;
+    }
+
+    .right-stat {
+        float: right;
+        font-weight: bold;
+    }
+</style>
+
+<div id="widebar-carrier">
+    <div id="widebar">
+        <div id="widebar-text">
+            LEVEL CLEAR
+        </div>
+    </div>
+    <div id="level-stats">
+        <div class="stat-holder">
+            <div class="left-stat">REMAINING HEALTH:</div>
+            <div class="right-stat" id="stat-remain-health">100</div>
+        </div>
+        <div class="stat-holder">
+            <div class="left-stat">TOTAL TIME:</div>
+            <div class="right-stat" id="stat-time-total">0:00</div>
+        </div>
+        <div class="stat-holder">
+            <div class="left-stat">LEVEL DESTRUCTION:</div>
+            <div class="right-stat" id="stat-destruction-total">0%</div>
+        </div>
+        <div class="stat-holder">
+            <b>Press [Spacebar] To Continue</b>
+        </div>
+    </div>
+</div>

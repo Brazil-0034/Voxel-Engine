@@ -14,6 +14,7 @@ export class WeaponHandler {
     weaponTarget
     weaponPosition
     weaponRotation
+	flashlight
 
 	// PARTICLES & JUICE
 	hideMuzzleFlash
@@ -98,6 +99,21 @@ export class WeaponHandler {
 								new THREE.BoxGeometry(1, 1, 1),
 								new THREE.MeshBasicMaterial({ color: 0x00ff00 })
 							);
+
+							// FLASHLIGHT
+
+							WEAPONHANDLER.flashlight = new THREE.SpotLight(0xffffff, 250);
+							// LEVELHANDLER.camera.add(WEAPONHANDLER.flashlight);
+							WEAPONHANDLER.flashlight.rotation.set(-Math.PI/2, 0, 0);
+
+							WEAPONHANDLER.flashlight.castShadow = false;
+							WEAPONHANDLER.flashlight.penumbra = 0.5;
+
+							const targetObject = new THREE.Object3D()
+							WEAPONHANDLER.flashlight.add(targetObject)
+							targetObject.position.set(0,LEVELHANDLER.playerHeight,0)
+							WEAPONHANDLER.flashlight.target = targetObject
+
 							WEAPONHANDLER.weaponTarget.material.visible = false; // uncomment to position weapon better
 							LEVELHANDLER.camera.add(WEAPONHANDLER.weaponTarget);
 							WEAPONHANDLER.weaponTarget.position.copy(WEAPONHANDLER.weaponPosition);

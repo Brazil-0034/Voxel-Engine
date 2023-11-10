@@ -286,18 +286,7 @@ export class PlayerController {
                     this.WEAPONHANDLER.weaponTarget.getWorldPosition(instancedWeaponTargetWorldPosition);
                     if (!this.INPUTHANDLER.isKeyPressed("t"))
                     {
-                        if (!this.WEAPONHANDLER.isAttackAvailable)
-                        {
-                            this.WEAPONHANDLER.weaponModel.position.set(
-                                lerp(this.WEAPONHANDLER.weaponModel.position.x, instancedWeaponTargetWorldPosition.x, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
-                                lerp(this.WEAPONHANDLER.weaponModel.position.y, instancedWeaponTargetWorldPosition.y, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1)),
-                                lerp(this.WEAPONHANDLER.weaponModel.position.z, instancedWeaponTargetWorldPosition.z, this.WEAPONHANDLER.weaponFollowSpeed * delta * (isMoving ? 2 : 1))
-                            );
-                        }
-                        else
-                        {
-                            this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
-                        }
+                        this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
                         this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                     }
                 }

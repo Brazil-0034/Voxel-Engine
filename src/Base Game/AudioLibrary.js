@@ -5,6 +5,7 @@ export class SoundEffectPlayer {
     dropSounds
     bigDropSounds
     hitSound
+    killSounds
     shootSound
     isPlayingShootSound
 
@@ -43,6 +44,20 @@ export class SoundEffectPlayer {
             src: ['../sfx/hit_ding.wav'],
             volume: USERSETTINGS.SFXVolume
         })
+        this.killSounds = [
+            new Howl({
+                src: ['../sfx/kill_ding.wav'],
+                volume: USERSETTINGS.SFXVolume * 15.5
+            }),
+            new Howl({
+                src: ['../sfx/kill_ding_2.wav'],
+                volume: USERSETTINGS.SFXVolume * 15.5
+            }),
+            new Howl({
+                src: ['../sfx/kill_ding_3.wav'],
+                volume: USERSETTINGS.SFXVolume * 15.5
+            })
+        ]
 
         this.shootSound = new Howl({
             src: ['../sfx/heavy_shoot.ogg'],
@@ -53,9 +68,9 @@ export class SoundEffectPlayer {
 
     }
     
-    playRandomSound(soundArray) {
+    playRandomSound(soundArray, rate) {
         let soundToPlay = this[soundArray][Math.floor(Math.random() * this[soundArray].length)];
-        soundToPlay.rate(rapidFloat() + 0.45);
+        soundToPlay.rate(rate ? rate : rapidFloat() + 0.45);
         soundToPlay.play();
     }
 
