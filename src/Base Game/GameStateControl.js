@@ -3,10 +3,14 @@ import { globalOffset } from './WorldGenerator.js'
 import { displacedVoxels, resetDisplacedVoxels } from './VoxelStructures.js'
 import { voxelField } from './VoxelStructures.js';
 
+let internalTimer = new THREE.Clock();
+internalTimer.start();
+
 export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
+	internalTimer.stop();
 	LEVELHANDLER.playerCanMove = false;
 	WEAPONHANDLER.setWeaponVisible(false);
-	document.querySelector("#dead-overlay").style.animation = "fade-in 0.12s ease-in forwards";
+	document.querySelector("#dead-overlay").style.animation = "fade-in 0.05s ease-in forwards";
 }
 
 export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
@@ -50,17 +54,23 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		thisNPC.floorgore.visible = false;
 	})
 	LEVELHANDLER.totalNPCs = LEVELHANDLER.NPCBank.length;
-	LEVELHANDLER.killBlobs.forEach(blob => {LEVELHANDLER.scene.remove(blob.sceneObject), blob = null});
+	LEVELHANDLER.killBlobs.forEach(blob => {LEVELHANDLER.scene.remove(blob.iMesh); blob.isAlive = false;});
+	LEVELHANDLER.killBlobs = [];
 	// Reset UI
 	document.querySelector("#dead-overlay").style.animation = "dead-fade-out 1.5s ease-out ";
 	document.querySelector("#healthbar").style.width = "200px";
 	document.querySelector("#end-screen").innerHTML = "";
+	LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
 	// Clean Garbage
 	LEVELHANDLER.clearGarbage();
 	LEVELHANDLER.outliner.selectedObjects = [];
+	// Reset Timer ...
+	internalTimer = new THREE.Clock();
+	internalTimer.start();
 }
 
-export const endGameState = function() {
+export const endGameState = function(LEVELHANDLER) {
+	internalTimer.stop();
 	// add end screen to DOM
 	const endScreen = `
 	<div id="widebar-carrier">
@@ -89,8 +99,16 @@ export const endGameState = function() {
 	</div>`
 
 	document.querySelector("#end-screen").innerHTML = endScreen;
+	document.querySelector("#stat-remain-health").textContent = LEVELHANDLER.playerHealth.toFixed(2) + "%";
+	document.querySelector("#stat-time-total").textContent = internalTimer.getElapsedTime().toFixed(2) + "s";
+	document.querySelector("#stat-destruction-total").textContent = (displacedVoxels.length / LEVELHANDLER.numVoxels).toFixed(4) + "%";
+
 	// for each stat-holder, increment animation-delay by 1
 	for (let i = 0; i < document.querySelectorAll(".stat-holder").length; i++) {
-		document.querySelectorAll(".stat-holder")[i].style.animationDelay = 2 + i + "s";
+		document.querySelectorAll(".stat-holder")[i].style.animationDelay = 1.25 + (i/3) + "s";
 	}
+
+	// setInterval(() => {
+	// 	LEVELHANDLER.backlight.color.lerp(new THREE.Color(0xffffff), 1/100);
+	// }, 10);
 }

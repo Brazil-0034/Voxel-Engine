@@ -78,8 +78,8 @@
                     <input type="color" id="ambient-color">
                 </div>
                 <div class="settings-group">
-                    <h3>Ground Scale</h3>
-                    <input type="number" id="ground-scale" value="1000" min="0" max="10000" step="0.1">
+                    <h3>Next Level URL</h3>
+                    <input type="text" id="next-level-url">
                 </div>
             </div>
         </div>
@@ -866,6 +866,8 @@ const groundFloor = new THREE.Mesh(
 );
 const ambientColor = new THREE.Color();
 document.querySelector("#ambient-color").addEventListener("input", function (e) { ambientColor.set(e.target.value); });
+let nextLevelURL = "";
+document.querySelector("#next-level-url").addEventListener("input", function (e) { nextLevelURL = e.target.value; });
 groundFloor.scale.set(100000, 100000, 1);
 groundFloor.visible = false;
 groundFloor.name = "Ground Floor";
@@ -1413,6 +1415,8 @@ const saveProject = function () {
         "b": ambientColor.b
     };
 
+    metaData.nextLevelURL = nextLevelURL;
+
     var saveData = { voxels: [] }
 
     var ipc = require('electron').ipcRenderer;
@@ -1431,6 +1435,11 @@ const saveProject = function () {
         ipc.send('savefile-add-custom-data', {
             dataName: "ambientColor",
             data: JSON.stringify(metaData.ambientColor)
+        });
+        // SEND NEXT LEVEL URL
+        ipc.send('savefile-add-custom-data', {
+            dataName: "nextLevelURL",
+            data: JSON.stringify(metaData.nextLevelURL)
         });
         // SAVE MAPMAKERSAVE
         ipc.send('savefile-add-custom-data', {
@@ -1531,6 +1540,9 @@ const importProject = function () {
 
             document.querySelector("#ambient-color").value = "#" + new THREE.Color(parsedJSON.ambientColor.r, parsedJSON.ambientColor.g, parsedJSON.ambientColor.b).getHexString();
             ambientColor.set(document.querySelector("#ambient-color").value);
+
+            document.querySelector("#next-level-url").value = parsedJSON.nextLevelURL;
+
 
             updateLeftPanel();
             // scene.add(selectedObjects);

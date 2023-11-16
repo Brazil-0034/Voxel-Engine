@@ -108,7 +108,7 @@ export class NPC {
                     visible: false
                 })
             );
-            const headBone = this.sceneObject.children[1].children[0].children[0].children[0].children[0].children[0].children[0].children[0];
+            const headBone = this.sceneObject.children[1].children[0].children[0].children[0].children[0].children[0].children[0].children[0] || this.sceneObject.children[1].children[0].children[0].children[0].children[0].children[0].children[0];
 
             headBone.attach(this.fovConeMesh);
             
@@ -312,20 +312,29 @@ export class NPC {
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
         this.LEVELHANDLER.totalNPCs--;
 
+        this.LEVELHANDLER.isCameraShaking = true;
+        setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
+
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
 
-        const count = 1000;
+        const count = 500;
+        const scale = 2;
         const blob = new THREE.InstancedMesh(
-            new THREE.BoxGeometry(3, 3, 3),
+            new THREE.SphereGeometry(scale, 2, 2),
             new THREE.MeshLambertMaterial({color: new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0)}),
             count
         );
         blob.frustumCulled = false;
-        this.LEVELHANDLER.scene.add(blob);
         for (let i = 0; i < count; i++)
         {
             const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() + 0.25, rapidFloat() * 2 - 1).normalize();
-            const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + 30 + (rapidFloat() * 10));
+            const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
+            const rot = new THREE.Euler(
+                rapidFloat() * Math.PI * 2,
+                rapidFloat() * Math.PI * 2,
+                rapidFloat() * Math.PI * 2
+            );
+            const initScale = 4 + (3 * rapidFloat());
 
             const r = this.voxelField.raycast(
                 pos,
@@ -335,13 +344,12 @@ export class NPC {
             let endPosition;
             if (r != null) endPosition = new THREE.Vector3(r.x, r.y, r.z);
 
-            const s = 2 * rapidFloat();
-            blob.setMatrixAt(i, new THREE.Matrix4().compose(this.sceneObject.position, this.sceneObject.quaternion, new THREE.Vector3(s, s, s)));
+            blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
             blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0));
             const thisBlob = new killBlob(
                 dir,
-                pos,
-                200 + (rapidFloat() * 100),
+                initScale,
+                250 + (rapidFloat() * 100),
                 endPosition,
                 blob,
                 i,
@@ -352,13 +360,14 @@ export class NPC {
         this.LEVELHANDLER.scene.add(blob);
 
         if (this.LEVELHANDLER.totalNPCs == 0) {
-            endGameState();
+            endGameState(this.LEVELHANDLER);
         }
     }
 }
 
 class killBlob {
     dir
+    initScale
     speed
     sceneObject
     lifetime
@@ -368,8 +377,9 @@ class killBlob {
     iMesh
     iMeshIndex
 
-    constructor(dir, position, speed, endPosition, iMesh, iMeshIndex, voxelField) {
+    constructor(dir, initScale, speed, endPosition, iMesh, iMeshIndex, voxelField) {
         this.dir = dir;
+        this.initScale = initScale;
         this.speed = speed;
         this.lifetime = 0;
         this.isAlive = true;
@@ -382,37 +392,30 @@ class killBlob {
     }
 
     move(delta) {
-        const m = new THREE.Matrix4();
-        this.iMesh.getMatrixAt(this.iMeshIndex, m);
+        const newMatrix = new THREE.Matrix4();
+        this.iMesh.getMatrixAt(this.iMeshIndex, newMatrix);
 
         // constraints
-        const pos = new THREE.Vector3().setFromMatrixPosition(m);
+        const pos = new THREE.Vector3().setFromMatrixPosition(newMatrix);
 
         if (this.endPosition && pos.distanceTo(this.endPosition) < 25)
         {
-            this.iMesh.setMatrixAt(this.iMeshIndex, m.setPosition(this.endPosition));
+            this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix.setPosition(this.endPosition));
             this.isAlive = false;
         }
 
         // motion
         if (this.isAlive == true)
         {
+            newMatrix.makeRotationX(delta * (rapidFloat() - 0.5) * 100);
+            newMatrix.makeRotationY(delta * (rapidFloat() - 0.5) * 100);
+            newMatrix.makeRotationZ(delta * (rapidFloat() - 0.5) * 100);
+
+            this.initScale = clamp(this.initScale * (1 - (delta * 15)), 1, 100);
+            newMatrix.makeScale(this.initScale, this.initScale, this.initScale);
+
             const npos = pos.addScaledVector(this.dir, this.speed * delta);
-            this.dir.y -= delta;
-            this.dir.normalize();
-            const r = this.voxelField.raycast(
-                npos,
-                this.dir,
-                1000
-            );
-            if (!r) {
-                this.isAlive = false;
-                this.iMesh.setMatrixAt(this.iMeshIndex, m.setPosition(new THREE.Vector3(0, 0, 0)));
-                this.iMesh.instanceMatrix.needsUpdate = true;
-                return;
-            }
-            this.endPosition.set(r.x, r.y, r.z);
-            this.iMesh.setMatrixAt(this.iMeshIndex, m.setPosition(npos));
+            this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix.setPosition(npos));
             this.lifetime++;
             this.iMesh.instanceMatrix.needsUpdate = true;
         }

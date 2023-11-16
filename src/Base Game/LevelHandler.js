@@ -12,6 +12,8 @@ export const USERSETTINGS = {
 	useSpriteParticles: true,
 	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
 	disablePostProcessing: false,
+	// ACCESSIBILITY
+	screenShakeIntensity: 25,
 	// DISPLAY SETTINGS
 	baseFOV: 60,
     // AUDIO SETTINGS
@@ -39,6 +41,9 @@ export class LevelHandler {
 	timeModifier
 	particleHandler
 	backlight
+	defaultBacklightColor
+	nextLevelURL
+	isCameraShaking
 
 	// Data about Player
 	playerHeight
@@ -80,6 +85,8 @@ export class LevelHandler {
 		this.playerHealth = 100;
 		this.playerCanMove = true;
 		this.lastKiller = [];
+
+		this.isCameraShaking = false;
 
 		this.globalTextureLoader = new THREE.TextureLoader()
 		this.globalModelLoader = new FBXLoader();

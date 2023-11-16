@@ -207,7 +207,7 @@ export class PlayerController {
                                 if (this.WEAPONHANDLER.isAttackAvailable) {
                                     this.WEAPONHANDLER.weaponRemainingAmmo--;
                                     if (this.WEAPONHANDLER.fireSprite) {
-                                        const weaponShakeIntensity = 0.25;
+                                        const weaponShakeIntensity = 1.25;
                                         this.WEAPONHANDLER.weaponTarget.position.set(
                                             this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
                                             this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,

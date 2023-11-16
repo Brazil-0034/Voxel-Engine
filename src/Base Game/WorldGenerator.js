@@ -58,11 +58,13 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             };
             LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
             LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
+            
+            LEVELHANDLER.nextLevelURL = JSON.parse(arg.metaData).nextLevelURL;
 
             const ambientColorData = JSON.parse(arg.metaData).ambientColor;
             const ambientColor = new THREE.Color(ambientColorData.r, ambientColorData.g, ambientColorData.b);
             worldSphere.material.color = ambientColor.clone().multiplyScalar(0.25);
-            LEVELHANDLER.backlight.color = ambientColor;
+            LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor = ambientColor;
 
             const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
             const mod = 1; // scale modifier
@@ -119,7 +121,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness * 10, 0, 2);
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
                     light.position.add(globalOffset);
-                    light.decay = 1.15;
+                    light.decay = 1.25;
                     LEVELHANDLER.scene.add(light);
                 }
 

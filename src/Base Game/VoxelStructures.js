@@ -226,7 +226,15 @@ export class VoxelChunk extends THREE.InstancedMesh {
 	}
 
 	recover() {
-		if (this.isDetail && this.isDetail == true) this.visible = true;
+		if (this.isDetail && this.isDetail == true) {
+			this.visible = true;
+			this.connectedBox.voxelChunks.forEach(chunk => {
+				if (chunk.isSideChunk == true) {
+					chunk.recover();
+					chunk.visible = true;
+				}
+			});
+		}
 		if (this.isCovered == false) {
 			if (this.coverBox.isInstancedMesh == true) {
 				const m = new THREE.Matrix4();
@@ -244,6 +252,7 @@ export class VoxelChunk extends THREE.InstancedMesh {
 			this.connectedBox.voxelChunks.forEach(chunk => {
 				if (chunk.isSideChunk == true) {
 					chunk.recover();
+					chunk.visible = true;
 				}
 			});
 		}

@@ -4,8 +4,14 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<style>
+		html {
+			/* background: rgb(130, 30, 30); */
+			background: black;
+		}
+
 		* {
 			margin: 0;
+			image-rendering: pixelated;
 		}
 
 		body {
@@ -236,7 +242,9 @@
 			height: 100%;
 			opacity: 0;
 			pointer-events: none;
-			background: radial-gradient(rgba(0,0,0,0) 75%, rgb(229, 75, 75) 100%);
+			background: url('../img/death_overlay.png');
+			background-size: 100% 100%;
+			
 		}
 
 		#healthbar {
@@ -721,6 +729,9 @@
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
 		// Player Movement Handling
 		playerController.update(delta);
+		// Camera Shake
+		if (LEVELHANDLER.isCameraShaking) LEVELHANDLER.renderer.domElement.style.transform = "translate(" + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity/2) + "px, " + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity/2) + "px)";
+		else LEVELHANDLER.renderer.domElement.style.transform = "translate(0px, 0px)";
 		// Impact Effect Softening
 		if (WEAPONHANDLER.fireSprite) {
 			WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
