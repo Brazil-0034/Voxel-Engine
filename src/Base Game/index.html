@@ -12,6 +12,7 @@
 		* {
 			margin: 0;
 			image-rendering: pixelated;
+			cursor: none;
 		}
 
 		body {
@@ -422,6 +423,98 @@
 			float: right;
 			font-weight: bold;
 		}
+
+		@keyframes expand {
+			0% {
+				width: 10px; height: 10px;
+				opacity: 0.25;
+			}
+
+			100% {
+				width: 100%; height: 100%;
+				opacity: 1;
+			}
+		}
+
+		#cover-flash {
+			z-index: 1000;
+			pointer-events: none;
+			opacity: 0;
+			position: absolute;
+			top: 50%; left: 50%;
+			transform: translate(-50%, -50%);
+			background: black;
+			border: 20px solid black;
+		}
+
+		#ammo-counter {
+			position: absolute;
+			top: 50%; left: 50%;
+			transform: translate(calc(-200% - 10px), -50%);
+			font-size: 1em;
+			color: white;
+			text-shadow: 0 0 25px black;
+			opacity: 0.15;
+			width: 20px;
+		}
+
+		#enemy-counter {
+			position: absolute;
+			top: 50%; left: 50%;
+			transform: translate(150%, -50%);
+			font-size: 1em;
+			color: white;
+			text-shadow: 0 0 25px black;
+			opacity: 0.15;
+			width: 20px;
+		}
+
+		@keyframes swing-gradient {
+			0% {
+				rotate: -2deg;
+				font-size: 1em;
+				opacity: 0.5;
+			}
+
+			25% {
+				rotate: 2deg;
+				font-size: 1.25em;
+				opacity: 1;
+			}
+
+			50% {
+				rotate: -2deg;
+				font-size: 1.25em;
+				opacity: 1;
+			}
+
+			75% {
+				rotate: 2deg;
+				font-size: 1em;
+				opacity: 0.5;
+			}
+
+			100% {
+				rotate: -2deg;
+				font-size: 1em;
+				opacity: 0.5;
+			}
+		}
+
+		#restart-helper {
+			visibility: hidden;
+			z-index: 500;
+			transform-origin: center;
+			pointer-events: none;
+			color: white;
+			animation: swing-gradient 0.75s infinite cubic-bezier(0.16, 1, 0.3, 1);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 100%;
+			height: 140%;
+			text-shadow: 0 0 25px black;
+		}
 	</style>
 
 </head>
@@ -431,6 +524,9 @@
 	<div id="loader-bg">
 		<div id="loader">LOADING</div>
 	</div>
+
+	<!-- end cover -->
+	<div id="cover-flash"></div>
 
 	<!-- DEBUG BOX -->
 	<div id="vizbox" style="display: none;">
@@ -448,7 +544,7 @@
 	<div id="ui-overlay">
 		<!-- The red part -->
 		<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#ababab" fill-rule="evenodd" stroke="none" >
+			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd" stroke="none" >
 				<!-- svg animation to pulse the healthbar color and fill and stroke -->
 				<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-1" />
 				<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-2"  />
@@ -457,10 +553,17 @@
 		</svg>
 
 		<!-- The white part -->
-		<svg class="health" width="180px" height="12px" viewBox="0 0 180 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-			<path d="M6 0L200 0L200 12L6 12L6 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25" fill-rule="evenodd" stroke="none">
+		<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25" fill-rule="evenodd" stroke="none" >
 			</path>
 		</svg>
+
+		<!-- AMMO COUNTER -->
+		<div id="ammo-counter">0</div>
+		<div id="enemy-counter">0</div>
+
+		<!-- RESTART OVERLAY -->
+		<div id="restart-helper">Press [R] to Restart</div>
 
 		<!-- PHONE -->
 		<div id="phone" style="display:none">
@@ -668,11 +771,14 @@
 	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => controls.lock());
 	LEVELHANDLER.controls = controls;
 
+	document.body.onload = () => controls.lock();
+
 	// ##########
 	// FILESYSTEM CONSTANTS
 	// ##########
 	// These mark locations in the local file system that store the map and current weapon
-	const modelURL = 'savedata';
+	// get modelURL from URL param "mapName"
+	const modelURL = new URLSearchParams(window.location.search).get("mapName");
 	const weaponURL = '../weapons/' + 'smg/smg';
 	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
 
@@ -721,12 +827,23 @@
 		document.querySelector("#interaction-text").style.opacity -= delta * 5;
 		// Update Active NPC's
 		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
+        document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
 		// Update Active Particles
 		particleHandler.update(delta);
 		LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
 		// Update Skybox Attributes
 		worldSphere.position.copy(LEVELHANDLER.camera.position);
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
+		// Check Level Completion
+		if (LEVELHANDLER.isLevelComplete == true) {
+			if (INPUTHANDLER.isKeyPressed(' ')) {
+				LEVELHANDLER.isLevelComplete = false;
+				document.querySelector("#cover-flash").style.animation = "expand 0.75s forwards";
+				setTimeout(() => {
+					window.location.href = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
+				}, 750);
+			}
+		}
 		// Player Movement Handling
 		playerController.update(delta);
 		// Camera Shake

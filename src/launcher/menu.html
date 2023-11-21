@@ -347,7 +347,7 @@
         <img src="../img/menu_logo.png" id="big-text-at-the-top" />
         <div id="left-menu-tray">
             <div class="menu-space"></div>
-            <div class="left-menu-item" onclick="/*toggleMapSelect(this)*/document.querySelector('#cover').style.animation = 'fade-in 0.25s ease-out'; setTimeout(() => {window.location.href = '../Base Game/index.html'}, 225)">Start Demo</div>
+            <div class="left-menu-item" onclick="/*toggleMapSelect(this)*/document.querySelector('#cover').style.animation = 'fade-in 0.25s ease-out'; setTimeout(() => {window.location.href = '../Base Game/intro_cutscene.html'}, 225)">Start Demo</div>
             <div style="opacity:0.5; pointer-events: none;">
                 <div class="left-menu-item">Multiplayer</div>
                 <div class="left-menu-item">Mods</div>
@@ -452,12 +452,6 @@
             // animate opacity 0->1 over 1s
             alloverlay.style.animation = "fade-in 0.15s ease-in-out";
             alloverlay.style.animationFillMode = "forwards";
-
-            // wait 1s
-            setTimeout(() => {
-                // redirect to game
-                window.location.href = "index.html";
-            }, 150);
         });
 
         const mapSelectTray = document.querySelector("#map-select-tray");

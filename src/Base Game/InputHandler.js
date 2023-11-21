@@ -39,7 +39,7 @@ export class InputHandler {
     }
 
     isKeyPressed(key) {
-        return this.activeKeys[key];
+        return this.activeKeys[key.toLowerCase()];
     }
     
 }

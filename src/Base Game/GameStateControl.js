@@ -11,6 +11,7 @@ export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.playerCanMove = false;
 	WEAPONHANDLER.setWeaponVisible(false);
 	document.querySelector("#dead-overlay").style.animation = "fade-in 0.05s ease-in forwards";
+	document.querySelector("#restart-helper").style.visibility = "visible";
 }
 
 export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
@@ -40,6 +41,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped;
 	WEAPONHANDLER.weaponModel.position.copy(WEAPONHANDLER.weaponTarget.position);
 	WEAPONHANDLER.weaponModel.children.forEach(child => { child.visible = true });
+	document.querySelector("#ammo-counter").textContent = WEAPONHANDLER.weaponRemainingAmmo
 	// Reset NPCs ...
 	LEVELHANDLER.NPCBank.forEach(thisNPC => {
 		thisNPC.sceneObject.rotation.set(thisNPC.startingRotation.x, thisNPC.startingRotation.y, thisNPC.startingRotation.z);
@@ -58,6 +60,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.killBlobs = [];
 	// Reset UI
 	document.querySelector("#dead-overlay").style.animation = "dead-fade-out 1.5s ease-out ";
+	document.querySelector("#restart-helper").style.visibility = "hidden";
 	document.querySelector("#healthbar").style.width = "200px";
 	document.querySelector("#end-screen").innerHTML = "";
 	LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
@@ -93,10 +96,12 @@ export const endGameState = function(LEVELHANDLER) {
 				<div class="right-stat" id="stat-destruction-total">0%</div>
 			</div>
 			<div class="stat-holder" style="margin-top:50px">
-				<b>Press [Spacebar] To Continue</b>
+				<b>Press [Spacebar]<br />to go to the Next Floor</b>
 			</div>
 		</div>
 	</div>`
+
+	LEVELHANDLER.isLevelComplete = true;
 
 	document.querySelector("#end-screen").innerHTML = endScreen;
 	document.querySelector("#stat-remain-health").textContent = LEVELHANDLER.playerHealth.toFixed(2) + "%";

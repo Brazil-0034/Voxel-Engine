@@ -71,6 +71,10 @@ function createWindow() {
         saveFileData = '{'
     })
 
+    ipc.on('set-savename', function (event, arg) {
+        thisSaveName = arg.saveName
+    });
+
     ipc.on('savefile-add-custom-data', function (event, arg) {
         const dataName = arg.dataName
         const stringData = arg.data
@@ -85,7 +89,7 @@ function createWindow() {
     })
 
     const writeFile = function (fileName, data) {
-        fs.writeFile('../maps/' + thisSaveName + '/' + fileName + '.json', data, function (err) {
+        fs.writeFile(thisSaveName, data, function (err) {
             if (err) {
                 return console.log(err)
             }

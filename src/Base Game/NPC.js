@@ -247,6 +247,9 @@ export class NPC {
     }
 
     shootPlayer(damage) {
+        let c = 0.25;
+        if (this.LEVELHANDLER.playerHealth < 25) c = 0.5;
+        if (rapidFloat() < c) return;
         if (this.health > 0) {
             // Update AI
             this.knowsWhrePlayerIs = true;
@@ -314,6 +317,16 @@ export class NPC {
 
         this.LEVELHANDLER.isCameraShaking = true;
         setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
+
+        const ec = document.querySelector("#enemy-counter");
+        ec.style.color = "#fc3903";
+        ec.style.opacity = 1;
+        ec.style.fontWeight = "bolder";
+        setTimeout(() => {
+            ec.style.color = "white";
+            ec.style.opacity = 0.15;
+            ec.style.fontWeight = "normal";
+        }, 150);
 
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
 

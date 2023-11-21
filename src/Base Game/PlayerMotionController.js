@@ -163,6 +163,8 @@ export class PlayerController {
                 mc.style.maxWidth = lerp(parseInt(mc.style.maxWidth), 32, 10 * delta) + "px";
 
                 // WEAPON ACTION HANDLING
+                const ac = document.querySelector("#ammo-counter");
+                ac.style.opacity = 0.15;
                 if (this.INPUTHANDLER.isLeftClicking && this.LEVELHANDLER.controls.isLocked == true) {
                     switch (this.WEAPONHANDLER.weaponType) {
                         case undefined:
@@ -201,6 +203,8 @@ export class PlayerController {
                         case "ranged":
                             if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
                             {
+                                ac.textContent = this.WEAPONHANDLER.weaponRemainingAmmo;
+                                ac.style.opacity = 0.35;
                                 // Animate Crosshair
                                 mc.style.maxWidth = lerp(parseInt(mc.style.maxWidth), 0, 10 * delta) + "px";
                                 

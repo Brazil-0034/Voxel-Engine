@@ -36,8 +36,53 @@ export const voxelMaterial = new THREE.MeshLambertMaterial({
     color: 0xffffff
 });
 voxelMaterial.dithering = true;
+let levelName;
 
 export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere) {
+    levelName = modelURL;
+
+    // Zeroeth Step: Level Text
+    const loader = new FontLoader();
+    loader.load('../opensource/fonts/Lilita/Lilita One_Regular.json', (font) => {
+        const levelTitleGeometry = new TextGeometry(levelName, {
+            font: font,
+            size: 120,
+            height: 2.5
+        });
+        const levelText = new THREE.Mesh(levelTitleGeometry, new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xababab)
+        }));
+        levelText.position.set(0, 256, 0);
+        levelText.position.add(globalOffset);
+        levelText.rotation.y = -Math.PI/4;
+        LEVELHANDLER.scene.add(levelText);
+
+        // DEMO TUTORIAL ###############
+        if (levelName == "00_TUTORIAL")
+        {
+            const assistGeometry = new TextGeometry('<-----\nSHOOT THROUGH\nTHE WALL', {
+                font: font,
+                size: 5,
+                height: 0.5
+            });
+            const assistText = new THREE.Mesh(assistGeometry, new THREE.MeshBasicMaterial({
+                color: 0xf598d1
+            }));
+            assistText.position.set(10035, 40, 9873);
+            LEVELHANDLER.scene.add(assistText);
+
+            const assistGeometry2 = new TextGeometry('----->\nSHOOT THROUGH\nTHE BOX', {
+                font: font,
+                size: 5,
+                height: 0.5
+            });
+            const assistText2 = new THREE.Mesh(assistGeometry2, new THREE.MeshBasicMaterial({
+                color: 0xdbd079
+            }));
+            assistText2.position.set(9971, 40, 9483);
+            LEVELHANDLER.scene.add(assistText2);
+        }
+    })
 
     ipcRenderer.send('list-maps');
     ipcRenderer.on('list-maps-reply', (event, arg) => {
@@ -46,7 +91,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
         // THIS CHOOSES THE MAP TO LOAD
         ipcRenderer.send('get-map-metadata', {
-            mapName: modelURL
+            mapName: levelName
         });
 
         // THIS GETS METADATA (PRELOAD)
@@ -58,6 +103,9 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             };
             LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
             LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
+
+            // DEMO TUTORIAL SPECIFIC ##########
+            if (levelName == "00_TUTORIAL")LEVELHANDLER.camera.rotation.y = -Math.PI/2;
             
             LEVELHANDLER.nextLevelURL = JSON.parse(arg.metaData).nextLevelURL;
 
@@ -152,36 +200,6 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
                 }
             });
-
-            // Final Step: Level Text
-            const loader = new FontLoader();
-            loader.load('../opensource/fonts/Lilita/Lilita One_Regular.json', (font) => {
-                const levelTitleGeometry = new TextGeometry('TEST LEVEL', {
-                    font: font,
-                    size: 120,
-                    height: 2.5
-                });
-                const levelText = new THREE.Mesh(levelTitleGeometry, new THREE.MeshBasicMaterial({
-                    color: ambientColor.clone().multiplyScalar(0.15)
-                }));
-                levelText.position.set(0, 256, 0);
-                levelText.position.add(globalOffset);
-                levelText.rotation.y = -Math.PI/4;
-                LEVELHANDLER.scene.add(levelText);
-
-                const assistGeometry = new TextGeometry('HINT:\nSHOOT THROUGH\nTHE WALL', {
-                    font: font,
-                    size: 5,
-                    height: 0.5
-                });
-                const assistText = new THREE.Mesh(assistGeometry, new THREE.MeshBasicMaterial({
-                    color: 0x998831
-                }));
-                assistText.position.set(410, 40, 75);
-                assistText.position.add(globalOffset);
-                assistText.rotation.y = -Math.PI/2;
-                LEVELHANDLER.scene.add(assistText);
-            })
         });
 
     
@@ -843,7 +861,14 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
         else console.error("Invalid Box Type: " + boxType)
 
         itemsBuiltSoFar++;
-        document.querySelector("#loader").textContent = Math.round((itemsBuiltSoFar/itemsToBuild)*100) + "%";
+        const doneness = Math.round((itemsBuiltSoFar/itemsToBuild)*100);
+        const loader = document.querySelector("#loader");
+        if (doneness < 90) {
+            loader.textContent = doneness + "%";
+        } else {
+            loader.textContent = levelName;
+            loader.style.color = "white";
+        }
         // When all objects are finished loading ...
         if (itemsBuiltSoFar >= itemsToBuild) {
             console.log("COMPLETE")

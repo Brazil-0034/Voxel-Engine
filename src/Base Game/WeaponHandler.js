@@ -87,7 +87,7 @@ export class WeaponHandler {
 							object.name = jsonModel.weaponData.name;
 							// json reads for weapon data
 							WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType = jsonModel.weaponData.type;
-							WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = jsonModel.weaponData.totalAmmo;
+							WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = document.querySelector("#ammo-counter").textContent = jsonModel.weaponData.totalAmmo;
 							WEAPONHANDLER.destroyedChunkRange = jsonModel.weaponData.damageRange;
 							WEAPONHANDLER.fireRate = jsonModel.weaponData.fireRate;
 							WEAPONHANDLER.weaponDamage = jsonModel.weaponData.weaponDamage;
@@ -195,7 +195,7 @@ export class WeaponHandler {
 		this.weaponModel.children[0].visible = toggle;
 	}
 
-	throwWeapon(voxelField) {
+	throwWeapon(voxelField) { return
 		if (this.weaponIsEquipped)
 		{
 			this.weaponIsEquipped = false;

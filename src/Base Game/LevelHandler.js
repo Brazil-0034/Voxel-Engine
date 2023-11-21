@@ -13,7 +13,7 @@ export const USERSETTINGS = {
 	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
 	disablePostProcessing: false,
 	// ACCESSIBILITY
-	screenShakeIntensity: 25,
+	screenShakeIntensity: 30,
 	// DISPLAY SETTINGS
 	baseFOV: 60,
     // AUDIO SETTINGS
@@ -43,6 +43,7 @@ export class LevelHandler {
 	backlight
 	defaultBacklightColor
 	nextLevelURL
+	isLevelComplete
 	isCameraShaking
 
 	// Data about Player
@@ -80,6 +81,7 @@ export class LevelHandler {
 		this.numCoverBoxes = 0;
 		this.numVoxels = 0;
 		this.timeModifier = 1;
+		this.isLevelComplete = false;
 		
 		this.playerHeight = 30;
 		this.playerHealth = 100;

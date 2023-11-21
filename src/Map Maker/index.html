@@ -95,7 +95,6 @@
     <script type="module">
 // ### IMPORTANT METADATA
 const editorVersion = "0.1.0"
-document.title = "WreckMesh Map Maker v" + editorVersion;
 
 // ### TOOLTIPS
 const sendTooltip = function(tip) {
@@ -249,11 +248,12 @@ const adjustCanvasSize = function () {
 window.addEventListener('resize', adjustCanvasSize);
 
 // ### ANIMATION LOOP
+let filePath = "New File";
 const clock = new THREE.Clock();
 const animate = function () {
     const delta = clock.getDelta();
     const fps = 1 / delta;
-    document.title = "WreckMesh Map Maker v" + editorVersion + " - [" + fps.toFixed(0) + " FPS]";
+    document.title = "Wreck Engine Tools - Map Maker [v" + editorVersion + " @ " + fps.toFixed(0) + " FPS] - " + filePath;
     if (selectedObjects) {
         outlinePass.selectedObjects = selectedObjects.children;
     }
@@ -263,7 +263,6 @@ const animate = function () {
     composer.render();
 };
 animate();
-
 
 //  ### SIMPLE FUNCTIONS
 
@@ -1426,6 +1425,9 @@ const saveProject = function () {
 
     ipc.on('ready-to-save', (event, arg) => {
         ipc.send('init-new-savefile');
+        ipc.send('set-savename', {
+            saveName: filePath,
+        });
         // SEND CAMERA DATA
         ipc.send('savefile-add-custom-data', {
             dataName: "cameraData",
@@ -1477,6 +1479,9 @@ const importProject = function () {
     input.type = 'file';
     input.onchange = e => {
         var file = e.target.files[0];
+        filePath = file.path;
+        console.log(filePath);
+
         var reader = new FileReader();
         reader.readAsText(file, 'UTF-8');
 
@@ -1542,6 +1547,8 @@ const importProject = function () {
             ambientColor.set(document.querySelector("#ambient-color").value);
 
             document.querySelector("#next-level-url").value = parsedJSON.nextLevelURL;
+
+            nextLevelURL = parsedJSON.nextLevelURL;
 
 
             updateLeftPanel();
