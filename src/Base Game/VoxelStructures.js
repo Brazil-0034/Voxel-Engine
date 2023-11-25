@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rapidFloat } from './EngineMath.js'; // math functions
+import { createVizSphere, rapidFloat } from './EngineMath.js'; // math functions
 import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 import { globalOffset } from './WorldGenerator.js'
 
@@ -247,7 +247,7 @@ export class VoxelChunk extends THREE.InstancedMesh {
 					this.visible = true;
 				})
 			}
-			this.isCovered = true;
+			if (!this.isDetail) this.isCovered = true;
 			this.visible = false;
 			this.connectedBox.voxelChunks.forEach(chunk => {
 				if (chunk.isSideChunk == true) {
@@ -256,6 +256,7 @@ export class VoxelChunk extends THREE.InstancedMesh {
 				}
 			});
 		}
+		this.material.emissiveIntensity = this.material.initialEmissiveIntensity;
 	}
 }
 

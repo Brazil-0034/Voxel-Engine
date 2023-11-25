@@ -515,6 +515,40 @@
 			height: 140%;
 			text-shadow: 0 0 25px black;
 		}
+
+		@keyframes score-animate-good {
+			0% {
+				transform: scale(1);
+				color: gold;
+			}
+
+			50% {
+				transform: scale(1.15);
+				color: rgb(255, 193, 68);
+			}
+
+			100% {
+				transform: scale(1);
+				color: gold;
+			}
+		}
+
+		@keyframes score-animate-bad {
+			0% {
+				color: rgb(188, 49, 49);
+				transform: scale(1, 1.25);
+			}
+
+			50% {
+				color: rgb(255, 68, 68);
+				transform: scale(1, 1);
+			}
+
+			100% {
+				color: rgb(188, 49, 49);
+				transform: scale(1, 1.25);
+			}
+		}
 	</style>
 
 </head>
@@ -728,7 +762,7 @@
 	// Ambient Occlusion
 	const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
 	n8aopass.setQualityMode("Ultra");
-	n8aopass.configuration.intensity = 1;
+	n8aopass.configuration.intensity = 3;
 	n8aopass.configuration.radius = 64;
 	n8aopass.configuration.halfRes = true;
 	n8aopass.configuration.gammaCorrection = false;
@@ -823,8 +857,9 @@
 		const delta = clock.getDelta() * LEVELHANDLER.timeModifier;
 		// Debug Visualizer
 		updateDebugViz(delta);
-		// Update UI Text
+		// Update UI
 		document.querySelector("#interaction-text").style.opacity -= delta * 5;
+		if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);
 		// Update Active NPC's
 		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
         document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
@@ -840,7 +875,9 @@
 				LEVELHANDLER.isLevelComplete = false;
 				document.querySelector("#cover-flash").style.animation = "expand 0.75s forwards";
 				setTimeout(() => {
-					window.location.href = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
+					let target = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
+					if (LEVELHANDLER.nextLevelURL.substring(0, 8) == "CUTSCENE") target = LEVELHANDLER.nextLevelURL.substring(9, LEVELHANDLER.nextLevelURL.length) + "_cutscene.html";
+					window.location.href = target;
 				}, 750);
 			}
 		}

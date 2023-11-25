@@ -45,6 +45,7 @@ export class LevelHandler {
 	nextLevelURL
 	isLevelComplete
 	isCameraShaking
+	levelLights
 
 	// Data about Player
 	playerHeight
@@ -82,6 +83,7 @@ export class LevelHandler {
 		this.numVoxels = 0;
 		this.timeModifier = 1;
 		this.isLevelComplete = false;
+		this.levelLights = [];
 		
 		this.playerHeight = 30;
 		this.playerHealth = 100;

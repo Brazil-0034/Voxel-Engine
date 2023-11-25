@@ -1,5 +1,5 @@
 appId: works.nowaythis
-productName: WreckMesh
+productName: WRECK
 directories:
   buildResources: build
 files:
@@ -8,7 +8,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: WreckMesh
+  executableName: WRECK
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

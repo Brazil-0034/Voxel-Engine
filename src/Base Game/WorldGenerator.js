@@ -69,18 +69,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 color: 0xf598d1
             }));
             assistText.position.set(10035, 40, 9873);
-            LEVELHANDLER.scene.add(assistText);
-
-            const assistGeometry2 = new TextGeometry('----->\nSHOOT THROUGH\nTHE BOX', {
-                font: font,
-                size: 5,
-                height: 0.5
-            });
-            const assistText2 = new THREE.Mesh(assistGeometry2, new THREE.MeshBasicMaterial({
-                color: 0xdbd079
-            }));
-            assistText2.position.set(9971, 40, 9483);
-            LEVELHANDLER.scene.add(assistText2);
+            // LEVELHANDLER.scene.add(assistText);
         }
     })
 
@@ -105,7 +94,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
 
             // DEMO TUTORIAL SPECIFIC ##########
-            if (levelName == "00_TUTORIAL")LEVELHANDLER.camera.rotation.y = -Math.PI/2;
+            // if (levelName == "00_TUTORIAL") LEVELHANDLER.camera.rotation.y = -Math.PI/2;
             
             LEVELHANDLER.nextLevelURL = JSON.parse(arg.metaData).nextLevelURL;
 
@@ -170,6 +159,8 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
                     light.position.add(globalOffset);
                     light.decay = 1.25;
+                    light.baseIntensity = light.intensity;
+                    LEVELHANDLER.levelLights.push(light);
                     LEVELHANDLER.scene.add(light);
                 }
 
@@ -302,6 +293,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             );
             instancedWorldModel.material.emissive = boxColor;
             instancedWorldModel.material.emissiveIntensity = lightBrightness;
+            instancedWorldModel.material.initialEmissiveIntensity = lightBrightness;
             instancedWorldModel.visible = false;
             instancedWorldModel.useCoverBox = true;
             instancedWorldModel.name = chunkCounter.toString();
@@ -866,7 +858,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
         if (doneness < 90) {
             loader.textContent = doneness + "%";
         } else {
-            loader.textContent = levelName;
+            loader.innerHTML = levelName.substring(3).replaceAll('_', ' ');
             loader.style.color = "white";
         }
         // When all objects are finished loading ...

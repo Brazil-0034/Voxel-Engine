@@ -94,7 +94,6 @@ function createWindow() {
                 return console.log(err)
             }
             console.log('The file was saved! - [' + fileName + '.json]')
-            if (fileName.includes('chunk')) mainWindow.webContents.send('ready-to-save-voxelchunk')
         })
     }
 }

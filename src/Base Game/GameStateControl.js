@@ -32,6 +32,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		dv.chunk.recover();
 		voxelField.set(dv.position.x, dv.position.y, dv.position.z, 1, dv.indexInChunk, dv.chunk);
 	}
+	LEVELHANDLER.levelLights.forEach(light => {light.intensity = light.baseIntensity});
 	resetDisplacedVoxels();
 	// Reset Weapon
 	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
@@ -95,18 +96,65 @@ export const endGameState = function(LEVELHANDLER) {
 				<div class="left-stat">LEVEL DESTRUCTION:</div>
 				<div class="right-stat" id="stat-destruction-total">0%</div>
 			</div>
-			<div class="stat-holder" style="margin-top:50px">
-				<b>Press [Spacebar]<br />to go to the Next Floor</b>
+			<div id="bonuses"></div>
+			<div class="stat-holder">
+				<div class="left-stat">TOTAL SCORE:</div>
+				<div class="right-stat" id="stat-score-total">0</div>
+			</div>
+			<div id="tips"></div>
+			<div class="stat-holder" style="margin-top: 50px">
+				<b id="nextkey">Press <font style="color:gold">[Spacebar]</font><br />to go to the Next Floor</b>
 			</div>
 		</div>
 	</div>`
 
-	LEVELHANDLER.isLevelComplete = true;
-
 	document.querySelector("#end-screen").innerHTML = endScreen;
-	document.querySelector("#stat-remain-health").textContent = LEVELHANDLER.playerHealth.toFixed(2) + "%";
-	document.querySelector("#stat-time-total").textContent = internalTimer.getElapsedTime().toFixed(2) + "s";
-	document.querySelector("#stat-destruction-total").textContent = (displacedVoxels.length / LEVELHANDLER.numVoxels).toFixed(4) + "%";
+
+	if (LEVELHANDLER.playerHealth <= 10) {
+		document.querySelector("#bonuses").innerHTML += `
+		<div class="stat-holder">
+			<div class="right-stat" id="clutch-bonus"><b>+ 180pts</b> <i style="color: gold">(Clutch Bonus)</i></div>
+		</div>`;
+	}
+
+	document.querySelectorAll(".right-stat")[document.querySelectorAll(".right-stat").length-2].style.borderBottom = "5px solid white";
+
+	const numDestroyedVoxels = displacedVoxels.length;
+	const remainingHealth = Math.ceil(LEVELHANDLER.playerHealth);
+
+	document.querySelector("#stat-remain-health").textContent = remainingHealth + " %";
+	document.querySelector("#stat-time-total").textContent = "÷ " + internalTimer.getElapsedTime().toFixed(2) + " s";
+	document.querySelector("#stat-destruction-total").textContent = "× " + numDestroyedVoxels + " blocks";
+
+	const scorebox = document.querySelector("#stat-score-total");
+	scorebox.textContent = Math.ceil(((remainingHealth / 100) / internalTimer.getElapsedTime()) * (numDestroyedVoxels) + (LEVELHANDLER.playerHealth <= 10 ? 180 : 0)) + " POINTS";
+
+	const score = parseInt(scorebox.textContent);
+	if (score > 20) LEVELHANDLER.isLevelComplete = true;
+
+	setTimeout(() => {
+		if (score >= 200) {
+			scorebox.style.animation = "score-animate-good 0.45s infinite"
+			scorebox.textContent += " 😁";
+		}
+		else {
+			scorebox.style.animation = "score-animate-bad 0.45s infinite"
+			if (score < 100) scorebox.textContent += " 🤬";
+			else scorebox.textContent += " ☹";
+			document.querySelector("#nextkey").innerHTML = "<b>Press <font style='color:rgb(188, 49, 49); text-shadow: 0px 0px 10px rgb(188, 49, 49)'>[R]</font> to Try Again</b>";
+			document.querySelector("#tips").innerHTML += `
+			<div class="stat-holder">
+				<div class="right-stat"><sup style="font-size: 75%">(MINIMUM: 200)</sup></div>
+			</div>`;
+			if (internalTimer.getElapsedTime() > 7) {
+				document.querySelector("#tips").innerHTML += `
+				<div class="stat-holder">
+					<div class="right-stat"><sup style="font-size: 75%"><b>TIP:</b> GO FASTER</sup></div>
+				</div>`;
+			}
+			
+		}
+	}, 2000);
 
 	// for each stat-holder, increment animation-delay by 1
 	for (let i = 0; i < document.querySelectorAll(".stat-holder").length; i++) {

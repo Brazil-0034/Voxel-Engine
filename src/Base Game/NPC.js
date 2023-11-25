@@ -258,6 +258,7 @@ export class NPC {
             // Animations
             this.shootBar.visible = true;
             this.shootBar.material.map.offset.y -= damage * 15;
+            document.querySelector("#dead-overlay").style.opacity = 1;
             document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
             for (let i = 1; i < 3; i++)
             {
