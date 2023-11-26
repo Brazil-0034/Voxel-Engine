@@ -58,18 +58,15 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
         LEVELHANDLER.scene.add(levelText);
 
         // DEMO TUTORIAL ###############
-        if (levelName == "00_TUTORIAL")
+        if (levelName == "00_APARTMENT_01")
         {
-            const assistGeometry = new TextGeometry('<-----\nSHOOT THROUGH\nTHE WALL', {
-                font: font,
-                size: 5,
-                height: 0.5
-            });
-            const assistText = new THREE.Mesh(assistGeometry, new THREE.MeshBasicMaterial({
-                color: 0xf598d1
+            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(85, 40), new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                map: LEVELHANDLER.globalTextureLoader.load('../img/shoot_thru_wall.png'),
+                transparent: true
             }));
-            assistText.position.set(10035, 40, 9873);
-            // LEVELHANDLER.scene.add(assistText);
+            assistObj.position.set(10020, 30, 9842);
+            LEVELHANDLER.scene.add(assistObj);
         }
     })
 
@@ -93,9 +90,6 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
             LEVELHANDLER.camera.rotation.set(mapCameraData.rotation.x, mapCameraData.rotation.y, mapCameraData.rotation.z);
 
-            // DEMO TUTORIAL SPECIFIC ##########
-            // if (levelName == "00_TUTORIAL") LEVELHANDLER.camera.rotation.y = -Math.PI/2;
-            
             LEVELHANDLER.nextLevelURL = JSON.parse(arg.metaData).nextLevelURL;
 
             const ambientColorData = JSON.parse(arg.metaData).ambientColor;
@@ -169,8 +163,8 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     // sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
                     if (mapMakerObject.rotation.y < 0.1 && mapMakerObject.rotation.y > -0.1) mapMakerObject.rotation.y = Math.PI;
                     const thisNPC = new NPC(
-                        'swat',
-                        '../character_models/swat_idle.png',
+                        'thug',
+                        '../character_models/thug_idle.png',
                         new THREE.Vector3(position.x, 1, position.z),
                         -mapMakerObject.rotationIntervals,
                         100 + rapidFloat() * 100,
@@ -192,15 +186,6 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 }
             });
         });
-
-    
-        const messages = document.getElementsByClassName("message");
-        console.log(messages);
-        for (let i = 0; i < messages.length; i++)
-        {
-            const message = messages[i];
-            message.classList.add("pop-up");
-        }
     });
 }
 

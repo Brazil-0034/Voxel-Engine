@@ -15,7 +15,7 @@ export const USERSETTINGS = {
 	// ACCESSIBILITY
 	screenShakeIntensity: 30,
 	// DISPLAY SETTINGS
-	baseFOV: 60,
+	baseFOV: 75,
     // AUDIO SETTINGS
     SFXVolume: 5 / 100 // (value / 100)
 }

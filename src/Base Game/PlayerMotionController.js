@@ -29,6 +29,8 @@ export class PlayerController {
 
     raycaster
 
+    isFirstUpdate
+
     // Initialize Controller ...
     constructor(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster) {
         this.controls = controls;
@@ -37,6 +39,7 @@ export class PlayerController {
         this.INPUTHANDLER = INPUTHANDLER;
         this.WEAPONHANDLER = WEAPONHANDLER;
         this.raycaster = raycaster;
+        this.isFirstUpdate = true;
 
         this.playerMotion = {
             xAxis: 0,
@@ -91,7 +94,7 @@ export class PlayerController {
                         //     this.WEAPONHANDLER.weaponTarget.rotation.z = Math.PI/2;
                         // }
                     }
-                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight) != null) this.playerMotion.zAxis *= -0.0001;
+                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight - 2) != null) this.playerMotion.zAxis *= -0.0001;
                 }
                 // REAR COLLISION CHECKS
                 if (this.playerMotion.zAxis > 0) {
@@ -172,34 +175,6 @@ export class PlayerController {
                         default:
                             console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
                             break;
-                        case "melee":
-                            // move weaponModel position forward relative to player LEVELDATA.camera
-                            if (this.WEAPONHANDLER.isAttackAvailable) {
-                                this.WEAPONHANDLER.weaponTarget.position.z = this.WEAPONHANDLER.weaponPosition.z - 25;
-
-                                this.calculateWeaponShot();
-    
-                                this.raycaster.far = this.WEAPONHANDLER.weaponRange;
-                                this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-                                const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
-    
-                                for (let i = 0; i < intersects.length; i++) {
-                                    const mainObj = intersects[i].object;
-                                    if (mainObj.npcHandler.health > 0) {
-                                        // Register Hit
-                                        mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
-                                    }
-                                    // Squelch!
-                                    this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
-                                    // TODO - create a shoot effect
-                                }
-
-                                this.WEAPONHANDLER.isAttackAvailable = false;
-                                setTimeout(() => {
-                                    this.WEAPONHANDLER.isAttackAvailable = true
-                                }, 200, this.WEAPONHANDLER);
-                            }
-                            break;
                         case "ranged":
                             if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
                             {
@@ -236,7 +211,7 @@ export class PlayerController {
         
                                     this.raycaster.far = this.WEAPONHANDLER.weaponRange;
                                     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.npcObject));
         
                                     for (let i = 0; i < intersects.length; i++) {
                                         const mainObj = intersects[i].object;

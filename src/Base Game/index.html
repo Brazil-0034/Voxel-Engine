@@ -577,20 +577,22 @@
 	<div id="dead-overlay"></div>
 	<div id="ui-overlay">
 		<!-- The red part -->
-		<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd" stroke="none" >
-				<!-- svg animation to pulse the healthbar color and fill and stroke -->
-				<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-1" />
-				<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-2"  />
-				<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-3"  />
-			</path>
-		</svg>
+		<div style="display:none">
+			<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd" stroke="none" >
+					<!-- svg animation to pulse the healthbar color and fill and stroke -->
+					<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-1" />
+					<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-2"  />
+					<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-3"  />
+				</path>
+			</svg>
 
-		<!-- The white part -->
-		<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-			<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25" fill-rule="evenodd" stroke="none" >
-			</path>
-		</svg>
+			<!-- The white part -->
+			<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25" fill-rule="evenodd" stroke="none" >
+				</path>
+			</svg>
+		</div>
 
 		<!-- AMMO COUNTER -->
 		<div id="ammo-counter">0</div>
@@ -692,7 +694,7 @@
 	// ##########
 	const LEVELHANDLER = new LevelHandler(
 		new THREE.Scene(),
-		new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 5000)
+		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
 	);
 	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
 	const INPUTHANDLER = new InputHandler();
@@ -859,7 +861,7 @@
 		updateDebugViz(delta);
 		// Update UI
 		document.querySelector("#interaction-text").style.opacity -= delta * 5;
-		if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);
+		if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = 1 - (LEVELHANDLER.playerHealth / 100);/* clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);*/
 		// Update Active NPC's
 		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
         document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;

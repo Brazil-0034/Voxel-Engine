@@ -50,7 +50,8 @@ export class NPC {
         LEVELHANDLER.globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
             // STEP 1: ASSIGN MATERIALS
             this.sceneObject = object;
-            this.npcObject = object.children[0];
+            if (object.children[0].type == "SkinnedMesh") this.npcObject = object.children[0];
+            else this.npcObject = object.children[1];
             this.npcObject.npcHandler = this;
             this.sceneObject.traverse(function (childObject) {
                 if (childObject.isMesh) {
@@ -108,7 +109,14 @@ export class NPC {
                     visible: false
                 })
             );
-            const headBone = this.sceneObject.children[1].children[0].children[0].children[0].children[0].children[0].children[0].children[0] || this.sceneObject.children[1].children[0].children[0].children[0].children[0].children[0].children[0];
+            
+            let headBone;
+            const bones = this.npcObject.skeleton.bones;
+            for (let i = 0; i < bones.length; i++)
+            {
+                if (!headBone) headBone = bones[i];
+                if (bones[i].position.y > headBone.position.y) headBone = bones[i];
+            }
 
             headBone.attach(this.fovConeMesh);
             
@@ -376,6 +384,15 @@ export class NPC {
         if (this.LEVELHANDLER.totalNPCs == 0) {
             endGameState(this.LEVELHANDLER);
         }
+
+        const killUIEffect = document.createElement("div");
+        killUIEffect.innerHTML = `<img src="../img/diamond-expand.gif" style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 64px; z-index: 1000; opacity: 0.25">`;
+        document.body.appendChild(killUIEffect);
+        setTimeout(() => {
+            killUIEffect.remove();
+        }, 250);
+
+        
     }
 }
 

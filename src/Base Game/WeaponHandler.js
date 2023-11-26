@@ -64,7 +64,6 @@ export class WeaponHandler {
 				object.scale.divideScalar(50);
 				WEAPONHANDLER.weaponModel = object;
 				LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
-				WEAPONHANDLER.weaponModel.material.map = LEVELHANDLER.globalTextureLoader.load('../weapons/fists/fists.png');
 				WEAPONHANDLER.weaponModel.rotation.set(Math.PI/2,Math.PI/2,Math.PI/2)
 			}
 		);
