@@ -63,8 +63,6 @@ canvas {
 }
 
 #interaction-text {
-    --border-angle: 0turn;
-    --border-size: 1px;
     /* center */
     position: absolute;
     top: 80%;
@@ -74,22 +72,32 @@ canvas {
     box-shadow: 0px 0px 35px #ffffff6b;
     z-index: 1000;
     transform: translateX(-50%);
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.25);
+    padding: 10px 10px;
     font-size: 75%;
-    background-image: conic-gradient(from var(--border-angle),
+
+    background: url('../img/backdrop.gif');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    image-rendering: pixelated;
+
+    filter: sepia(1);
+
+    /* --border-angle: 0turn;
+    --border-size: 1px; */
+    /* background-image: conic-gradient(from var(--border-angle),
             #000, #000, #000),
-        conic-gradient(from var(--border-angle), transparent 20%, rgb(255, 251, 0), rgb(255, 179, 0));
+        conic-gradient(from var(--border-angle), transparent 20%, rgb(255, 255, 255), rgb(255, 238, 200));
 
     background-size: calc(100% - (var(--border-size) * 2)) calc(100% - (var(--border-size) * 2)), cover;
 
     background-position: center center;
-    background-repeat: no-repeat;
+    background-repeat: no-repeat; */
 
-    animation: bg-spin 0.75s linear infinite;
+    /* animation: bg-spin 0.75s linear infinite; */
 }
 
-@property --border-angle {
+/* @property --border-angle {
     syntax: "<angle>";
     inherits: true;
     initial-value: 0turn;
@@ -102,8 +110,7 @@ canvas {
     }
 }
 
-
-#help-text {
+*/ #help-text {
     /* bottom center */
     position: absolute;
     bottom: 0;
@@ -277,6 +284,15 @@ canvas {
     }
 }
 
+#end-screen {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
 #dead-overlay {
     overflow: hidden;
     position: absolute;
@@ -297,9 +313,8 @@ canvas {
 
 .health {
     position: absolute;
-    left: 50%;
+    left: 20px;
     bottom: 20px;
-    transform: translate(-50%, 0);
 }
 
 #phone {
@@ -349,10 +364,12 @@ canvas {
 @keyframes slide-in-right {
     0% {
         transform: translateX(-100%);
+        background: rgba(0, 0, 0, 0.85);
     }
 
     100% {
         transform: translateX(0%);
+        background: rgba(0, 0, 0, 0.0);
     }
 }
 
@@ -385,13 +402,10 @@ canvas {
 }
 
 #widebar {
-    background: rgba(0, 0, 0, 0.75);
     width: 100%;
-    height: 120px;
+    height: 100%;
 
     position: absolute;
-    top: calc(50% - 60px);
-    transform: translateY(-50%);
 
     animation: slide-in-right 1.15s cubic-bezier(0.16, 1, 0.3, 1);
     animation-fill-mode: forwards;
@@ -402,7 +416,7 @@ canvas {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 100%;
+    max-width: 75%;
 
     /* text-align: center;
     color: white;
@@ -435,7 +449,7 @@ canvas {
 
     animation: shift-up 1s cubic-bezier(0.16, 1, 0.3, 1);
     animation-fill-mode: forwards;
-    animation-delay: 1.85s;
+    animation-delay: 2.5s;
 }
 
 #level-stats {
@@ -473,28 +487,43 @@ canvas {
 
 @keyframes expand {
     0% {
-        width: 10px;
-        height: 10px;
-        opacity: 0.25;
+        opacity: 1;
+    }
+
+    20% {
+        opacity: 0;
+    }
+
+    40% {
+        opacity: 1;
+        background: black;
+        background-size: 100% 100%;
     }
 
     100% {
-        width: 100%;
-        height: 100%;
         opacity: 1;
+        background: black;
+        background-size: 100% 100%;
     }
 }
 
 #cover-flash {
-    z-index: 1000;
+    z-index: 2000;
     pointer-events: none;
     opacity: 0;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: black;
     border: 20px solid black;
+
+    width: 100%;
+    height: 100%;
+
+    background: url("../img/end_screen.gif");
+    background-size: 1.5% 100%;
+    background-position: center;
+    background-repeat: repeat;
 }
 
 #ammo-counter {

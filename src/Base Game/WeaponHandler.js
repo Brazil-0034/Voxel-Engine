@@ -57,7 +57,7 @@ export class WeaponHandler {
 	// ill look into it later.
 
 	// This will add the player's weapon model to the scene
-	generateWeaponModel(basePath) {
+	pickupWeapon(basePath) {
 		const LEVELHANDLER = this.LEVELHANDLER;
 		const WEAPONHANDLER = this;
 		// Initialize with HANDS
@@ -65,6 +65,7 @@ export class WeaponHandler {
 			'../weapons/fists/fists.fbx',
 			function (object) {
 				object.scale.divideScalar(50);
+				if (WEAPONHANDLER.weaponModel) LEVELHANDLER.scene.remove(WEAPONHANDLER.weaponModel);
 				WEAPONHANDLER.weaponModel = object;
 				console.log(WEAPONHANDLER.weaponModel);
 				LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
@@ -74,16 +75,16 @@ export class WeaponHandler {
 		// Then, load the weapon metadata from the .json file
 		if (basePath)
 		{
-			this.pickupWeapon(basePath);
+			this.generateWeaponModel(basePath);
 		}
     }
 
-	pickupWeapon = function(basePath) {
+	generateWeaponModel = function(basePath) {
 		let isNothing = false;
 		if (basePath == "nothing") isNothing = true;
 		basePath = '../weapons/' + basePath + '/' + basePath;
 		const LEVELHANDLER = this.LEVELHANDLER;
-		LEVELHANDLER.SFXPlayer.playSound("rustleSound", false);
+		if (!isNothing) LEVELHANDLER.SFXPlayer.playSound("rustleSound", false);
 		const WEAPONHANDLER = this;
 		const jsonLoader = new THREE.FileLoader();
 		jsonLoader.load(
@@ -99,7 +100,7 @@ export class WeaponHandler {
 						object.isHoldableWeapon = true;
 						WEAPONHANDLER.weaponModel.add(object);
 						WEAPONHANDLER.weaponModel.scale.y = 0;
-						WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped = true;
+						if (!isNothing) WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped = true;
 						// Load in the texture for the weapon
 						if (!jsonModel.weaponData.hasNoTexture) object.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
 						// Adjust the scale from standard magicavoxel scaling
@@ -236,7 +237,9 @@ export class WeaponHandler {
 	
 			// Generate a Weapon Clone
 			const weaponClone = this.weaponModel.clone();
-			weaponClone.remove(weaponClone.children[3]);
+			weaponClone.children.forEach((child) => {
+				if (child.name == "hand") child.visible = false;
+			});
 			this.setWeaponVisible(false);
 			weaponClone.children[0].material = this.weaponModel.children[0].material.clone();
 			weaponClone.position.copy(this.LEVELHANDLER.camera.position);
@@ -248,14 +251,15 @@ export class WeaponHandler {
 			}
 			else
 			{
-				intersectPosition.set(this.LEVELHANDLER.camera.position.x + cameraDir.x * 500, this.LEVELHANDLER.camera.position.y + cameraDir.y * 500, this.LEVELHANDLER.camera.position.z + cameraDir.z * 500);
+				intersectPosition.set(this.LEVELHANDLER.camera.position.x + cameraDir.x * 100, this.LEVELHANDLER.camera.position.y + cameraDir.y * 100, this.LEVELHANDLER.camera.position.z + cameraDir.z * 100);
 			}
 			// Raycast for Enemies
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[0]));
+			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[1]));
 			intersects.forEach((intersect) => {
 				if (intersect.distance > this.LEVELHANDLER.camera.position.distanceTo(intersectPosition)) return;
+				console.log(intersect.object);
 				intersect.object.npcHandler.depleteHealth(100);
 			});
 			// Prevent Shooting
@@ -280,10 +284,8 @@ export class WeaponHandler {
 					}
 				}
 			}, 10);
-	
-			this.weaponType = "melee";
-			this.weaponRange = 50;
-			this.hideMuzzleFlash = true;
+
+			this.pickupWeapon("nothing");
 		}
 	}
 

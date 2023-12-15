@@ -68,6 +68,18 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             assistObj.rotation.y = -Math.PI/2;
             LEVELHANDLER.scene.add(assistObj);
         }
+        if (levelName.substring(0,2) == "02") {
+            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(65, 55), new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                map: LEVELHANDLER.globalTextureLoader.load('../img/break_wall.png'),
+                transparent: true
+            }));
+            assistObj.position.set(9970, 30, 9983);
+            assistObj.rotation.y = Math.PI/2;
+            assistObj.visible = false;
+            LEVELHANDLER.assistObj = assistObj;
+            LEVELHANDLER.scene.add(assistObj);
+        }
     })
 
     ipcRenderer.send('list-maps');

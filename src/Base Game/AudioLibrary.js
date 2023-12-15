@@ -39,7 +39,7 @@ export class SoundEffectPlayer {
         })
         this.rustleSound = new Howl({
             src: ['../sfx/rustle.mp3'],
-            volume: USERSETTINGS.SFXVolume * 16
+            volume: USERSETTINGS.SFXVolume * 25
         })
 
         this.killSounds = [
@@ -57,7 +57,7 @@ export class SoundEffectPlayer {
 
         this.shootSound = new Howl({
             src: ['../sfx/heavy_shoot.ogg'],
-            volume: USERSETTINGS.SFXVolume * 2,
+            volume: USERSETTINGS.SFXVolume * 10,
             loop: true
         });
         this.isPlayingShootSound = false;

@@ -30,6 +30,16 @@
     Failed to load video <a href="index.html?mapName=00_INN_LOBBY">Skip</a>
 </video>
 <script>
+	// ##########
+	// META
+	// ##########
+	navigator.mediaSession.setActionHandler('play', function() { return });
+	navigator.mediaSession.setActionHandler('pause', function() { return });
+	navigator.mediaSession.setActionHandler('seekbackward', function() { return });
+	navigator.mediaSession.setActionHandler('seekforward', function() { return });
+	navigator.mediaSession.setActionHandler('previoustrack', function() { return });
+	navigator.mediaSession.setActionHandler('nexttrack', function() { return });
+
     setTimeout(() => {
         window.location.href = "index.html?mapName=00_INN_LOBBY"
     }, 23 * 1000);

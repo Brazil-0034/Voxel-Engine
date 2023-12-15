@@ -34,6 +34,9 @@ export class NPC {
     WEAPONHANDLER // how far he can see
     LEVELHANDLER // what it sound like
 
+    blob // death particle handler
+    blobs // individual daeth particles
+
     // This will build the NPC (setting idle/run animation and loading model into scene)
     constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType) {
         this.startingPosition = position;
@@ -162,6 +165,58 @@ export class NPC {
             this.shootBar.position.z += 32;
             this.shootBar.position.y += 4;
             this.shootBar.visible = false;
+
+            // blob handling
+            const count = 250;
+            const scale = 2;
+            this.blob = new THREE.InstancedMesh(
+                new THREE.BoxGeometry(scale, scale, scale),
+                new THREE.MeshLambertMaterial({color: new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0)}),
+                count
+            );
+            this.blobs = [];
+            this.blob.frustumCulled = false;
+            for (let i = 0; i < count; i++)
+            {
+                // const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() * 2 - 1, rapidFloat() * 2 - 1).normalize();
+                // determine direction
+                const dir = new THREE.Vector3();
+                this.LEVELHANDLER.camera.getWorldDirection(dir);
+                const variance = 1;
+                dir.x += rapidFloat() * variance - variance/2;
+                dir.y += rapidFloat() * variance - variance/2;
+                dir.z += rapidFloat() * variance - variance/2;
+    
+                const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
+                const rot = new THREE.Euler(
+                    rapidFloat() * Math.PI * 2,
+                    rapidFloat() * Math.PI * 2,
+                    rapidFloat() * Math.PI * 2
+                );
+                const initScale = 1 + (3 * rapidFloat());
+    
+                const r = this.voxelField.raycast(
+                    pos,
+                    dir,
+                    1000
+                );
+                let endPosition;
+                if (r != null) endPosition = new THREE.Vector3(r.x, r.y, r.z);
+    
+                this.blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
+                this.blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.65, 1), 0, 0));
+                const thisBlob = new killBlob(
+                    dir,
+                    initScale,
+                    250 + (rapidFloat() * 100),
+                    endPosition,
+                    this.blob,
+                    i,
+                    this.voxelField
+                );
+                this.blobs.push(thisBlob);
+            }
+            this.LEVELHANDLER.scene.add(this.blob);
 
         });
 
@@ -295,6 +350,7 @@ export class NPC {
         if (this.LEVELHANDLER.playerHealth <= 0 && this.health > 0) {
             // Freeze player motion and interactivity
             pauseGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
+            this.LEVELHANDLER.deathCount += 1;
             // Fix gun sfx bug
             this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
             // Outline the killer
@@ -327,6 +383,7 @@ export class NPC {
         this.floorgore.visible = true;
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
         this.LEVELHANDLER.totalNPCs--;
+        this.LEVELHANDLER.killBlobs.push(...this.blobs);
 
         this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
 
@@ -345,56 +402,6 @@ export class NPC {
 
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
 
-        const count = 250;
-        const scale = 2;
-        const blob = new THREE.InstancedMesh(
-            new THREE.BoxGeometry(scale, scale, scale),
-            new THREE.MeshLambertMaterial({color: new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0)}),
-            count
-        );
-        blob.frustumCulled = false;
-        for (let i = 0; i < count; i++)
-        {
-            // const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() * 2 - 1, rapidFloat() * 2 - 1).normalize();
-            // determine direction
-            const dir = new THREE.Vector3();
-            this.LEVELHANDLER.camera.getWorldDirection(dir);
-            const variance = 1;
-            dir.x += rapidFloat() * variance - variance/2;
-            dir.y += rapidFloat() * variance - variance/2;
-            dir.z += rapidFloat() * variance - variance/2;
-
-            const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
-            const rot = new THREE.Euler(
-                rapidFloat() * Math.PI * 2,
-                rapidFloat() * Math.PI * 2,
-                rapidFloat() * Math.PI * 2
-            );
-            const initScale = 3 + (3 * rapidFloat());
-
-            const r = this.voxelField.raycast(
-                pos,
-                dir,
-                1000
-            );
-            let endPosition;
-            if (r != null) endPosition = new THREE.Vector3(r.x, r.y, r.z);
-
-            blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
-            blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.65, 1), 0, 0));
-            const thisBlob = new killBlob(
-                dir,
-                initScale,
-                250 + (rapidFloat() * 100),
-                endPosition,
-                blob,
-                i,
-                this.voxelField
-            );
-            this.LEVELHANDLER.killBlobs.push(thisBlob);
-        }
-        this.LEVELHANDLER.scene.add(blob);
-
         if (this.LEVELHANDLER.totalNPCs == 0) {
             endGameState(this.LEVELHANDLER);
         }
@@ -405,8 +412,6 @@ export class NPC {
         setTimeout(() => {
             killUIEffect.remove();
         }, 250);
-
-        
     }
 }
 

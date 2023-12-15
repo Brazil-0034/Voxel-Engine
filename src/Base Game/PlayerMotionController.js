@@ -79,7 +79,7 @@ export class PlayerController {
             {
                 // FORWARDS COLLISION CHECKS
                 const collisionRadius = 15;
-                const footPosition = new THREE.Vector3(this.LEVELHANDLER.camera.position.x, this.LEVELHANDLER.camera.position.y - this.LEVELHANDLER.playerHeight + 5, this.LEVELHANDLER.camera.position.z);
+                const footPosition = new THREE.Vector3(this.LEVELHANDLER.camera.position.x, this.LEVELHANDLER.camera.position.y - this.LEVELHANDLER.playerHeight + 10, this.LEVELHANDLER.camera.position.z);
                 if (this.playerMotion.zAxis < 0) {
                     const camForwardDirection = new THREE.Vector3();
                     this.LEVELHANDLER.camera.getWorldDirection(camForwardDirection);
@@ -94,7 +94,7 @@ export class PlayerController {
                         //     this.WEAPONHANDLER.weaponTarget.rotation.z = Math.PI/2;
                         // }
                     }
-                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight - 2) != null) this.playerMotion.zAxis *= -0.0001;
+                    else if (voxelField.raycast(new THREE.Vector3(footPosition.x, footPosition.y, footPosition.z).add(camForwardDirection.multiplyScalar(2)), new THREE.Vector3(0, 1, 0), this.LEVELHANDLER.playerHeight - 10) != null) this.playerMotion.zAxis *= -0.0001;
                 }
                 // REAR COLLISION CHECKS
                 if (this.playerMotion.zAxis > 0) {
@@ -301,13 +301,11 @@ export class PlayerController {
             }
 
             // Weapon Pickups
-            let isNearPickup = false;
             this.LEVELHANDLER.weaponPickups.forEach(pickup => {
                 if (pickup.position.distanceTo(this.LEVELHANDLER.camera.position.clone().setY(1)) < 75)
                 {
                     if (pickup.isActive)
                     {
-                        isNearPickup = true;
                         setInteractionText("[E] PICK UP WEAPON");
                         if (this.WEAPONHANDLER.weaponType != "melee") setInteractionText("[E] SWAP WEAPON");
                         if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true)
@@ -321,7 +319,7 @@ export class PlayerController {
             })
 
             // throwing
-            if (!isNearPickup && this.INPUTHANDLER.isKeyPressed("q") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
+            if (this.INPUTHANDLER.isKeyPressed("q") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
         }
 
         // Assign Weapon Position

@@ -22,6 +22,10 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.playerCanMove = true;
 	WEAPONHANDLER.setWeaponVisible(true);
 	LEVELHANDLER.playerHealth = 100;
+	if (LEVELHANDLER.deathCount > 1) {
+		if (LEVELHANDLER.assistObj) LEVELHANDLER.assistObj.visible = true;
+	}
+	console.log(LEVELHANDLER.deathCount);
 	// LEVELHANDLER.camera.rotation.x = Math.PI/4;
 	// Reset Voxels ...
 	for (let i = 0; i < displacedVoxels.length; i++)
@@ -76,6 +80,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	document.querySelector("#healthbar").style.width = "200px";
 	document.querySelector("#end-screen").innerHTML = "";
 	document.querySelector("#center-ui").style.visibility = "visible";
+	document.querySelectorAll(".health").forEach(health => {health.style.visibility = "visible"});
 	LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
 	LEVELHANDLER.outliner.selectedObjects = [];
 	// Clean Garbage
@@ -88,6 +93,8 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 export const endGameState = function(LEVELHANDLER) {
 	internalTimer.stop();
 	document.querySelector("#center-ui").style.visibility = "hidden";
+	document.querySelectorAll(".health").forEach(health => {health.style.visibility = "hidden"});
+	if (LEVELHANDLER.assistObj) LEVELHANDLER.assistObj.visible = false;
 	// add end screen to DOM
 	const endScreen = `
 	<div id="fade-control">
@@ -162,9 +169,9 @@ export const endGameState = function(LEVELHANDLER) {
 		}
 	}, 2000);
 
-	setTimeout(() => {
-		document.querySelector("#fade-control").style.animation = "fade-out-some 1s ease-out forwards";
-	}, 10000);
+	// setTimeout(() => {
+	// 	document.querySelector("#fade-control").style.animation = "fade-out-some 1s ease-out forwards";
+	// }, 10000);
 
 	// for each stat-holder, increment animation-delay by 1
 	for (let i = 0; i < document.querySelectorAll(".stat-holder").length; i++) {

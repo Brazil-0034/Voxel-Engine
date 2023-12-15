@@ -13,7 +13,7 @@ export const USERSETTINGS = {
 	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
 	disablePostProcessing: false,
 	// ACCESSIBILITY
-	screenShakeIntensity: 30,
+	screenShakeIntensity: 50,
 	// DISPLAY SETTINGS
 	baseFOV: 75,
     // AUDIO SETTINGS
@@ -54,6 +54,7 @@ export class LevelHandler {
 	playerCanMove
 	lastKiller
 	controls
+	deathCount
 
 	// Data about WorldBuilding
 	globalTextureLoader
@@ -90,6 +91,7 @@ export class LevelHandler {
 		this.playerHealth = 100;
 		this.playerCanMove = true;
 		this.lastKiller = [];
+		this.deathCount = 0;
 
 		this.isCameraShaking = false;
 

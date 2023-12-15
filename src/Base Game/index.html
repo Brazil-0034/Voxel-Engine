@@ -31,7 +31,7 @@
 	<div id="dead-overlay"></div>
 	<div id="ui-overlay">
 		<!-- The red part -->
-		<div style="display:none">
+		<div style="display: block">
 			<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
 				preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
 				xmlns="http://www.w3.org/2000/svg">
@@ -116,7 +116,7 @@
 	<!-- <script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); stats.dom.style.zIndex = 1000; requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script> -->
 	<!-- DOT CROSSHAIR -->
 
-	<div id="end-screen" style="width:100%;height:100%;position:absolute;top:0;left:0;pointer-events:none"></div>
+	<div id="end-screen"></div>
 
 	<div id="interaction-text"></div>
 	<div id="help-text">Loading . . .</div>
@@ -153,6 +153,16 @@
 	import { setHelpText } from './UIHandler.js'; // User Interface
 	import { generateWorld, voxelGeometry, voxelMaterial, globalOffset } from './WorldGenerator.js'; // Map Generation
 	import { PlayerController } from './PlayerMotionController.js'; // First Person Controller
+
+	// ##########
+	// META
+	// ##########
+	navigator.mediaSession.setActionHandler('play', function() { /* Code excerpted. */ });
+	navigator.mediaSession.setActionHandler('pause', function() { /* Code excerpted. */ });
+	navigator.mediaSession.setActionHandler('seekbackward', function() { /* Code excerpted. */ });
+	navigator.mediaSession.setActionHandler('seekforward', function() { /* Code excerpted. */ });
+	navigator.mediaSession.setActionHandler('previoustrack', function() { /* Code excerpted. */ });
+	navigator.mediaSession.setActionHandler('nexttrack', function() { /* Code excerpted. */ });
 
 	// ##########
 	// GLOBAL HANDLERS
@@ -239,7 +249,7 @@
 	// Outline
 	const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), LEVELHANDLER.scene, LEVELHANDLER.camera);
 	outlinePass.edgeStrength = 3;
-	outlinePass.visibleEdgeColor.set(0xffff63);
+	outlinePass.visibleEdgeColor.set(0xffffff);
 	composer.addPass(outlinePass);
 	LEVELHANDLER.outliner = outlinePass;
 	LEVELHANDLER.outliner.selectedObjects = [];
@@ -288,7 +298,7 @@
 	// get modelURL from URL param "mapName"
 	const modelURL = new URLSearchParams(window.location.search).get("mapName");
 	const weaponURL = 'nothing';
-	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
+	WEAPONHANDLER.pickupWeapon(weaponURL); // same as map, but for the weapon!
 
 	// This starts building the map ...
 	// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
@@ -347,6 +357,9 @@
 		// Check Level Completion
 		if (LEVELHANDLER.isLevelComplete == true) {
 			if (INPUTHANDLER.isKeyPressed(' ')) {
+				LEVELHANDLER.isCameraShaking = true;
+				USERSETTINGS.screenShakeIntensity /= 0.25;
+				setTimeout(() => {LEVELHANDLER.isCameraShaking = false;}, 150);
 				LEVELHANDLER.isLevelComplete = false;
 				document.querySelector("#cover-flash").style.animation = "expand 0.75s forwards";
 				setTimeout(() => {
