@@ -1,0 +1,605 @@
+html {
+    /* background: rgb(130, 30, 30); */
+    background: black;
+}
+
+* {
+    margin: 0;
+    image-rendering: pixelated;
+    cursor: none;
+}
+
+body {
+    background: black;
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Montserrat', sans-serif;
+    user-select: none;
+}
+
+canvas {
+    position: absolute;
+    top: 0%;
+    left: 0%;
+    display: block;
+    transform: translate3d(0, 0, 0);
+    /* forces hardware acceleration */
+}
+
+.on-drugs {
+    animation: trippin 1.5s cubic-bezier(0.075, 0.82, 0.165, 1) 0ms infinite alternate;
+}
+
+@keyframes trippin {
+    from {
+        filter: hue-rotate(0)
+    }
+
+    to {
+        filter: hue-rotate(360deg)
+    }
+}
+
+#crosshair-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    color: lightgreen;
+    text-shadow: 0 0 10px white;
+    font-size: 150%;
+    z-index: 1000;
+    transform: translate(100%, 100%);
+}
+
+#position-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: black;
+    text-shadow: 0 0 10px white;
+    font-size: 150%;
+    z-index: 1000;
+    padding: 10px;
+}
+
+#interaction-text {
+    --border-angle: 0turn;
+    --border-size: 1px;
+    /* center */
+    position: absolute;
+    top: 80%;
+    left: 50%;
+    color: white;
+    text-shadow: 0 0 10px black;
+    box-shadow: 0px 0px 35px #ffffff6b;
+    z-index: 1000;
+    transform: translateX(-50%);
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.25);
+    font-size: 75%;
+    background-image: conic-gradient(from var(--border-angle),
+            #000, #000, #000),
+        conic-gradient(from var(--border-angle), transparent 20%, rgb(255, 251, 0), rgb(255, 179, 0));
+
+    background-size: calc(100% - (var(--border-size) * 2)) calc(100% - (var(--border-size) * 2)), cover;
+
+    background-position: center center;
+    background-repeat: no-repeat;
+
+    animation: bg-spin 0.75s linear infinite;
+}
+
+@property --border-angle {
+    syntax: "<angle>";
+    inherits: true;
+    initial-value: 0turn;
+}
+
+/* ty shaw on codepen very cool */
+@keyframes bg-spin {
+    to {
+        --border-angle: 1turn;
+    }
+}
+
+
+#help-text {
+    /* bottom center */
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    color: white;
+    text-shadow: 0 0 10px black;
+    z-index: 1000;
+    padding: 20px;
+    transform: translate(-50%, 0);
+    opacity: 0.25;
+    text-align: center;
+}
+
+#loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    letter-spacing: -5px;
+    font-weight: bold;
+    color: rgb(246, 255, 0);
+    font-size: 400%;
+}
+
+#loader-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    animation-fill-mode: forwards;
+    z-index: 2000;
+}
+
+@keyframes fade-out {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes fade-out-some {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.05;
+    }
+}
+
+@keyframes fade-in {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes pop-up {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+        position: initial;
+        visibility: visible;
+        height: initial;
+    }
+
+    100% {
+        transform: translateX(0%);
+        opacity: 1;
+        position: initial;
+        visibility: visible;
+        height: initial;
+    }
+}
+
+.pop-up {
+    opacity: 0;
+    animation: pop-up 0.75s forwards;
+    position: absolute;
+    visibility: hidden;
+    height: 0;
+}
+
+#popup-window {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    text-shadow: 0 0 10px black;
+    z-index: 1000;
+    opacity: 0;
+    width: 80%;
+    height: 80%;
+    display: none;
+}
+
+#vizbox {
+    position: absolute;
+    bottom: 35px;
+    left: 35px;
+    z-index: 1000;
+    font-size: 12px;
+    color: yellow;
+    font-weight: bold;
+    padding: 10px 30px;
+    background: rgba(0, 0, 0, 0.85);
+}
+
+#DRAWCALLSViz {
+    color: lightyellow;
+}
+
+#XViz {
+    color: lightcoral;
+}
+
+#YViz {
+    color: lightgreen;
+}
+
+#ZViz {
+    color: lightblue;
+}
+
+#NUMVOXELSViz {
+    color: lightpink;
+}
+
+#NUMCOVERBOXESViz {
+    color: lightcyan;
+}
+
+#fullframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+#ui-overlay {
+    overflow: hidden;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-size: 0px 0px;
+    animation-fill-mode: forwards;
+}
+
+@keyframes dead-fade-out {
+    from {
+        opacity: 1;
+        background: rgb(103, 153, 103);
+    }
+
+    to {
+        background: rgb(11, 11, 216);
+        opacity: 0;
+    }
+}
+
+#dead-overlay {
+    overflow: hidden;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    background: url('../img/death_overlay.png');
+    background-size: 100% 100%;
+
+}
+
+#healthbar {
+    z-index: 1;
+}
+
+.health {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    transform: translate(-50%, 0);
+}
+
+#phone {
+    position: absolute;
+    bottom: 20px;
+    left: 30px;
+    width: 200px;
+    /* background: rgb(241, 241, 241);
+    border: 20px solid black;
+    border-radius: 20px; */
+}
+
+.message {
+    padding: 10px;
+    margin: 10px;
+    width: 80%;
+}
+
+.phone-vibrate {
+    color: white;
+}
+
+.message-left {
+    background: #6aabf7;
+    color: white;
+    border-radius: 10px 10px 10px 0px;
+    float: left;
+}
+
+.message-right {
+    background: #c5c5c5;
+    color: black;
+    border-radius: 10px 10px 0px 10px;
+    float: right;
+}
+
+.choice {
+    background: #c5c5c56e;
+    border: 1px double #c5c5c5;
+    color: white;
+}
+
+#indicator {
+    animation: fade-out 0.25s forwards;
+}
+
+@keyframes slide-in-right {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(0%);
+    }
+}
+
+@keyframes fade-in-blink {
+    20% {
+        opacity: 0;
+    }
+
+    30% {
+        opacity: 1;
+    }
+
+    40% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes fade-in {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+#widebar {
+    background: rgba(0, 0, 0, 0.75);
+    width: 100%;
+    height: 120px;
+
+    position: absolute;
+    top: calc(50% - 60px);
+    transform: translateY(-50%);
+
+    animation: slide-in-right 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+}
+
+#widebar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+
+    /* text-align: center;
+    color: white;
+    font-weight: bolder;
+    font-size: 5em;
+    animation: fade-in-blink 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+    animation-delay: 1s;
+    opacity: 0; */
+}
+
+@keyframes shift-up {
+    0% {
+        transform: translateY(0%);
+    }
+
+    100% {
+        transform: translateY(-20%);
+    }
+}
+
+#widebar-carrier {
+    pointer-events: none;
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    animation: shift-up 1s cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+    animation-delay: 1.85s;
+}
+
+#level-stats {
+    display: inline-block;
+
+    position: absolute;
+    top: calc(50% + 140px);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 45%;
+    color: white;
+    text-align: center;
+}
+
+.stat-holder {
+    width: 100%;
+    height: 25px;
+    margin-bottom: 10px;
+
+    opacity: 0;
+
+    animation: fade-in 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+    font-size: 150%;
+}
+
+.left-stat {
+    float: left;
+}
+
+.right-stat {
+    float: right;
+    font-weight: bold;
+}
+
+@keyframes expand {
+    0% {
+        width: 10px;
+        height: 10px;
+        opacity: 0.25;
+    }
+
+    100% {
+        width: 100%;
+        height: 100%;
+        opacity: 1;
+    }
+}
+
+#cover-flash {
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: black;
+    border: 20px solid black;
+}
+
+#ammo-counter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(calc(-200% - 10px), -50%);
+    font-size: 1em;
+    color: white;
+    text-shadow: 0 0 25px black;
+    text-align: right;
+    opacity: 0.15;
+    width: 20px;
+}
+
+#enemy-counter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(150%, -50%);
+    font-size: 1em;
+    color: white;
+    text-shadow: 0 0 25px black;
+    text-align: left;
+    opacity: 0.15;
+    width: 20px;
+}
+
+@keyframes swing-gradient {
+    0% {
+        rotate: -2deg;
+        font-size: 1em;
+        opacity: 0.5;
+    }
+
+    25% {
+        rotate: 2deg;
+        font-size: 1.25em;
+        opacity: 1;
+    }
+
+    50% {
+        rotate: -2deg;
+        font-size: 1.25em;
+        opacity: 1;
+    }
+
+    75% {
+        rotate: 2deg;
+        font-size: 1em;
+        opacity: 0.5;
+    }
+
+    100% {
+        rotate: -2deg;
+        font-size: 1em;
+        opacity: 0.5;
+    }
+}
+
+#restart-helper {
+    visibility: hidden;
+    z-index: 500;
+    transform-origin: center;
+    pointer-events: none;
+    color: white;
+    animation: swing-gradient 0.75s infinite cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 140%;
+    text-shadow: 0 0 25px black;
+}
+
+@keyframes score-animate-good {
+    0% {
+        transform: scale(1);
+        color: gold;
+    }
+
+    50% {
+        transform: scale(1.15);
+        color: rgb(255, 193, 68);
+    }
+
+    100% {
+        transform: scale(1);
+        color: gold;
+    }
+}
+
+@keyframes score-animate-bad {
+    0% {
+        color: rgb(188, 49, 49);
+        transform: scale(1, 1.25);
+    }
+
+    50% {
+        color: rgb(255, 68, 68);
+        transform: scale(1, 1);
+    }
+
+    100% {
+        color: rgb(188, 49, 49);
+        transform: scale(1, 1.25);
+    }
+}

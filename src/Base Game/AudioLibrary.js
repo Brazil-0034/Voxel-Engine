@@ -6,6 +6,7 @@ export class SoundEffectPlayer {
     bigDropSounds
     hitSound
     killSounds
+    music
     shootSound
     isPlayingShootSound
 
@@ -17,19 +18,11 @@ export class SoundEffectPlayer {
         this.dropSounds = [
             new Howl({
                 src: ['../sfx/lego_drop.wav'],
-                volume: USERSETTINGS.SFXVolume
+                volume: USERSETTINGS.SFXVolume * 7
             }),
             new Howl({
                 src: ['../sfx/lego_drop_2.wav'],
-                volume: USERSETTINGS.SFXVolume * 3
-            }),
-            new Howl({
-                src: ['../sfx/lego_drop_3.wav'],
-                volume: USERSETTINGS.SFXVolume
-            }),
-            new Howl({
-                src: ['../sfx/lego_drop_4.wav'],
-                volume: USERSETTINGS.SFXVolume
+                volume: USERSETTINGS.SFXVolume * 10
             })
         ]
 
@@ -44,20 +37,23 @@ export class SoundEffectPlayer {
             src: ['../sfx/hit_ding.wav'],
             volume: USERSETTINGS.SFXVolume
         })
+        this.rustleSound = new Howl({
+            src: ['../sfx/rustle.mp3'],
+            volume: USERSETTINGS.SFXVolume * 16
+        })
+
         this.killSounds = [
             new Howl({
                 src: ['../sfx/kill_ding.wav'],
-                volume: USERSETTINGS.SFXVolume * 15.5
-            }),
-            new Howl({
-                src: ['../sfx/kill_ding_2.wav'],
-                volume: USERSETTINGS.SFXVolume * 15.5
-            }),
-            new Howl({
-                src: ['../sfx/kill_ding_3.wav'],
-                volume: USERSETTINGS.SFXVolume * 15.5
+                volume: USERSETTINGS.SFXVolume * 12
             })
         ]
+
+        this.music = new Howl({
+                src: ['../music/ambient_waves.mp3'],
+                volume: USERSETTINGS.musicVolume,
+                loop: true
+            })
 
         this.shootSound = new Howl({
             src: ['../sfx/heavy_shoot.ogg'],
@@ -66,6 +62,10 @@ export class SoundEffectPlayer {
         });
         this.isPlayingShootSound = false;
 
+    }
+
+    startMusicPlayback() {
+        this.music.play();
     }
     
     playRandomSound(soundArray, rate) {

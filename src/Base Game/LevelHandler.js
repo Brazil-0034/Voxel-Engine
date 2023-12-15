@@ -17,7 +17,8 @@ export const USERSETTINGS = {
 	// DISPLAY SETTINGS
 	baseFOV: 75,
     // AUDIO SETTINGS
-    SFXVolume: 5 / 100 // (value / 100)
+    SFXVolume: 5 / 100,
+	musicVolume: 5,
 }
 
 // Data relevent to the game's currently loaded level

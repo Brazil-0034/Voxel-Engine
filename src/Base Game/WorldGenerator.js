@@ -58,14 +58,14 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
         LEVELHANDLER.scene.add(levelText);
 
         // DEMO TUTORIAL ###############
-        if (levelName == "00_APARTMENT_01")
-        {
+        if (levelName.substring(0,2) == "00") {
             const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(85, 40), new THREE.MeshBasicMaterial({
                 color: 0xffffff,
                 map: LEVELHANDLER.globalTextureLoader.load('../img/shoot_thru_wall.png'),
                 transparent: true
             }));
-            assistObj.position.set(10020, 30, 9842);
+            assistObj.position.set(10286, 30, 9710);
+            assistObj.rotation.y = -Math.PI/2;
             LEVELHANDLER.scene.add(assistObj);
         }
     })
@@ -152,7 +152,6 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     light = new THREE.PointLight(new THREE.Color(color.r, color.g, color.b), mapMakerObject.lightBrightness * 10, 0, 2);
                     light.position.set(position.x + (scale.x / 2), position.y + (scale.y / 2) - 1, position.z + (scale.z / 2));
                     light.position.add(globalOffset);
-                    light.decay = 1.25;
                     light.baseIntensity = light.intensity;
                     LEVELHANDLER.levelLights.push(light);
                     LEVELHANDLER.scene.add(light);
@@ -171,7 +170,8 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                         100,
                         LEVELHANDLER,
                         voxelField,
-                        WEAPONHANDLER
+                        WEAPONHANDLER,
+                        'smg'
                     );
                     return;
                 }
@@ -277,7 +277,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
                 LEVELHANDLER
             );
             instancedWorldModel.material.emissive = boxColor;
-            instancedWorldModel.material.emissiveIntensity = lightBrightness;
+            instancedWorldModel.material.emissiveIntensity = lightBrightness / 3;
             instancedWorldModel.material.initialEmissiveIntensity = lightBrightness;
             instancedWorldModel.visible = false;
             instancedWorldModel.useCoverBox = true;
@@ -851,8 +851,8 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             console.log("COMPLETE")
             // Remove the Pump Cover
             const loader = document.querySelector("#loader-bg");
-            loader.style.animation = "fade-out 1s ease";
-            setTimeout(() => { loader.parentNode.removeChild(loader) }, 1000);
+            setTimeout(() => { loader.style.animation = "fade-out 1s ease" }, 1000);
+            setTimeout(() => { loader.parentNode.removeChild(loader) }, 2000);
 
             // Update the light probe !!!
             cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);

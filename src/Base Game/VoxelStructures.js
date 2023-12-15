@@ -347,7 +347,7 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 				cameraDirection.x += (rapidFloat() - 0.5) / 2;
 				cameraDirection.z += (rapidFloat() - 0.5) / 2;
 				cameraDirection.y = -1/10;
-				new Particle(particleHandler, thisVoxel.position, cameraDirection.negate().multiplyScalar(2).setY(-2.5), voxelColor, 50);
+				new Particle(particleHandler, thisVoxel.position, cameraDirection.multiplyScalar(3.5).setY(-2.5), voxelColor, 50);
 			}
 		}
 	}

@@ -1,556 +1,10 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-	<style>
-		html {
-			/* background: rgb(130, 30, 30); */
-			background: black;
-		}
-
-		* {
-			margin: 0;
-			image-rendering: pixelated;
-			cursor: none;
-		}
-
-		body {
-			background: black;
-			margin: 0;
-			overflow: hidden;
-			font-family: 'Montserrat', sans-serif;
-			user-select: none;
-		}
-
-		canvas {
-			position: absolute;
-			top: 0%;
-			left: 0%;
-			display: block;
-			transform: translate3d(0, 0, 0);
-			/* forces hardware acceleration */
-		}
-
-		.on-drugs {
-			animation: trippin 1.5s cubic-bezier(0.075, 0.82, 0.165, 1) 0ms infinite alternate;
-		}
-
-		@keyframes trippin {
-			from {filter: hue-rotate(0)}
-			to {filter: hue-rotate(360deg)}
-		}
-
-		#crosshair-overlay {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			color: lightgreen;
-			text-shadow: 0 0 10px white;
-			font-size: 150%;
-			z-index: 1000;
-			transform: translate(50%, 50%);
-		}
-
-		#position-overlay {
-			position: absolute;
-			top: 0;
-			left: 0;
-			color: black;
-			text-shadow: 0 0 10px white;
-			font-size: 150%;
-			z-index: 1000;
-			padding: 10px;
-		}
-
-		#interaction-text {
-			/* center */
-			position: absolute;
-			top: 80%;
-			left: 50%;
-			color: white;
-			text-shadow: 0 0 10px black;
-			z-index: 1000;
-			transform: translateX(-50%);
-			padding: 15px;
-			background: rgba(0, 0, 0, 0.85);
-		}
-
-		#help-text {
-			/* bottom center */
-			position: absolute;
-			bottom: 0;
-			left: 50%;
-			color: white;
-			text-shadow: 0 0 10px black;
-			z-index: 1000;
-			padding: 20px;
-			transform: translate(-50%, 0);
-			opacity: 0.25;
-			text-align: center;
-		}
-
-		#loader {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			letter-spacing: -5px;
-			font-weight: bold;
-			color: rgb(246, 255, 0);
-			font-size: 750%;
-		}
-
-		#loader-bg {
-			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			background: black;
-			animation-fill-mode: forwards;
-			z-index: 2000;
-		}
-
-		@keyframes fade-out {
-			0% {
-				opacity: 1;
-			}
-
-			100% {
-				opacity: 0;
-			}
-		}
-
-		@keyframes fade-in {
-			0% {
-				opacity: 0;
-			}
-
-			100% {
-				opacity: 1;
-			}
-		}
-
-		@keyframes pop-up {
-			0% {
-				transform: translateX(-100%);
-				opacity: 0;
-				position: initial; visibility: visible;
-				height: initial;
-			}
-
-			100% {
-				transform: translateX(0%);
-				opacity: 1;
-				position: initial; visibility: visible;
-				height: initial;
-			}
-		}
-
-		.pop-up {
-			opacity: 0;
-			animation: pop-up 0.75s forwards;
-			position: absolute; visibility: hidden;
-				height: 0;
-		}
-
-		#popup-window {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			padding: 20px;
-			background: rgba(0, 0, 0, 0.85);
-			color: white;
-			text-shadow: 0 0 10px black;
-			z-index: 1000;
-			opacity: 0;
-			width: 80%;
-			height: 80%;
-			display: none;
-		}
-
-		#vizbox {
-			position: absolute;
-			bottom: 35px;
-			left: 35px;
-			z-index: 1000;
-			font-size: 12px;
-			color: yellow;
-			font-weight: bold;
-			padding: 10px 30px;
-			background: rgba(0, 0, 0, 0.85);
-		}
-
-		#DRAWCALLSViz {
-			color: lightyellow;
-		}
-
-		#XViz {
-			color: lightcoral;
-		}
-
-		#YViz {
-			color: lightgreen;
-		}
-
-		#ZViz {
-			color: lightblue;
-		}
-
-		#NUMVOXELSViz {
-			color: lightpink;
-		}
-
-		#NUMCOVERBOXESViz {
-			color: lightcyan;
-		}
-
-		#fullframe {
-			width: 100%;
-			height: 100%;
-			border: none;
-		}
-
-		#ui-overlay {
-			overflow: hidden;
-			position: absolute;
-			left: 0; top: 0;
-			width: 100%;
-			height: 100%;
-			pointer-events: none;
-			background-size: 0px 0px;
-			animation-fill-mode: forwards;
-		}
-
-		@keyframes dead-fade-out {
-			from {
-				opacity: 1;
-				background: rgb(103, 153, 103);
-			}
-			to {
-				background: rgb(11, 11, 216);
-				opacity: 0;
-			}
-		}
-
-		#dead-overlay {
-			overflow: hidden;
-			position: absolute;
-			left: 0; top: 0;
-			width: 100%;
-			height: 100%;
-			opacity: 0;
-			pointer-events: none;
-			background: url('../img/death_overlay.png');
-			background-size: 100% 100%;
-			
-		}
-
-		#healthbar {
-			z-index: 1;
-		}
-
-		.health {
-			position: absolute;
-			left: 50%;
-			bottom: 20px;
-			transform: translate(-50%, 0);
-		}
-
-		#phone {
-			position: absolute;
-			bottom: 20px;
-			left: 30px;
-			width: 200px;
-			/* background: rgb(241, 241, 241);
-			border: 20px solid black;
-			border-radius: 20px; */
-		}
-
-		.message {
-			padding: 10px;
-			margin: 10px;
-			width: 80%;
-		}
-
-		.phone-vibrate {
-			color: white;
-		}
-
-		.message-left {
-			background: #6aabf7;
-			color: white;
-			border-radius: 10px 10px 10px 0px;
-			float: left;
-		}
-
-		.message-right {
-			background: #c5c5c5;
-			color: black;
-			border-radius: 10px 10px 0px 10px;
-			float: right;
-		}
-
-		.choice {
-			background: #c5c5c56e;
-			border: 1px double #c5c5c5;
-			color: white;
-		}
-
-		#indicator {
-			animation: fade-out 0.25s forwards;
-		}
-		
-		@keyframes slide-in-right {
-			0% {
-				transform: translateX(-100%);
-			}
-
-			100% {
-				transform: translateX(0%);
-			}
-		}
-
-		@keyframes fade-in-blink {
-			20% {
-				opacity: 0;
-			}
-			30% {
-				opacity: 1;
-			}
-			40% {
-				opacity: 0;
-			}
-			100% {
-				opacity: 1;
-			}
-		}
-
-		@keyframes fade-in {
-			0% {
-				opacity: 0;
-			}
-
-			100% {
-				opacity: 1;
-			}
-		}
-
-		#widebar {
-			background: rgba(0, 0, 0, 0.75);
-			width: 100%;
-			height: 120px;
-
-			position: absolute;
-			top: calc(50% - 60px);
-			transform: translateY(-50%);
-
-			animation: slide-in-right 1.15s cubic-bezier(0.16, 1, 0.3, 1);
-			animation-fill-mode: forwards;
-		}
-
-		#widebar-text {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			width: 100%;
-			text-align: center;
-
-			color: white;
-			font-weight: bolder;
-			font-size: 5em;
-
-			animation: fade-in-blink 0.85s cubic-bezier(0.16, 1, 0.3, 1);
-			animation-fill-mode: forwards;
-			animation-delay: 1s;
-			opacity: 0;
-		}
-
-		@keyframes shift-up {
-			0% {
-				transform: translateY(0%);
-			}
-
-			100% {
-				transform: translateY(-20%);
-			}
-		}
-
-		#widebar-carrier {
-			pointer-events: none;
-
-			position: absolute;
-			top: 0; left: 0;
-			width: 100%; height: 100%;
-
-			animation: shift-up 1s cubic-bezier(0.16, 1, 0.3, 1);
-			animation-fill-mode: forwards;
-			animation-delay: 1.85s;
-		}
-
-		#level-stats {
-			display: inline-block;
-
-			position: absolute;
-			top: calc(50% + 140px);
-			left: 50%;
-			transform: translate(-50%, -50%);
-			width: 45%;
-			color: white;
-			text-align: center;
-		}
-
-		.stat-holder {
-			width: 100%;
-			height: 25px;
-			margin-bottom: 10px;
-
-			opacity: 0;
-			
-			animation: fade-in 0.85s cubic-bezier(0.16, 1, 0.3, 1);
-			animation-fill-mode: forwards;
-			font-size: 150%;
-		}
-
-		.left-stat {
-			float: left;
-		}
-
-		.right-stat {
-			float: right;
-			font-weight: bold;
-		}
-
-		@keyframes expand {
-			0% {
-				width: 10px; height: 10px;
-				opacity: 0.25;
-			}
-
-			100% {
-				width: 100%; height: 100%;
-				opacity: 1;
-			}
-		}
-
-		#cover-flash {
-			z-index: 1000;
-			pointer-events: none;
-			opacity: 0;
-			position: absolute;
-			top: 50%; left: 50%;
-			transform: translate(-50%, -50%);
-			background: black;
-			border: 20px solid black;
-		}
-
-		#ammo-counter {
-			position: absolute;
-			top: 50%; left: 50%;
-			transform: translate(calc(-200% - 10px), -50%);
-			font-size: 1em;
-			color: white;
-			text-shadow: 0 0 25px black;
-			opacity: 0.15;
-			width: 20px;
-		}
-
-		#enemy-counter {
-			position: absolute;
-			top: 50%; left: 50%;
-			transform: translate(150%, -50%);
-			font-size: 1em;
-			color: white;
-			text-shadow: 0 0 25px black;
-			opacity: 0.15;
-			width: 20px;
-		}
-
-		@keyframes swing-gradient {
-			0% {
-				rotate: -2deg;
-				font-size: 1em;
-				opacity: 0.5;
-			}
-
-			25% {
-				rotate: 2deg;
-				font-size: 1.25em;
-				opacity: 1;
-			}
-
-			50% {
-				rotate: -2deg;
-				font-size: 1.25em;
-				opacity: 1;
-			}
-
-			75% {
-				rotate: 2deg;
-				font-size: 1em;
-				opacity: 0.5;
-			}
-
-			100% {
-				rotate: -2deg;
-				font-size: 1em;
-				opacity: 0.5;
-			}
-		}
-
-		#restart-helper {
-			visibility: hidden;
-			z-index: 500;
-			transform-origin: center;
-			pointer-events: none;
-			color: white;
-			animation: swing-gradient 0.75s infinite cubic-bezier(0.16, 1, 0.3, 1);
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			width: 100%;
-			height: 140%;
-			text-shadow: 0 0 25px black;
-		}
-
-		@keyframes score-animate-good {
-			0% {
-				transform: scale(1);
-				color: gold;
-			}
-
-			50% {
-				transform: scale(1.15);
-				color: rgb(255, 193, 68);
-			}
-
-			100% {
-				transform: scale(1);
-				color: gold;
-			}
-		}
-
-		@keyframes score-animate-bad {
-			0% {
-				color: rgb(188, 49, 49);
-				transform: scale(1, 1.25);
-			}
-
-			50% {
-				color: rgb(255, 68, 68);
-				transform: scale(1, 1);
-			}
-
-			100% {
-				color: rgb(188, 49, 49);
-				transform: scale(1, 1.25);
-			}
-		}
-	</style>
-
+	<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -578,32 +32,44 @@
 	<div id="ui-overlay">
 		<!-- The red part -->
 		<div style="display:none">
-			<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd" stroke="none" >
+			<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
+				preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
+				xmlns="http://www.w3.org/2000/svg">
+				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd"
+					stroke="none">
 					<!-- svg animation to pulse the healthbar color and fill and stroke -->
-					<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-1" />
-					<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-2"  />
-					<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite" begin="indefinite" id="health-anim-3"  />
+					<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite"
+						begin="indefinite" id="health-anim-1" />
+					<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite"
+						begin="indefinite" id="health-anim-2" />
+					<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite"
+						begin="indefinite" id="health-anim-3" />
 				</path>
 			</svg>
 
 			<!-- The white part -->
-			<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1" preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
-				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25" fill-rule="evenodd" stroke="none" >
+			<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
+				preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
+				xmlns="http://www.w3.org/2000/svg">
+				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25"
+					fill-rule="evenodd" stroke="none">
 				</path>
 			</svg>
 		</div>
 
 		<!-- AMMO COUNTER -->
-		<div id="ammo-counter">0</div>
-		<div id="enemy-counter">0</div>
-
+		<div id="center-ui">
+			<div id="ammo-counter">0</div>
+			<div id="enemy-counter">0</div>
+			<img src="../img/diamond.png" id="middle-crosshair"
+				style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 32px; z-index: 1000; opacity: 0.25">
+		</div>
 		<!-- RESTART OVERLAY -->
 		<div id="restart-helper">Press [R] to Restart</div>
 
 		<!-- PHONE -->
 		<div id="phone" style="display:none">
-			<div id="indicator"  style="animation-delay: 16s">
+			<div id="indicator" style="animation-delay: 16s">
 				<div class="message phone-vibrate" style="animation-delay: 8s; display: flex; align-items: center;">
 					<img src="../img/phone/vibrate.gif" style="width: 80px; height: 80px;" />
 					<span><b>Unknown Sender</b></span>
@@ -649,7 +115,6 @@
 	<!-- STATS.JS -->
 	<!-- <script>(function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); stats.dom.style.zIndex = 1000; requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()</script> -->
 	<!-- DOT CROSSHAIR -->
-	<img src="../img/diamond.png" id="middle-crosshair" style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 32px; z-index: 1000; opacity: 0.25">
 
 	<div id="end-screen" style="width:100%;height:100%;position:absolute;top:0;left:0;pointer-events:none"></div>
 
@@ -678,7 +143,7 @@
 	import { ConvexHull } from 'three/addons/math/ConvexHull.js';
 	import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
 	import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
-	// WRECKMESH
+	// WRECK
 	import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 	import { USERSETTINGS, LevelHandler, instancedModelIndex } from './LevelHandler.js'; // user settings and level info
 	import { InputHandler } from './InputHandler.js'; // DOM input
@@ -686,7 +151,7 @@
 	import { voxelField, recentlyEditedWorldModels } from './VoxelStructures.js'; // data structures for handling voxels
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
 	import { setHelpText } from './UIHandler.js'; // User Interface
-	import { generateWorld, voxelGeometry, voxelMaterial, globalOffset} from './WorldGenerator.js'; // Map Generation
+	import { generateWorld, voxelGeometry, voxelMaterial, globalOffset } from './WorldGenerator.js'; // Map Generation
 	import { PlayerController } from './PlayerMotionController.js'; // First Person Controller
 
 	// ##########
@@ -698,7 +163,7 @@
 	);
 	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
 	const INPUTHANDLER = new InputHandler();
-	
+
 	// ##########
 	// WORLD SPHERE (BACKDROP COLOR)
 	// ##########
@@ -740,21 +205,21 @@
 	// ##########
 	const lightProbe = new THREE.LightProbe();
 	LEVELHANDLER.scene.add(lightProbe);
-	const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 256 );
-	const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
+	const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256);
+	const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
 	{
-	// 	LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
-	// 	const cubemap = new THREE.CubeTextureLoader().load(
-	// 		[
-	// 			'../opensource/cherry_skybox/left.png',
-	// 			'../opensource/cherry_skybox/right.png',
-	// 			'../opensource/cherry_skybox/up.png',
-	// 			'../opensource/cherry_skybox/down.png',
-	// 			'../opensource/cherry_skybox/front.png',
-	// 			'../opensource/cherry_skybox/back.png',
-	// 		]
-	// 	)
-	// 	LEVELHANDLER.background = cubemap;
+		// 	LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
+		// 	const cubemap = new THREE.CubeTextureLoader().load(
+		// 		[
+		// 			'../opensource/cherry_skybox/left.png',
+		// 			'../opensource/cherry_skybox/right.png',
+		// 			'../opensource/cherry_skybox/up.png',
+		// 			'../opensource/cherry_skybox/down.png',
+		// 			'../opensource/cherry_skybox/front.png',
+		// 			'../opensource/cherry_skybox/back.png',
+		// 		]
+		// 	)
+		// 	LEVELHANDLER.background = cubemap;
 	}
 
 	// ##########
@@ -764,17 +229,24 @@
 	// Ambient Occlusion
 	const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
 	n8aopass.setQualityMode("Ultra");
-	n8aopass.configuration.intensity = 3;
-	n8aopass.configuration.radius = 64;
+	n8aopass.configuration.aoRadius = 10;
+	n8aopass.configuration.distanceFalloff = 1.0;
+	n8aopass.configuration.intensity = 3.0;
 	n8aopass.configuration.halfRes = true;
 	n8aopass.configuration.gammaCorrection = false;
 	composer.addPass(n8aopass);
+
 	// Outline
 	const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), LEVELHANDLER.scene, LEVELHANDLER.camera);
 	outlinePass.edgeStrength = 3;
 	outlinePass.visibleEdgeColor.set(0xffff63);
 	composer.addPass(outlinePass);
 	LEVELHANDLER.outliner = outlinePass;
+	LEVELHANDLER.outliner.selectedObjects = [];
+	LEVELHANDLER.weaponPickups.forEach(pickup => {
+		LEVELHANDLER.outliner.selectedObjects.push(pickup);
+	})
+
 	// Bloom
 	const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
 	composer.addPass(bloomPass);
@@ -815,7 +287,7 @@
 	// These mark locations in the local file system that store the map and current weapon
 	// get modelURL from URL param "mapName"
 	const modelURL = new URLSearchParams(window.location.search).get("mapName");
-	const weaponURL = '../weapons/' + 'smg/smg';
+	const weaponURL = 'nothing';
 	WEAPONHANDLER.generateWeaponModel(weaponURL); // same as map, but for the weapon!
 
 	// This starts building the map ...
@@ -824,6 +296,7 @@
 	// TODO - origin offsets for multiple map loading?
 	//  ^ this is very unncessary but could be useful for features like streaming
 	generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere);
+	LEVELHANDLER.SFXPlayer.startMusicPlayback();
 
 	// ##########
 	// PARTICLE ENGINE INITIALIZATION
@@ -836,7 +309,7 @@
 	const clock = new THREE.Clock();
 	const raycaster = new THREE.Raycaster();
 
-	const updateDebugViz = function(delta) {
+	const updateDebugViz = function (delta) {
 		document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
 		document.querySelector("#DRAWCALLSViz").textContent = LEVELHANDLER.renderer.info.render.calls + " calls (~ " + parseInt(LEVELHANDLER.potentialCleanCalls) + " clean)";
 		let numVoxels = LEVELHANDLER.numVoxels;
@@ -863,14 +336,14 @@
 		document.querySelector("#interaction-text").style.opacity -= delta * 5;
 		if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = 1 - (LEVELHANDLER.playerHealth / 100);/* clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);*/
 		// Update Active NPC's
-		LEVELHANDLER.NPCBank.forEach( npc => npc.update(delta) );
-        document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
+		LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
+		document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
 		// Update Active Particles
 		particleHandler.update(delta);
 		LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
 		// Update Skybox Attributes
 		worldSphere.position.copy(LEVELHANDLER.camera.position);
-		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta/100), worldSphere.material.map.center.y + (delta/1000));
+		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta / 100), worldSphere.material.map.center.y + (delta / 1000));
 		// Check Level Completion
 		if (LEVELHANDLER.isLevelComplete == true) {
 			if (INPUTHANDLER.isKeyPressed(' ')) {
@@ -883,10 +356,15 @@
 				}, 750);
 			}
 		}
+		// Update Lights
+		// LEVELHANDLER.levelLights.forEach(light => {
+		// 	if (light.intensity > 0) light.intensity -= delta * 200;
+		// 	else light.intensity = light.baseIntensity;
+		// });
 		// Player Movement Handling
 		playerController.update(delta);
 		// Camera Shake
-		if (LEVELHANDLER.isCameraShaking) LEVELHANDLER.renderer.domElement.style.transform = "translate(" + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity/2) + "px, " + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity/2) + "px)";
+		if (LEVELHANDLER.isCameraShaking) LEVELHANDLER.renderer.domElement.style.transform = "translate(" + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px, " + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px)";
 		else LEVELHANDLER.renderer.domElement.style.transform = "translate(0px, 0px)";
 		// Impact Effect Softening
 		if (WEAPONHANDLER.fireSprite) {

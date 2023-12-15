@@ -11,6 +11,8 @@ export class NPC {
     npcObject // just the mesh object of the npc (children[0] of sceneObject)
     shootBar // shooting effect
 
+    weaponType // weapon to drop
+
     startingPosition // for reset
     startingRotation // for reset
     startingHealth // for reset
@@ -33,10 +35,12 @@ export class NPC {
     LEVELHANDLER // what it sound like
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
-    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER) {
+    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType) {
         this.startingPosition = position;
         this.startingRotation = new THREE.Euler(0, rotationIntervals * Math.PI/4, 0);
         this.startingHealth = health;
+        
+        this.weaponType = weaponType;
 
         this.voxelField = voxelField;
         this.WEAPONHANDLER = WEAPONHANDLER;
@@ -294,7 +298,7 @@ export class NPC {
             // Fix gun sfx bug
             this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
             // Outline the killer
-            this.LEVELHANDLER.outliner.selectedObjects = [this.npcObject];
+            this.LEVELHANDLER.outliner.selectedObjects.push(this.npcObject);
             // Draw Last Kill Line
             // const killArrow = new THREE.ArrowHelper(
             //     new THREE.Vector3(
@@ -324,6 +328,8 @@ export class NPC {
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
         this.LEVELHANDLER.totalNPCs--;
 
+        this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
+
         this.LEVELHANDLER.isCameraShaking = true;
         setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
 
@@ -339,24 +345,32 @@ export class NPC {
 
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
 
-        const count = 500;
+        const count = 250;
         const scale = 2;
         const blob = new THREE.InstancedMesh(
-            new THREE.SphereGeometry(scale, 2, 2),
+            new THREE.BoxGeometry(scale, scale, scale),
             new THREE.MeshLambertMaterial({color: new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0)}),
             count
         );
         blob.frustumCulled = false;
         for (let i = 0; i < count; i++)
         {
-            const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() + 0.25, rapidFloat() * 2 - 1).normalize();
+            // const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() * 2 - 1, rapidFloat() * 2 - 1).normalize();
+            // determine direction
+            const dir = new THREE.Vector3();
+            this.LEVELHANDLER.camera.getWorldDirection(dir);
+            const variance = 1;
+            dir.x += rapidFloat() * variance - variance/2;
+            dir.y += rapidFloat() * variance - variance/2;
+            dir.z += rapidFloat() * variance - variance/2;
+
             const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
             const rot = new THREE.Euler(
                 rapidFloat() * Math.PI * 2,
                 rapidFloat() * Math.PI * 2,
                 rapidFloat() * Math.PI * 2
             );
-            const initScale = 4 + (3 * rapidFloat());
+            const initScale = 3 + (3 * rapidFloat());
 
             const r = this.voxelField.raycast(
                 pos,
@@ -367,7 +381,7 @@ export class NPC {
             if (r != null) endPosition = new THREE.Vector3(r.x, r.y, r.z);
 
             blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
-            blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0));
+            blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.65, 1), 0, 0));
             const thisBlob = new killBlob(
                 dir,
                 initScale,
@@ -438,11 +452,7 @@ class killBlob {
         // motion
         if (this.isAlive == true)
         {
-            newMatrix.makeRotationX(delta * (rapidFloat() - 0.5) * 100);
-            newMatrix.makeRotationY(delta * (rapidFloat() - 0.5) * 100);
-            newMatrix.makeRotationZ(delta * (rapidFloat() - 0.5) * 100);
-
-            this.initScale = clamp(this.initScale * (1 - (delta * 15)), 1, 100);
+            this.initScale = clamp(this.initScale * (1 - (delta * 3)), 1, 100);
             newMatrix.makeScale(this.initScale, this.initScale, this.initScale);
 
             const npos = pos.addScaledVector(this.dir, this.speed * delta);

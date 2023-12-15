@@ -168,6 +168,10 @@ export class PlayerController {
                 // WEAPON ACTION HANDLING
                 const ac = document.querySelector("#ammo-counter");
                 ac.style.opacity = 0.15;
+                // Melee
+                const baseScale = 0.0;
+                const maxScale = 0.2;
+                const speed = 1;
                 if (this.INPUTHANDLER.isLeftClicking && this.LEVELHANDLER.controls.isLocked == true) {
                     switch (this.WEAPONHANDLER.weaponType) {
                         case undefined:
@@ -175,6 +179,18 @@ export class PlayerController {
                         default:
                             console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
                             break;
+                        case "melee":
+                            // if it is back at starting position ...
+                            if (Math.abs(this.WEAPONHANDLER.weaponModel.scale.z - baseScale) < 0.05) this.WEAPONHANDLER.hasFlipped = true;
+                            // if it has reached end position ...
+                            if (Math.abs(this.WEAPONHANDLER.weaponModel.scale.z - maxScale) < 0.05) this.WEAPONHANDLER.hasFlipped = false;
+
+                            if (this.WEAPONHANDLER.weaponModel.scale.z < maxScale && this.WEAPONHANDLER.hasFlipped == true) {
+                                this.WEAPONHANDLER.weaponModel.scale.z += speed * delta;
+                            }
+                            if (this.WEAPONHANDLER.weaponModel.scale.z > baseScale && this.WEAPONHANDLER.hasFlipped == false) {
+                                this.WEAPONHANDLER.weaponModel.scale.z -= speed * 4 * delta;
+                            }
                         case "ranged":
                             if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
                             {
@@ -185,7 +201,7 @@ export class PlayerController {
                                 
                                 if (this.WEAPONHANDLER.isAttackAvailable) {
                                     this.WEAPONHANDLER.weaponRemainingAmmo--;
-                                    if (this.WEAPONHANDLER.fireSprite) {
+                                    if (this.WEAPONHANDLER.fireSprite && this.WEAPONHANDLER.weaponType == "ranged") {
                                         const weaponShakeIntensity = 1.25;
                                         this.WEAPONHANDLER.weaponTarget.position.set(
                                             this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
@@ -200,7 +216,7 @@ export class PlayerController {
                                     
                                     // Play Sound
                                     // this.LEVELHANDLER.SFXPlayer.playSound("shootSound", false);
-                                    this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", true);
+                                    if (this.WEAPONHANDLER.weaponType == "ranged") this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", true);
         
                                     // GOD i HATE javascript
                                     // type annotations? NO.
@@ -230,6 +246,12 @@ export class PlayerController {
                                     setTimeout(() => {this.WEAPONHANDLER.isAttackAvailable = true}, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
                                 }
                             }
+                            else {
+                                ac.innerHTML = `<span style="color:#b82323">0</span>`
+                                ac.style.opacity = 1;
+                                // Stop Sound
+                                this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
+                            }
                             break;
                     }
                 }
@@ -239,6 +261,12 @@ export class PlayerController {
                     this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
                     // Stop Animation
                     if (this.WEAPONHANDLER.fireAnimation) this.WEAPONHANDLER.fireAnimation.stop();
+                    if (this.WEAPONHANDLER.weaponType == "melee")
+                    {
+                        if (this.WEAPONHANDLER.weaponModel.scale.z < maxScale) {
+                            this.WEAPONHANDLER.weaponModel.scale.z += speed/3 * delta;
+                        }
+                    }
                 }
                 
                 // Weapon Bouncing (For Juice!!!)
@@ -268,29 +296,32 @@ export class PlayerController {
                         this.WEAPONHANDLER.weaponModel.position.copy(instancedWeaponTargetWorldPosition);
                         this.WEAPONHANDLER.weaponModel.rotation.setFromRotationMatrix(this.WEAPONHANDLER.weaponTarget.matrixWorld);
                     }
+                    this.WEAPONHANDLER.weaponModel.scale.y = lerp(this.WEAPONHANDLER.weaponModel.scale.y, 1/50, 10 * delta);
                 }
             }
 
             // Weapon Pickups
             let isNearPickup = false;
             this.LEVELHANDLER.weaponPickups.forEach(pickup => {
-                if (pickup.position.distanceTo(this.LEVELHANDLER.camera.position.clone().setY(1)) < 25)
+                if (pickup.position.distanceTo(this.LEVELHANDLER.camera.position.clone().setY(1)) < 75)
                 {
                     if (pickup.isActive)
                     {
                         isNearPickup = true;
                         setInteractionText("[E] PICK UP WEAPON");
+                        if (this.WEAPONHANDLER.weaponType != "melee") setInteractionText("[E] SWAP WEAPON");
                         if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true)
                         {
-                            pickup.scale.set(0,0,0);
+                            pickup.visible = false;
                             pickup.isActive = false;
+                            this.WEAPONHANDLER.pickupWeapon(pickup.weaponType);
                         }
                     }
                 }
             })
 
             // throwing
-            if (!isNearPickup && this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
+            if (!isNearPickup && this.INPUTHANDLER.isKeyPressed("q") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
         }
 
         // Assign Weapon Position

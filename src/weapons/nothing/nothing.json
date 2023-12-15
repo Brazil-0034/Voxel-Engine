@@ -1,0 +1,26 @@
+{
+    "weaponData": {
+        "type": "melee",
+        "name": "Fists",
+        "helpText": "[Left Click] Punch",
+        "fireRate": 125,
+        "totalAmmo": 0,
+        "weaponDamage": 100,
+        "damageRange": 4,
+        "minimumDistance": 50,
+        "disableHeadBop": false,
+        "followSpeed": 25,
+        "hasMuzzleFlash": false,
+        "hasNoTexture": true,
+        "position": {
+            "x": 7.5,
+            "y": -10,
+            "z": -20
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        }
+    }
+}

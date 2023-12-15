@@ -33,6 +33,7 @@ export class WeaponHandler {
     weaponHelpText
 	defaultWeaponRange
     weaponRange
+	hasFlipped
 
 
     constructor(LEVELHANDLER) {
@@ -45,6 +46,8 @@ export class WeaponHandler {
 
 		this.isAnimated = false;
 		this.weaponIsEquipped = this.defaultWeaponIsEquipped = false;
+		
+		this.hasFlipped = false;
 
     }
 
@@ -63,6 +66,7 @@ export class WeaponHandler {
 			function (object) {
 				object.scale.divideScalar(50);
 				WEAPONHANDLER.weaponModel = object;
+				console.log(WEAPONHANDLER.weaponModel);
 				LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
 				WEAPONHANDLER.weaponModel.rotation.set(Math.PI/2,Math.PI/2,Math.PI/2)
 			}
@@ -70,110 +74,134 @@ export class WeaponHandler {
 		// Then, load the weapon metadata from the .json file
 		if (basePath)
 		{
-			const jsonLoader = new THREE.FileLoader();
-			jsonLoader.load(
-				basePath + '.json',
-				function (json) {
-					const jsonModel = JSON.parse(json);
-					LEVELHANDLER.globalModelLoader.load(
-						basePath + '.fbx',
-						function (object) {
-							WEAPONHANDLER.weaponModel.add(object);
-							WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped = true;
-							// Load in the texture for the weapon
-							object.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
-							// Adjust the scale from standard magicavoxel scaling
-							object.name = jsonModel.weaponData.name;
-							// json reads for weapon data
-							WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType = jsonModel.weaponData.type;
-							WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = document.querySelector("#ammo-counter").textContent = jsonModel.weaponData.totalAmmo;
-							WEAPONHANDLER.destroyedChunkRange = jsonModel.weaponData.damageRange;
-							WEAPONHANDLER.fireRate = jsonModel.weaponData.fireRate;
-							WEAPONHANDLER.weaponDamage = jsonModel.weaponData.weaponDamage;
-							WEAPONHANDLER.weaponFollowSpeed = jsonModel.weaponData.followSpeed;
-							WEAPONHANDLER.weaponHelpText = jsonModel.weaponData.helpText;
-							WEAPONHANDLER.weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
-							WEAPONHANDLER.weaponRange = WEAPONHANDLER.defaultWeaponRange = jsonModel.weaponData.minimumDistance;
-							WEAPONHANDLER.weaponTarget = new THREE.Mesh(
-								new THREE.BoxGeometry(1, 1, 1),
-								new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-							);
+			this.pickupWeapon(basePath);
+		}
+    }
 
-							// FLASHLIGHT
+	pickupWeapon = function(basePath) {
+		let isNothing = false;
+		if (basePath == "nothing") isNothing = true;
+		basePath = '../weapons/' + basePath + '/' + basePath;
+		const LEVELHANDLER = this.LEVELHANDLER;
+		LEVELHANDLER.SFXPlayer.playSound("rustleSound", false);
+		const WEAPONHANDLER = this;
+		const jsonLoader = new THREE.FileLoader();
+		jsonLoader.load(
+			basePath + '.json',
+			function (json) {
+				const jsonModel = JSON.parse(json);
+				LEVELHANDLER.globalModelLoader.load(
+					basePath + '.fbx',
+					function (object) {
+						if (!isNothing) {
+							WEAPONHANDLER.weaponModel.scale.set(1/50,1/50,1/50);
+						}
+						object.isHoldableWeapon = true;
+						WEAPONHANDLER.weaponModel.add(object);
+						WEAPONHANDLER.weaponModel.scale.y = 0;
+						WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped = true;
+						// Load in the texture for the weapon
+						if (!jsonModel.weaponData.hasNoTexture) object.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
+						// Adjust the scale from standard magicavoxel scaling
+						object.name = jsonModel.weaponData.name;
+						// json reads for weapon data
+						WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType = jsonModel.weaponData.type;
+						WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = document.querySelector("#ammo-counter").textContent = jsonModel.weaponData.totalAmmo;
+						// account for infinite ammo ...
+						if (WEAPONHANDLER.weaponRemainingAmmo == 0) {
+							document.querySelector("#ammo-counter").style.display = "none";
+							WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = 9999999;
+						}
+						else document.querySelector("#ammo-counter").style.display = "block";
+						WEAPONHANDLER.destroyedChunkRange = jsonModel.weaponData.damageRange;
+						WEAPONHANDLER.fireRate = jsonModel.weaponData.fireRate;
+						WEAPONHANDLER.weaponDamage = jsonModel.weaponData.weaponDamage;
+						WEAPONHANDLER.weaponFollowSpeed = jsonModel.weaponData.followSpeed;
+						WEAPONHANDLER.weaponHelpText = jsonModel.weaponData.helpText;
+						WEAPONHANDLER.weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
+						WEAPONHANDLER.weaponRange = WEAPONHANDLER.defaultWeaponRange = jsonModel.weaponData.minimumDistance;
+						WEAPONHANDLER.weaponTarget = new THREE.Mesh(
+							new THREE.BoxGeometry(1, 1, 1),
+							new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+						);
 
-							WEAPONHANDLER.flashlight = new THREE.SpotLight(0xffffff, 250);
-							// LEVELHANDLER.camera.add(WEAPONHANDLER.flashlight);
-							WEAPONHANDLER.flashlight.rotation.set(-Math.PI/2, 0, 0);
+						// FLASHLIGHT
+						WEAPONHANDLER.flashlight = new THREE.SpotLight(0xffffff, 250);
+						// LEVELHANDLER.camera.add(WEAPONHANDLER.flashlight);
+						WEAPONHANDLER.flashlight.rotation.set(-Math.PI/2, 0, 0);
 
-							WEAPONHANDLER.flashlight.castShadow = false;
-							WEAPONHANDLER.flashlight.penumbra = 0.5;
+						WEAPONHANDLER.flashlight.castShadow = false;
+						WEAPONHANDLER.flashlight.penumbra = 0.5;
 
-							const targetObject = new THREE.Object3D()
-							WEAPONHANDLER.flashlight.add(targetObject)
-							targetObject.position.set(0,LEVELHANDLER.playerHeight,0)
-							WEAPONHANDLER.flashlight.target = targetObject
+						const targetObject = new THREE.Object3D()
+						WEAPONHANDLER.flashlight.add(targetObject)
+						targetObject.position.set(0,LEVELHANDLER.playerHeight,0)
+						WEAPONHANDLER.flashlight.target = targetObject
 
-							WEAPONHANDLER.weaponTarget.material.visible = false; // uncomment to position weapon better
-							LEVELHANDLER.camera.add(WEAPONHANDLER.weaponTarget);
-							WEAPONHANDLER.weaponTarget.position.copy(WEAPONHANDLER.weaponPosition);
+						WEAPONHANDLER.weaponTarget.material.visible = false; // uncomment to position weapon better
+						LEVELHANDLER.camera.add(WEAPONHANDLER.weaponTarget);
+						WEAPONHANDLER.weaponTarget.position.copy(WEAPONHANDLER.weaponPosition);
+
+						// add a clone of the weaponModel as a child of itself, shifted to the left by 5 units
+						// const weaponModelClone = weaponModel.clone();
+						// weaponModelClone.scale.multiplyScalar(15);
+						// weaponModelClone.position.z -= 865;
+						// weaponModel.add(weaponModelClone);
+
+						WEAPONHANDLER.weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
+						WEAPONHANDLER.weaponTarget.rotation.copy(WEAPONHANDLER.weaponRotation);
+						// if (WEAPONDATA.weaponHelpText) setHelpText(WEAPONDATA.weaponHelpText);
+
+						// Muzzle Flash
+						WEAPONHANDLER.hideMuzzleFlash = WEAPONHANDLER.defaultHideMuzzleFlash = true;
+						if (jsonModel.weaponData.hasMuzzleFlash == true) {
+							const map = new THREE.TextureLoader().load('../img/impact.png');
+							WEAPONHANDLER.hideMuzzleFlash = WEAPONHANDLER.defaultHideMuzzleFlash = false;
+							WEAPONHANDLER.fireSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+								map: map,
+								color: 0xffffff,
+								side: THREE.DoubleSide,
+								depthTest: false,
+								transparent: true,
+							}));
+							object.add(WEAPONHANDLER.fireSprite);
+							WEAPONHANDLER.fireSprite.position.x = 50;
+							WEAPONHANDLER.fireSprite.position.y = 250;
+							WEAPONHANDLER.fireSprite.position.z = -700;
+
+							WEAPONHANDLER.fireSprite.material.opacity = 0;
 	
-							// add a clone of the weaponModel as a child of itself, shifted to the left by 5 units
-							// const weaponModelClone = weaponModel.clone();
-							// weaponModelClone.scale.multiplyScalar(15);
-							// weaponModelClone.position.z -= 865;
-							// weaponModel.add(weaponModelClone);
-	
-							WEAPONHANDLER.weaponRotation = new THREE.Euler(jsonModel.weaponData.rotation.x, jsonModel.weaponData.rotation.y, jsonModel.weaponData.rotation.z);
-							WEAPONHANDLER.weaponTarget.rotation.copy(WEAPONHANDLER.weaponRotation);
-							// if (WEAPONDATA.weaponHelpText) setHelpText(WEAPONDATA.weaponHelpText);
-	
-							// Muzzle Flash
-							WEAPONHANDLER.hideMuzzleFlash = WEAPONHANDLER.defaultHideMuzzleFlash = true;
-							if (jsonModel.weaponData.hasMuzzleFlash == true) {
-								const map = new THREE.TextureLoader().load('../img/impact.png');
-								WEAPONHANDLER.hideMuzzleFlash = WEAPONHANDLER.defaultHideMuzzleFlash = false;
-								WEAPONHANDLER.fireSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-									map: map,
+							// Muzzle Fire
+							WEAPONHANDLER.muzzleFire = new THREE.Mesh(
+								new THREE.PlaneGeometry(6000, 45),
+								new THREE.MeshBasicMaterial({
+									map: new THREE.TextureLoader().load('../img/muzzlefire.png'),
 									color: 0xffffff,
 									side: THREE.DoubleSide,
 									depthTest: false,
 									transparent: true,
-								}));
-								object.add(WEAPONHANDLER.fireSprite);
-								WEAPONHANDLER.fireSprite.position.x = 50;
-								WEAPONHANDLER.fireSprite.position.y = 250;
-								WEAPONHANDLER.fireSprite.position.z = -700;
-		
-								// Muzzle Fire
-								WEAPONHANDLER.muzzleFire = new THREE.Mesh(
-									new THREE.PlaneGeometry(6000, 45),
-									new THREE.MeshBasicMaterial({
-										map: new THREE.TextureLoader().load('../img/muzzlefire.png'),
-										color: 0xffffff,
-										side: THREE.DoubleSide,
-										depthTest: false,
-										transparent: true,
-									})
-								);
-								object.add(WEAPONHANDLER.muzzleFire);
-								WEAPONHANDLER.muzzleFire.position.x = 50;
-								WEAPONHANDLER.muzzleFire.position.y = 250;
-								WEAPONHANDLER.muzzleFire.position.z = -3600;
-								WEAPONHANDLER.muzzleFire.rotation.y = Math.PI / 2;
-							}
-						},
-						function (err) {
-							// console.log(err);
-						}
-					);
-				}
-			);
-		}
-    }
+								})
+							);
+							object.add(WEAPONHANDLER.muzzleFire);
+							WEAPONHANDLER.muzzleFire.position.x = 50;
+							WEAPONHANDLER.muzzleFire.position.y = 250;
+							WEAPONHANDLER.muzzleFire.position.z = -3600;
+							WEAPONHANDLER.muzzleFire.rotation.y = Math.PI / 2;
 
-	createWeaponPickup(weaponType, position) {
+							WEAPONHANDLER.muzzleFire.material.opacity = 0;
+						}
+					},
+					function (err) {
+						// console.log(err);
+					}
+				);
+			}
+		);
+	}
+
+	createWeaponPickup(weaponType, position, isSpawnedPostLoad=false) {
         const LEVELHANDLER = this.LEVELHANDLER;
-		
+
 		const weaponURL = '../weapons/' + weaponType + '/' + weaponType;
 
 		LEVELHANDLER.globalModelLoader.load(
@@ -181,9 +209,12 @@ export class WeaponHandler {
 			function (object) {
 				LEVELHANDLER.scene.add(object);
 				LEVELHANDLER.weaponPickups.push(object);
+				LEVELHANDLER.outliner.selectedObjects.push(object);
 				object.isActive = true;
+				object.weaponType = weaponType;
+				object.isSpawnedPostLoad = isSpawnedPostLoad;
 				object.position.set(position.x, position.y+1, position.z);
-				object.position.add(globalOffset);
+				if (!isSpawnedPostLoad) object.position.add(globalOffset);
 				object.scale.divideScalar(50);
 				object.rotation.set(0, Math.random(), Math.PI/2)
 			}
@@ -194,7 +225,7 @@ export class WeaponHandler {
 		this.weaponModel.children[0].visible = toggle;
 	}
 
-	throwWeapon(voxelField) { return
+	throwWeapon(voxelField) {
 		if (this.weaponIsEquipped)
 		{
 			this.weaponIsEquipped = false;

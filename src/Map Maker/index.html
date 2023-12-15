@@ -385,7 +385,7 @@ const updateRightPanel = function (item, clear=false) {
         if (item.userData.weaponType != undefined) {
             const weaponType = document.createElement("div");
             weaponType.classList.add("inspector-element");
-            weaponType.innerHTML = "<h3>Weapon Pickup Type</h3><br/><h6>Ex. <code>SMG</code>, <code>DUALUZI</code>, <code>PISTOL</code> </h6>";
+            weaponType.innerHTML = "<h3>Weapon Pickup Type</h3><br/><h6>Ex. <code>smg</code>, <code>uzi</code>, <code>pistol</code> </h6>";
             const weaponTypeInput = document.createElement("input");
             weaponTypeInput.type = "text";
             weaponTypeInput.value = item.userData.weaponType;
@@ -1196,7 +1196,7 @@ const contextMenuClick = function (action) {
             weaponPickupPosition.copy(camera.position);
             weaponPickupPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
 
-            createWeaponPickup(weaponPickupPosition, "SMG");
+            createWeaponPickup(weaponPickupPosition, "smg");
             break;
         //  ### Object Manipulation
         case "Delete Object":

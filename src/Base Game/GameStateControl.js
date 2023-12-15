@@ -35,13 +35,24 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.levelLights.forEach(light => {light.intensity = light.baseIntensity});
 	resetDisplacedVoxels();
 	// Reset Weapon
+	WEAPONHANDLER.pickupWeapon("nothing");
 	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
 	WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType;
 	WEAPONHANDLER.weaponRange = WEAPONHANDLER.defaultWeaponRange;
 	WEAPONHANDLER.hideMuzzleFlash = WEAPONHANDLER.defaultHideMuzzleFlash;
 	WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped;
-	WEAPONHANDLER.weaponModel.position.copy(WEAPONHANDLER.weaponTarget.position);
-	WEAPONHANDLER.weaponModel.children.forEach(child => { child.visible = true });
+	if (WEAPONHANDLER.weaponModel) {
+		WEAPONHANDLER.weaponModel.position.copy(WEAPONHANDLER.weaponTarget.position);
+		WEAPONHANDLER.weaponModel.children.forEach(child => {
+			child.visible = true;
+			if (child.isHoldableWeapon == true) WEAPONHANDLER.weaponModel.remove(child)
+		});
+	}
+	// Reset Pickups
+	LEVELHANDLER.weaponPickups.forEach(pickup => {
+		if (pickup.isSpawnedPostLoad == false) pickup.visible = pickup.isActive = true;
+		else pickup.visible = pickup.isActive = false;
+	});
 	document.querySelector("#ammo-counter").textContent = WEAPONHANDLER.weaponRemainingAmmo
 	// Reset NPCs ...
 	LEVELHANDLER.NPCBank.forEach(thisNPC => {
@@ -64,10 +75,11 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	document.querySelector("#restart-helper").style.visibility = "hidden";
 	document.querySelector("#healthbar").style.width = "200px";
 	document.querySelector("#end-screen").innerHTML = "";
+	document.querySelector("#center-ui").style.visibility = "visible";
 	LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
+	LEVELHANDLER.outliner.selectedObjects = [];
 	// Clean Garbage
 	LEVELHANDLER.clearGarbage();
-	LEVELHANDLER.outliner.selectedObjects = [];
 	// Reset Timer ...
 	internalTimer = new THREE.Clock();
 	internalTimer.start();
@@ -75,40 +87,33 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 
 export const endGameState = function(LEVELHANDLER) {
 	internalTimer.stop();
+	document.querySelector("#center-ui").style.visibility = "hidden";
 	// add end screen to DOM
 	const endScreen = `
-	<div id="widebar-carrier">
-		<div id="widebar">
-			<div id="widebar-text">
-				LEVEL CLEAR
+	<div id="fade-control">
+		<div id="widebar-carrier">
+			<div id="widebar">
+				<img id="widebar-text" src="../img/level_clear.gif"/>
 			</div>
-		</div>
-		<div id="level-stats" style="margin-top:50px">
-			<div class="stat-holder">
-				<div class="left-stat">REMAINING HEALTH:</div>
-				<div class="right-stat" id="stat-remain-health">100</div>
-			</div>
-			<div class="stat-holder">
-				<div class="left-stat">TOTAL TIME:</div>
-				<div class="right-stat" id="stat-time-total">0:00</div>
-			</div>
-			<div class="stat-holder">
-				<div class="left-stat">LEVEL DESTRUCTION:</div>
-				<div class="right-stat" id="stat-destruction-total">0%</div>
-			</div>
-			<div id="bonuses"></div>
-			<div class="stat-holder">
-				<div class="left-stat">TOTAL SCORE:</div>
-				<div class="right-stat" id="stat-score-total">0</div>
-			</div>
-			<div id="tips"></div>
-			<div class="stat-holder" style="margin-top: 50px">
-				<b id="nextkey">Press <font style="color:gold">[Spacebar]</font><br />to go to the Next Floor</b>
+			<div id="level-stats" style="margin-top:50px; display:none">
+				<div style="opacity: 0.5">
+					<div class="stat-holder">
+						<div class="left-stat">LEVEL DESTRUCTION:</div>
+						<div class="right-stat" id="stat-destruction-total">0 blocks</div>
+					</div>
+				</div>
+				<div id="tips"></div>
+				<div id="bonuses"></div>
+				<br />
+				<div class="stat-holder">
+					<b id="nextkey">Press <font style="color:gold">[Spacebar]</font><br />to go to the Next Floor</b>
+				</div>
 			</div>
 		</div>
 	</div>`
 
 	document.querySelector("#end-screen").innerHTML = endScreen;
+	// document.querySelector("#level-stats").style.opacity = 0;
 
 	if (LEVELHANDLER.playerHealth <= 10) {
 		document.querySelector("#bonuses").innerHTML += `
@@ -117,17 +122,18 @@ export const endGameState = function(LEVELHANDLER) {
 		</div>`;
 	}
 
-	document.querySelectorAll(".right-stat")[document.querySelectorAll(".right-stat").length-2].style.borderBottom = "5px solid white";
+	// document.querySelectorAll(".right-stat")[document.querySelectorAll(".right-stat").length-2].style.borderBottom = "2px solid white";
 
 	const numDestroyedVoxels = displacedVoxels.length;
 	const remainingHealth = Math.ceil(LEVELHANDLER.playerHealth);
 
-	document.querySelector("#stat-remain-health").textContent = remainingHealth + " %";
-	document.querySelector("#stat-time-total").textContent = "÷ " + internalTimer.getElapsedTime().toFixed(2) + " s";
-	document.querySelector("#stat-destruction-total").textContent = "× " + numDestroyedVoxels + " blocks";
+	// document.querySelector("#stat-remain-health").textContent = remainingHealth + " %";
+	document.querySelector("#stat-destruction-total").textContent = numDestroyedVoxels + " blocks";
+	// document.querySelector("#stat-time-total").textContent = "÷ " + internalTimer.getElapsedTime().toFixed(2) + " seconds";
 
-	const scorebox = document.querySelector("#stat-score-total");
-	scorebox.textContent = Math.ceil(((remainingHealth / 100) / internalTimer.getElapsedTime()) * (numDestroyedVoxels) + (LEVELHANDLER.playerHealth <= 10 ? 180 : 0)) + " POINTS";
+	const scorebox = document.querySelector("#stat-destruction-total");
+	// const scorebox = document.querySelector("#stat-score-total");
+	// scorebox.textContent = Math.ceil(numDestroyedVoxels / internalTimer.getElapsedTime()) + " POINTS";
 
 	const score = parseInt(scorebox.textContent);
 	if (score > 20) LEVELHANDLER.isLevelComplete = true;
@@ -155,6 +161,10 @@ export const endGameState = function(LEVELHANDLER) {
 			
 		}
 	}, 2000);
+
+	setTimeout(() => {
+		document.querySelector("#fade-control").style.animation = "fade-out-some 1s ease-out forwards";
+	}, 10000);
 
 	// for each stat-holder, increment animation-delay by 1
 	for (let i = 0; i < document.querySelectorAll(".stat-holder").length; i++) {
