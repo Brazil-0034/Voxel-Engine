@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { globalOffset } from './WorldGenerator.js';
+import { rapidFloat } from './EngineMath.js';
 export class WeaponHandler {
     // MAIN
     LEVELHANDLER
@@ -42,7 +43,7 @@ export class WeaponHandler {
         
 		this.weaponRemainingAmmo = 0;
 		this.defaultRemainingAmmo = 0;
-		this.isAttackAvailable = true;
+		this.isAttackAvailable = false;
 
 		this.isAnimated = false;
 		this.weaponIsEquipped = this.defaultWeaponIsEquipped = false;
@@ -67,7 +68,6 @@ export class WeaponHandler {
 				object.scale.divideScalar(50);
 				if (WEAPONHANDLER.weaponModel) LEVELHANDLER.scene.remove(WEAPONHANDLER.weaponModel);
 				WEAPONHANDLER.weaponModel = object;
-				console.log(WEAPONHANDLER.weaponModel);
 				LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
 				WEAPONHANDLER.weaponModel.rotation.set(Math.PI/2,Math.PI/2,Math.PI/2)
 			}
@@ -132,7 +132,8 @@ export class WeaponHandler {
 						WEAPONHANDLER.flashlight.rotation.set(-Math.PI/2, 0, 0);
 
 						WEAPONHANDLER.flashlight.castShadow = false;
-						WEAPONHANDLER.flashlight.penumbra = 0.5;
+						WEAPONHANDLER.flashlight.penumbra = 0.75;
+						WEAPONHANDLER.flashlight.decay = 2;
 
 						const targetObject = new THREE.Object3D()
 						WEAPONHANDLER.flashlight.add(targetObject)
@@ -214,10 +215,29 @@ export class WeaponHandler {
 				object.isActive = true;
 				object.weaponType = weaponType;
 				object.isSpawnedPostLoad = isSpawnedPostLoad;
+				if (position.y == 10) position.y = 0;
 				object.position.set(position.x, position.y+1, position.z);
 				if (!isSpawnedPostLoad) object.position.add(globalOffset);
 				object.scale.divideScalar(50);
 				object.rotation.set(0, Math.random(), Math.PI/2)
+			}
+		);
+	}
+
+	createExplosive(position) {
+		position.round();
+		console.log("CREATING EXPLOSIVE at", position.x, position.y, position.z);
+		const LEVELHANDLER = this.LEVELHANDLER;
+
+		const explosiveURL = '../weapons/explosive/explosive';
+
+		LEVELHANDLER.globalModelLoader.load(
+			explosiveURL + '.fbx',
+			function (object) {
+				object.scale.divideScalar(30);
+				object.position.set(position.x, position.y, position.z);
+				LEVELHANDLER.scene.add(object);
+				LEVELHANDLER.registerExplosive(object);
 			}
 		);
 	}
@@ -256,11 +276,10 @@ export class WeaponHandler {
 			// Raycast for Enemies
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.sceneObject.children[1]));
+			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.npcObject));
 			intersects.forEach((intersect) => {
 				if (intersect.distance > this.LEVELHANDLER.camera.position.distanceTo(intersectPosition)) return;
-				console.log(intersect.object);
-				intersect.object.npcHandler.depleteHealth(100);
+				if (intersect.object.npcHandler) intersect.object.npcHandler.depleteHealth(100);
 			});
 			// Prevent Shooting
 			this.weaponRemainingAmmo = 0;

@@ -39,19 +39,31 @@ export class SoundEffectPlayer {
         })
         this.rustleSound = new Howl({
             src: ['../sfx/rustle.mp3'],
-            volume: USERSETTINGS.SFXVolume * 25
+            volume: USERSETTINGS.SFXVolume * 20
+        })
+        this.levelClearSound = new Howl({
+            src: ['../sfx/level_clear.mp3'],
+            volume: USERSETTINGS.SFXVolume * 20,
+        })
+        this.startLevelSound = new Howl({
+            src: ['../sfx/start_level.mp3'],
+            volume: USERSETTINGS.SFXVolume * 10,
+        })
+        this.endLevelSound = new Howl({
+            src: ['../sfx/end_level.mp3'],
+            volume: USERSETTINGS.SFXVolume * 25,
         })
 
         this.killSounds = [
             new Howl({
                 src: ['../sfx/kill_ding.wav'],
-                volume: USERSETTINGS.SFXVolume * 12
+                volume: USERSETTINGS.SFXVolume * 10
             })
         ]
 
         this.music = new Howl({
                 src: ['../music/ambient_waves.mp3'],
-                volume: USERSETTINGS.musicVolume,
+                volume: USERSETTINGS.musicVolume * 0,
                 loop: true
             })
 

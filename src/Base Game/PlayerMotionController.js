@@ -47,7 +47,7 @@ export class PlayerController {
         
             acceleration: 0.25,
             maxSpeed: 0.015,
-            stepSize: 125,
+            stepSize: 9500,
         }
     }
 
@@ -150,8 +150,8 @@ export class PlayerController {
 
             // Movement
             if (this.LEVELHANDLER.playerCanMove == true) {
-                this.controls.moveRight(this.playerMotion.stepSize * this.playerMotion.xAxis * moveSpeedOffset);
-                this.controls.moveForward(-this.playerMotion.stepSize * this.playerMotion.zAxis * moveSpeedOffset);
+                this.controls.moveRight(this.playerMotion.stepSize * this.playerMotion.xAxis * moveSpeedOffset * delta);
+                this.controls.moveForward(-this.playerMotion.stepSize * this.playerMotion.zAxis * moveSpeedOffset * delta);
                 // if moving right and forward at the same time, reduce speed
                 if (this.playerMotion.xAxis != 0 && this.playerMotion.zAxis != 0) {
                     this.playerMotion.xAxis *= 0.75;
@@ -306,8 +306,8 @@ export class PlayerController {
                 {
                     if (pickup.isActive)
                     {
-                        setInteractionText("[E] PICK UP WEAPON");
-                        if (this.WEAPONHANDLER.weaponType != "melee") setInteractionText("[E] SWAP WEAPON");
+                        setInteractionText("<b>[E]</b> PICK UP WEAPON");
+                        if (this.WEAPONHANDLER.weaponType != "melee") setInteractionText("<b>[E]</b> SWAP WEAPON");
                         if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true)
                         {
                             pickup.visible = false;
@@ -342,68 +342,89 @@ export class PlayerController {
             this.WEAPONHANDLER.muzzleFire.material.opacity = rapidFloat();
             this.WEAPONHANDLER.muzzleFire.rotateX(rapidFloat());
         }
-        // RAYCAST INTO THE VOXEL FIELD
-        // STEP 1: GET THE CAMERA POSITION
-        // STEP 2: GET THE CAMERA DIRECTION
-        // STEP 3: CALL voxelField.raycast() WITH THE CAMERA POSITION AND DIRECTION, and a step range of weaponRange
-        // STEP 4: IF THE RAYCAST RETURNS A HIT, DESTROY THE VOXEL AT THAT POSITION
-        // CAMERA POSITION
-        const cameraPosition = new THREE.Vector3();
-        this.LEVELHANDLER.camera.getWorldPosition(cameraPosition);
-        cameraPosition.x = Math.round(cameraPosition.x);
-        cameraPosition.y = Math.round(cameraPosition.y);
-        cameraPosition.z = Math.round(cameraPosition.z);
-        const cameraDirection = new THREE.Vector3();
-        this.LEVELHANDLER.camera.getWorldDirection(cameraDirection);
-        const intersection = voxelField.raycast(cameraPosition, cameraDirection, this.WEAPONHANDLER.weaponRange);
-        // Determine which voxels in chunk are to be destroyed
-        if (intersection != null) {
-            // get the lowest lod model for this voxel
-            const currentModel = intersection.chunk;
-    
-            // disable any attached light
-            if (currentModel.attachedLight != undefined) // TODO: this check may be unnecessary
-            {
-                currentModel.attachedLight.intensity = 0;
+
+        this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+        const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.explosives.map(explosives => explosives.children[0]));
+        if (intersects.length > 0)
+        {
+            const explosive = intersects[0].object;
+            if (explosive.parent.visible) {
+                const blocksToDestroy = explosive.blocksToDestroy;
+                console.log(rapidFloat());
+                generateDestroyedChunkAt(blocksToDestroy, this.USERSETTINGS, this.LEVELHANDLER, this.LEVELHANDLER.particleHandler, explosive);
+                explosive.parent.visible = false;
+				this.LEVELHANDLER.isCameraShaking = true;
+				setTimeout(() => {this.LEVELHANDLER.isCameraShaking = false;}, 150);
             }
-    
-            // build a list of each destroyed voxel
-            let destroyedVoxelsInChunk = [];
-    
-            // the position at which we hit
-            const intersectPosition = new THREE.Vector3(
-                intersection.x,
-                intersection.y,
-                intersection.z
-            )
-    
-            // for every voxel within a WEAPONHANDLER.destroyedChunkRange of the intersection, destroy it
-            for (let x = intersectPosition.x - this.WEAPONHANDLER.destroyedChunkRange; x <= intersectPosition.x + this.WEAPONHANDLER.destroyedChunkRange; x++) {
-                for (let y = intersectPosition.y - this.WEAPONHANDLER.destroyedChunkRange; y <= intersectPosition.y + this.WEAPONHANDLER.destroyedChunkRange; y++) {
-                    for (let z = intersectPosition.z - this.WEAPONHANDLER.destroyedChunkRange; z <= intersectPosition.z + this.WEAPONHANDLER.destroyedChunkRange; z++) {
-                        {
-                            if (
-                                x == intersectPosition.x + this.WEAPONHANDLER.destroyedChunkRange ||
-                                x == intersectPosition.x - this.WEAPONHANDLER.destroyedChunkRange ||
-                                y == intersectPosition.y + this.WEAPONHANDLER.destroyedChunkRange ||
-                                y == intersectPosition.y - this.WEAPONHANDLER.destroyedChunkRange ||
-                                z == intersectPosition.z + this.WEAPONHANDLER.destroyedChunkRange ||
-                                z == intersectPosition.z - this.WEAPONHANDLER.destroyedChunkRange
-                            )
+        }
+        else
+        {
+            // else, check blocks
+                
+            // RAYCAST INTO THE VOXEL FIELD
+            // STEP 1: GET THE CAMERA POSITION
+            // STEP 2: GET THE CAMERA DIRECTION
+            // STEP 3: CALL voxelField.raycast() WITH THE CAMERA POSITION AND DIRECTION, and a step range of weaponRange
+            // STEP 4: IF THE RAYCAST RETURNS A HIT, DESTROY THE VOXEL AT THAT POSITION
+            // CAMERA POSITION
+            const cameraPosition = new THREE.Vector3();
+            this.LEVELHANDLER.camera.getWorldPosition(cameraPosition);
+            cameraPosition.x = Math.round(cameraPosition.x);
+            cameraPosition.y = Math.round(cameraPosition.y);
+            cameraPosition.z = Math.round(cameraPosition.z);
+            const cameraDirection = new THREE.Vector3();
+            this.LEVELHANDLER.camera.getWorldDirection(cameraDirection);
+
+            const intersection = voxelField.raycast(cameraPosition, cameraDirection, this.WEAPONHANDLER.weaponRange);
+            // Determine which voxels in chunk are to be destroyed
+            if (intersection != null) {
+                // get the lowest lod model for this voxel
+                const currentModel = intersection.chunk;
+        
+                // disable any attached light
+                if (currentModel.attachedLight != undefined) // TODO: this check may be unnecessary
+                {
+                    currentModel.attachedLight.intensity = 0;
+                }
+        
+                // build a list of each destroyed voxel
+                let destroyedVoxelsInChunk = [];
+        
+                // the position at which we hit
+                const intersectPosition = new THREE.Vector3(
+                    intersection.x,
+                    intersection.y,
+                    intersection.z
+                )
+        
+                // for every voxel within a WEAPONHANDLER.destroyedChunkRange of the intersection, destroy it
+                for (let x = intersectPosition.x - this.WEAPONHANDLER.destroyedChunkRange; x <= intersectPosition.x + this.WEAPONHANDLER.destroyedChunkRange; x++) {
+                    for (let y = intersectPosition.y - this.WEAPONHANDLER.destroyedChunkRange; y <= intersectPosition.y + this.WEAPONHANDLER.destroyedChunkRange; y++) {
+                        for (let z = intersectPosition.z - this.WEAPONHANDLER.destroyedChunkRange; z <= intersectPosition.z + this.WEAPONHANDLER.destroyedChunkRange; z++) {
                             {
-                                if (rapidFloat() < 0.5) continue;
+                                if (
+                                    x == intersectPosition.x + this.WEAPONHANDLER.destroyedChunkRange ||
+                                    x == intersectPosition.x - this.WEAPONHANDLER.destroyedChunkRange ||
+                                    y == intersectPosition.y + this.WEAPONHANDLER.destroyedChunkRange ||
+                                    y == intersectPosition.y - this.WEAPONHANDLER.destroyedChunkRange ||
+                                    z == intersectPosition.z + this.WEAPONHANDLER.destroyedChunkRange ||
+                                    z == intersectPosition.z - this.WEAPONHANDLER.destroyedChunkRange
+                                )
+                                {
+                                    if (rapidFloat() < 0.5) continue;
+                                }
+                                destroyedVoxelsInChunk.push(new THREE.Vector3(
+                                    x,
+                                    y,
+                                    z
+                                ));
                             }
-                            destroyedVoxelsInChunk.push(new THREE.Vector3(
-                                x,
-                                y,
-                                z
-                            ));
                         }
                     }
                 }
+    
+                generateDestroyedChunkAt(destroyedVoxelsInChunk, this.USERSETTINGS, this.LEVELHANDLER, this.LEVELHANDLER.particleHandler, currentModel);
             }
-
-            generateDestroyedChunkAt(destroyedVoxelsInChunk, this.USERSETTINGS, this.LEVELHANDLER, this.LEVELHANDLER.particleHandler, currentModel);
         }
     }
 }

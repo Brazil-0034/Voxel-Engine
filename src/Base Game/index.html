@@ -29,32 +29,41 @@
 
 	<!-- PRIMARY UI -->
 	<div id="dead-overlay"></div>
+	<div id="prevent-overlay"></div>
 	<div id="ui-overlay">
+		<div id="da-big-text">Left-Click to Start</div>
 		<!-- The red part -->
 		<div style="display: block">
-			<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
-				preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
-				xmlns="http://www.w3.org/2000/svg">
-				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd"
-					stroke="none">
-					<!-- svg animation to pulse the healthbar color and fill and stroke -->
-					<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite"
-						begin="indefinite" id="health-anim-1" />
-					<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite"
-						begin="indefinite" id="health-anim-2" />
-					<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite"
-						begin="indefinite" id="health-anim-3" />
-				</path>
-			</svg>
+			<div id="health-uis">
+				<svg id="healthbar" class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
+					preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
+					xmlns="http://www.w3.org/2000/svg">
+					<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#c72626" fill-rule="evenodd"
+						stroke="none">
+						<!-- svg animation to pulse the healthbar color and fill and stroke -->
+						<animate attributeName="fill" values="#FF0051;#FFFFFF;#FF0051" dur="0.25s" repeatCount="indefinite"
+							begin="indefinite" id="health-anim-1" />
+						<animate attributeName="stroke" values="none;white;none" dur="0.25s" repeatCount="indefinite"
+							begin="indefinite" id="health-anim-2" />
+						<animate attributeName="stroke-width" values="0;3;0" dur="0.25s" repeatCount="indefinite"
+							begin="indefinite" id="health-anim-3" />
+					</path>
+				</svg>
+	
+				<!-- The white part -->
+				<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
+					preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
+					xmlns="http://www.w3.org/2000/svg">
+					<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25"
+						fill-rule="evenodd" stroke="none">
+					</path>
+				</svg>
+			</div>
 
-			<!-- The white part -->
-			<svg class="health" width="200px" height="12px" viewBox="0 0 200 12" version="1.1"
-				preserveAspectRatio="none" xmlns:xlink="http://www.w3.org/1999/xlink"
-				xmlns="http://www.w3.org/2000/svg">
-				<path d="M0 0L200 0L193.436 12L6.83196 12L0 0Z" id="Rectangle" fill="#FFFFFF" fill-opacity="0.25"
-					fill-rule="evenodd" stroke="none">
-				</path>
-			</svg>
+			<div id="npc-chat">
+				<div id="npc-text"></div>
+				<span id="e">[E]</span>
+			</div>
 		</div>
 
 		<!-- AMMO COUNTER -->
@@ -62,32 +71,12 @@
 			<div id="ammo-counter">0</div>
 			<div id="enemy-counter">0</div>
 			<img src="../img/diamond.png" id="middle-crosshair"
-				style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 32px; z-index: 1000; opacity: 0.25">
+				style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 32px; z-index: 1000; opacity: 0.25; visibility: hidden;">
 		</div>
+		
 		<!-- RESTART OVERLAY -->
 		<div id="restart-helper">Press [R] to Restart</div>
 
-		<!-- PHONE -->
-		<div id="phone" style="display:none">
-			<div id="indicator" style="animation-delay: 16s">
-				<div class="message phone-vibrate" style="animation-delay: 8s; display: flex; align-items: center;">
-					<img src="../img/phone/vibrate.gif" style="width: 80px; height: 80px;" />
-					<span><b>Unknown Sender</b></span>
-				</div>
-			</div>
-			<div class="message message-left" style="animation-delay: 13s">
-				<p>Hey, Listen Closely!</p>
-			</div>
-			<div class="message message-left" style="animation-delay: 15s">
-				<p>There are people downstairs waiting for you. You need to get out of there.</p>
-			</div>
-			<!-- <div class="message message-right choice" style="animation-delay: 16.5s">
-				<p>[ 1 ] Who is this?</p>
-			</div>
-			<div class="message message-right choice" style="animation-delay: 17s">
-				<p>[ 2 ] Where am I?</p>
-			</div> -->
-		</div>
 	</div>
 
 	<!-- WEB BROWSER -->
@@ -108,8 +97,6 @@
 	</script>
 	<!-- AUDIO ENGINE IMPORT -->
 	<script src="../opensource/howler/howler.js"></script>
-	<!-- PHYSICS ENGINE IMPORT -->
-	<scrit src="../opensource/oimo.min.js"></scrit>
 	<!-- INSPECTOR PANEL IMPORT -->
 	<script src="../opensource/dat.gui.min.js"></script>
 	<!-- STATS.JS -->
@@ -118,7 +105,7 @@
 
 	<div id="end-screen"></div>
 
-	<div id="interaction-text"></div>
+	<div id="interaction-text" style="visibility: hidden;"></div>
 	<div id="help-text">Loading . . .</div>
 </body>
 
@@ -143,6 +130,7 @@
 	import { ConvexHull } from 'three/addons/math/ConvexHull.js';
 	import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
 	import { LightProbeHelper } from 'three/addons/helpers/LightProbeHelper.js';
+	import { startChatScan, checkChat, incrementChatIndex } from './ChatSystem.js';
 	// WRECK
 	import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 	import { USERSETTINGS, LevelHandler, instancedModelIndex } from './LevelHandler.js'; // user settings and level info
@@ -150,7 +138,7 @@
 	import { lerp, clamp, rapidFloat, moveTowards, createVizSphere } from './EngineMath.js'; // math functions
 	import { voxelField, recentlyEditedWorldModels } from './VoxelStructures.js'; // data structures for handling voxels
 	import { WeaponHandler } from './WeaponHandler.js'; // Weapon Data
-	import { setHelpText } from './UIHandler.js'; // User Interface
+	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
 	import { generateWorld, voxelGeometry, voxelMaterial, globalOffset } from './WorldGenerator.js'; // Map Generation
 	import { PlayerController } from './PlayerMotionController.js'; // First Person Controller
 
@@ -171,6 +159,7 @@
 		new THREE.Scene(),
 		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
 	);
+	LEVELHANDLER.SFXPlayer.playSound('startLevelSound', false);
 	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
 	const INPUTHANDLER = new InputHandler();
 
@@ -239,9 +228,9 @@
 	// Ambient Occlusion
 	const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
 	n8aopass.setQualityMode("Ultra");
-	n8aopass.configuration.aoRadius = 10;
+	n8aopass.configuration.aoRadius = 24;
 	n8aopass.configuration.distanceFalloff = 1.0;
-	n8aopass.configuration.intensity = 3.0;
+	n8aopass.configuration.intensity = 4.5;
 	n8aopass.configuration.halfRes = true;
 	n8aopass.configuration.gammaCorrection = false;
 	composer.addPass(n8aopass);
@@ -277,7 +266,7 @@
 	// ##########
 	// DEFAULT AMBIENT LIGHTING
 	// ##########
-	const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+	const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
 	LEVELHANDLER.scene.add(ambientLight);
 	LEVELHANDLER.backlight = ambientLight;
 
@@ -286,10 +275,8 @@
 	// ##########
 	const controls = new PointerLockControls(LEVELHANDLER);
 	LEVELHANDLER.scene.add(controls.getObject());
-	LEVELHANDLER.renderer.domElement.addEventListener('mousedown', () => controls.lock());
 	LEVELHANDLER.controls = controls;
 
-	document.body.onload = () => controls.lock();
 
 	// ##########
 	// FILESYSTEM CONSTANTS
@@ -332,11 +319,17 @@
 	}
 
 	const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster);
+	
+	startChatScan();
 
 	let frameCounter = 0;
 	// ### RENDER LOOP ###
 	const frustum = new THREE.Frustum();
-	const render = function () {
+	const render = function() {
+		composer.render();
+	}
+
+	const update = function () {
 		// Frame Calculations
 		frameCounter = (frameCounter + 1) % 60;
 		const delta = clock.getDelta() * LEVELHANDLER.timeModifier;
@@ -348,6 +341,12 @@
 		// Update Active NPC's
 		LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
 		document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
+		checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
+		if (INPUTHANDLER.isKeyPressed('e')) {
+			incrementChatIndex();
+		}
+		if (INPUTHANDLER.isKeyPressed('t')) document.querySelector("#vizbox").style.display = "block";
+		else document.querySelector("#vizbox").style.display = "none";
 		// Update Active Particles
 		particleHandler.update(delta);
 		LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
@@ -355,18 +354,21 @@
 		worldSphere.position.copy(LEVELHANDLER.camera.position);
 		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta / 100), worldSphere.material.map.center.y + (delta / 1000));
 		// Check Level Completion
-		if (LEVELHANDLER.isLevelComplete == true) {
-			if (INPUTHANDLER.isKeyPressed(' ')) {
+		if (LEVELHANDLER.isLevelComplete == true || INPUTHANDLER.isKeyPressed('y')) {
+			if (INPUTHANDLER.isKeyPressed(' ') || INPUTHANDLER.isKeyPressed('y')) {
+				LEVELHANDLER.SFXPlayer.playSound("endLevelSound", false);
 				LEVELHANDLER.isCameraShaking = true;
+				setTimeout(() => {LEVELHANDLER.isCameraShaking = false}, 150);
 				USERSETTINGS.screenShakeIntensity /= 0.25;
-				setTimeout(() => {LEVELHANDLER.isCameraShaking = false;}, 150);
 				LEVELHANDLER.isLevelComplete = false;
-				document.querySelector("#cover-flash").style.animation = "expand 0.75s forwards";
+				document.querySelector("#cover-flash").style.animation = "expand 0.75s";
+				document.querySelector("#end-screen").style.display = document.querySelector("#ui-overlay").style.display = "none";
 				setTimeout(() => {
 					let target = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
-					if (LEVELHANDLER.nextLevelURL.substring(0, 8) == "CUTSCENE") target = LEVELHANDLER.nextLevelURL.substring(9, LEVELHANDLER.nextLevelURL.length) + "_cutscene.html";
+					if (LEVELHANDLER.nextLevelURL.substring(0, 3) == "../") target = LEVELHANDLER.nextLevelURL;
 					window.location.href = target;
-				}, 750);
+				}, 500);
+				LEVELHANDLER.renderer.domElement.style.animation = "shrink 0.75s ease-in-out forwards";
 			}
 		}
 		// Update Lights
@@ -375,7 +377,7 @@
 		// 	else light.intensity = light.baseIntensity;
 		// });
 		// Player Movement Handling
-		playerController.update(delta);
+		if (LEVELHANDLER.levelFinishedLoading) playerController.update(delta);
 		// Camera Shake
 		if (LEVELHANDLER.isCameraShaking) LEVELHANDLER.renderer.domElement.style.transform = "translate(" + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px, " + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px)";
 		else LEVELHANDLER.renderer.domElement.style.transform = "translate(0px, 0px)";
@@ -383,6 +385,9 @@
 		if (WEAPONHANDLER.fireSprite) {
 			WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
 			WEAPONHANDLER.muzzleFire.material.opacity -= 15 * delta;
+		}
+		if (WEAPONHANDLER.weaponIsEquipped && WEAPONHANDLER.weaponRemainingAmmo == 0) {
+			setInteractionText("<b>[Q]</b> THROW WEAPON");
 		}
 
 		// #########
@@ -434,12 +439,35 @@
 			}
 		});
 
-		requestAnimationFrame(render);
+		requestAnimationFrame(update);
 		LEVELHANDLER.renderer.info.reset();
-		composer.render();
+		render();
 	}
 
-	render(); // calls render loop
+	const startGame = function() {
+		document.querySelector("#da-big-text").innerHTML = "LOADING . . .";
+		controls.lock();
+		render();
+		setTimeout(() => {
+			document.querySelector("#da-big-text").style.display = "none";
+			document.querySelector("#prevent-overlay").style.display = "none";
+			document.querySelectorAll(".health").forEach(e => e.style.visibility = "visible");
+			document.querySelector("#middle-crosshair").style.visibility = "visible";
+			document.querySelector("#interaction-text").style.visibility = "visible";
+			update();
+		}, 250)
+	}
+
+	let gameStarted = false;
+	const n = () => {
+		controls.lock();
+		if (!gameStarted) startGame();
+		gameStarted = true;
+	};
+
+	document.body.addEventListener('click', n);
+
+
 
 	// window resize handler
 	window.addEventListener('resize', () => {

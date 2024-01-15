@@ -39,7 +39,26 @@ voxelMaterial.dithering = true;
 let levelName;
 
 export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere) {
+    // level-specific tweaks
     levelName = modelURL;
+    const levelID = levelName.substring(0,2);
+    LEVELHANDLER.levelID = levelID;
+    LEVELHANDLER.nextLevelText = "go to the Next Floor";
+    switch (levelID)
+    {
+        case "05":
+            document.querySelector("#middle-crosshair").style.visibility = "hidden";
+            document.querySelector("#interaction-text").style.visibility = "hidden";
+            document.querySelector("#health-uis").style.display = "none";
+            break;
+        case "06":
+        case "07":
+            LEVELHANDLER.nextLevelText = "try to Wake Up";
+            document.querySelector("#loader-bg").style.filter = "contrast(150%)";
+            LEVELHANDLER.nextLevelText = "try to Wake Up";
+            document.querySelector("#health-uis").style.display = "none";
+            break;
+    }
 
     // Zeroeth Step: Level Text
     const loader = new FontLoader();
@@ -67,6 +86,15 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             assistObj.position.set(10286, 30, 9710);
             assistObj.rotation.y = -Math.PI/2;
             LEVELHANDLER.scene.add(assistObj);
+
+            const assistObj2 = new THREE.Mesh(new THREE.PlaneGeometry(85, 40), new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                map: LEVELHANDLER.globalTextureLoader.load('../img/throwweapon.png'),
+                transparent: true
+            }));
+            assistObj2.position.set(10414, 30, 9790);
+            assistObj2.rotation.y = -Math.PI/2;
+            LEVELHANDLER.scene.add(assistObj2);
         }
         if (levelName.substring(0,2) == "02") {
             const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(65, 55), new THREE.MeshBasicMaterial({
@@ -74,7 +102,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 map: LEVELHANDLER.globalTextureLoader.load('../img/break_wall.png'),
                 transparent: true
             }));
-            assistObj.position.set(9970, 30, 9983);
+            assistObj.position.set(9970, 30, 9943);
             assistObj.rotation.y = Math.PI/2;
             assistObj.visible = false;
             LEVELHANDLER.assistObj = assistObj;
@@ -94,6 +122,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
         // THIS GETS METADATA (PRELOAD)
         ipcRenderer.on('get-map-metadata-reply', (event, arg) => {
+            console.log("GENERATING FROM", modelURL);
 
             const mapCameraData = {
                 position: JSON.parse(arg.metaData).cameraData.cameraPosition,
@@ -138,6 +167,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
             // Filter 2: Boxes & Entities
             // These are the most standard world object, and are the quickest to process
+            const explosiveList = [];
             mapObjects.forEach(mapMakerObject => {
 
                 if (mapMakerObject.isCutaway && mapMakerObject.isCutaway == true) return;
@@ -171,10 +201,11 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
                 // Enemy NPCs
                 if (mapMakerObject.isEnemyNPC && mapMakerObject.isEnemyNPC == true) {
+                    if (!mapMakerObject.enemyType) mapMakerObject.enemyType = "thug";
                     // sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
                     if (mapMakerObject.rotation.y < 0.1 && mapMakerObject.rotation.y > -0.1) mapMakerObject.rotation.y = Math.PI;
                     const thisNPC = new NPC(
-                        'thug',
+                        mapMakerObject.enemyType,
                         '../character_models/thug_idle.png',
                         new THREE.Vector3(position.x, 1, position.z),
                         -mapMakerObject.rotationIntervals,
@@ -183,26 +214,36 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                         LEVELHANDLER,
                         voxelField,
                         WEAPONHANDLER,
-                        'smg'
+                        'smg',
+                        mapMakerObject.isHostile,
                     );
                     return;
                 }
-
                 // Weapon Pickups
                 if (mapMakerObject.weaponType != undefined) {
-                    WEAPONHANDLER.createWeaponPickup(mapMakerObject.weaponType, new THREE.Vector3(position.x, 1, position.z));
+                    
+                    WEAPONHANDLER.createWeaponPickup(mapMakerObject.weaponType, new THREE.Vector3(position.x, position.y, position.z));
+                }
+                else if (mapMakerObject.isExplosive != undefined) {
+                    if (position.y == 10) position.y = 3;
+                    explosiveList.push(new THREE.Vector3(position.x, position.y, position.z));
                 }
                 else
                 {
-                    buildWorldModelFromBox(LEVELHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
+                    buildWorldModelFromBox(LEVELHANDLER, WEAPONHANDLER, USERSETTINGS, mapMakerObject.type, scale, position, mapMakerObject.material, color, mapMakerObject.lightBrightness, mapMakerObject.interactionEvent, light);
                 }
             });
+
+            explosiveList.forEach(position => {
+                WEAPONHANDLER.createExplosive(new THREE.Vector3(position.x + globalOffset.x, position.y + globalOffset.y, position.z + globalOffset.z));
+            })
         });
     });
+
 }
 
 export const globalOffset = new THREE.Vector3(10000, 0, 10000);
-const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
+const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTINGS, boxType, scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
 
     if (scale.x > 2) scale.x -= 1;
     if (scale.y > 2) scale.y -= 1;
@@ -631,6 +672,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
             voxelPosition = voxelPosition.round();
             if (cutawayField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z) != null) {
                 instancedWorldModel.useCoverBox = false;
+                instancedWorldModel.isDetail = true;
                 return
             }
             const voxel = voxelField.get(voxelPosition.x, voxelPosition.y, voxelPosition.z);
@@ -851,27 +893,32 @@ const buildWorldModelFromBox = function (LEVELHANDLER, USERSETTINGS, boxType, sc
 
         itemsBuiltSoFar++;
         const doneness = Math.round((itemsBuiltSoFar/itemsToBuild)*100);
+        console.log(doneness);
         const loader = document.querySelector("#loader");
-        if (doneness < 90) {
+        if (doneness < 97) {
             loader.textContent = doneness + "%";
         } else {
             loader.innerHTML = levelName.substring(3).replaceAll('_', ' ');
-            loader.style.color = "white";
+            document.querySelector("#ui-overlay").style.opacity = 1;
         }
         // When all objects are finished loading ...
         if (itemsBuiltSoFar >= itemsToBuild) {
             console.log("COMPLETE")
             // Remove the Pump Cover
             const loader = document.querySelector("#loader-bg");
-            setTimeout(() => { loader.style.animation = "fade-out 1s ease" }, 1000);
-            setTimeout(() => { loader.parentNode.removeChild(loader) }, 2000);
+            setTimeout(() => { loader.style.animation = "fade-out-sharp 1s ease" }, 1000);
+            setTimeout(() => { loader.parentNode.removeChild(loader); LEVELHANDLER.levelFinishedLoading = true; }, 2000);
+            document.querySelector("#interaction-text").style.display = "block";
+            document.querySelector("#npc-text").style.animation = "typewriter 2.5s steps(40, end) forwards";
+            WEAPONHANDLER.isAttackAvailable = true;
 
             // Update the light probe !!!
             cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);
             lightProbe.copy(LightProbeGenerator.fromCubeRenderTarget(LEVELHANDLER.renderer, cubeRenderTarget));
-        }
 
-    };
+            if (LEVELHANDLER.totalNPCs == 0) LEVELHANDLER.isLevelComplete = true;
+        }
+    }
     const loader = new THREE.TextureLoader(manager);
     const texture = loader.load(texturePath, (texture) => {
         texture.encoding = THREE.sRGBEncoding;

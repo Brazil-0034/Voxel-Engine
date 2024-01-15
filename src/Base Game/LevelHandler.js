@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { voxelField } from './VoxelStructures.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { rapidFloat } from './EngineMath.js'; // math functions
 import { SoundEffectPlayer } from './AudioLibrary.js'; // SFX and Music
 
 // Data relevant to the user's graphics and gameplay settings
@@ -15,7 +17,7 @@ export const USERSETTINGS = {
 	// ACCESSIBILITY
 	screenShakeIntensity: 50,
 	// DISPLAY SETTINGS
-	baseFOV: 75,
+	baseFOV: 80,
     // AUDIO SETTINGS
     SFXVolume: 5 / 100,
 	musicVolume: 5,
@@ -45,8 +47,12 @@ export class LevelHandler {
 	defaultBacklightColor
 	nextLevelURL
 	isLevelComplete
+	levelFinishedLoading
 	isCameraShaking
 	levelLights
+	nextLevelText
+	levelID
+	explosives
 
 	// Data about Player
 	playerHeight
@@ -84,8 +90,9 @@ export class LevelHandler {
 		this.numCoverBoxes = 0;
 		this.numVoxels = 0;
 		this.timeModifier = 1;
-		this.isLevelComplete = false;
+		this.isLevelComplete = this.levelFinishedLoading = false;
 		this.levelLights = [];
+		this.explosives = [];
 		
 		this.playerHeight = 30;
 		this.playerHealth = 100;
@@ -115,6 +122,30 @@ export class LevelHandler {
 	addThrownWeapon(thrownWeapon) {
 		this.scene.add(thrownWeapon);
 		this.thrownWeaponBank.push(thrownWeapon);
+	}
+
+	registerExplosive(explosive) {
+		const blocksToDestroy = [];
+		const explosiveRadius = 35;
+		for (let x = explosive.position.x - explosiveRadius; x < explosive.position.x + explosiveRadius; x++) {
+			for (let y = explosive.position.y - explosiveRadius; y < explosive.position.y + explosiveRadius; y++) {
+				for (let z = explosive.position.z - explosiveRadius; z < explosive.position.z + explosiveRadius; z++) {
+					if (y < 3) continue;
+					const block = voxelField.get(x, y, z);
+					if (block != null) {
+						if (x == explosive.position.x - explosiveRadius || x == explosive.position.x + explosiveRadius - 1 || y == explosive.position.y - explosiveRadius || y == explosive.position.y + explosiveRadius - 1 || z == explosive.position.z - explosiveRadius || z == explosive.position.z + explosiveRadius - 1)
+						{
+							if (rapidFloat() < 0.5) continue;
+						}
+						blocksToDestroy.push(block.position);
+						voxelField.set(x,y,z, 2, block.indexInChunk, block.chunk);
+					}
+				}
+			}
+		}
+		explosive.children[0].blocksToDestroy = blocksToDestroy;
+
+		this.explosives.push(explosive);
 	}
 }
 

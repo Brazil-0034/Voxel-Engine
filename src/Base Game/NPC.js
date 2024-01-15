@@ -7,6 +7,7 @@ import { globalOffset } from './WorldGenerator.js'
 
 // This will be the main system for spawning and handling NPC behavior
 export class NPC {
+    npcName
     sceneObject // the scene object of the npc - includes the mesh, bones, etc
     npcObject // just the mesh object of the npc (children[0] of sceneObject)
     shootBar // shooting effect
@@ -19,6 +20,8 @@ export class NPC {
 
     health // health of NPC remaining
     speed // how fast he move -->
+    isDead
+    isHostile
 
     runAnimation // u alr know
     idleAnimation // this too
@@ -37,13 +40,23 @@ export class NPC {
     blob // death particle handler
     blobs // individual daeth particles
 
+    friendlyNPCs
+    cantShootNPCs
+
     // This will build the NPC (setting idle/run animation and loading model into scene)
-    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType) {
+    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType, isHostile) {
+        this.friendlyNPCs = ["pharmacist"]
+        this.cantShootNPCs = ["receptionist", "prison_break_bob"]
+
+        this.npcName = npcName;
         this.startingPosition = position;
         this.startingRotation = new THREE.Euler(0, rotationIntervals * Math.PI/4, 0);
         this.startingHealth = health;
         
         this.weaponType = weaponType;
+
+        if (isHostile == undefined) isHostile = true;
+        this.isHostile = isHostile;
 
         this.voxelField = voxelField;
         this.WEAPONHANDLER = WEAPONHANDLER;
@@ -52,6 +65,7 @@ export class NPC {
 
         this.speed = speed;
         this.health = health;
+        this.isDead = false;
         this.knowsWherePlayerIs = false;
         const basePath = '../character_models/' + npcName + '/';
         LEVELHANDLER.globalModelLoader.load(basePath + npcName + '_idle.fbx', object => {
@@ -71,6 +85,11 @@ export class NPC {
                     });
                 }
             });
+
+            // Expand the bounding box (scale it 2x)
+            this.npcObject.geometry.computeBoundingBox();
+            this.npcObject.geometry.boundingBox.min.subScalar(50);
+            this.npcObject.geometry.boundingBox.max.addScalar(50);
 
             // STEP 2: ASSIGN TRANSFORMS
             this.sceneObject.position.copy(position);
@@ -171,7 +190,11 @@ export class NPC {
             const scale = 2;
             this.blob = new THREE.InstancedMesh(
                 new THREE.BoxGeometry(scale, scale, scale),
-                new THREE.MeshLambertMaterial({color: new THREE.Color(clamp(rapidFloat(), 0.35, 0.95), 0, 0)}),
+                new THREE.MeshLambertMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.9
+                }),
                 count
             );
             this.blobs = [];
@@ -181,11 +204,9 @@ export class NPC {
                 // const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() * 2 - 1, rapidFloat() * 2 - 1).normalize();
                 // determine direction
                 const dir = new THREE.Vector3();
-                this.LEVELHANDLER.camera.getWorldDirection(dir);
-                const variance = 1;
-                dir.x += rapidFloat() * variance - variance/2;
-                dir.y += rapidFloat() * variance - variance/2;
-                dir.z += rapidFloat() * variance - variance/2;
+                dir.x += (rapidFloat() * 0.5) - 0.25;
+                dir.y += (rapidFloat() * 0.5) - 0.25;
+                dir.z += (rapidFloat() * 0.5) - 0.25;
     
                 const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
                 const rot = new THREE.Euler(
@@ -193,22 +214,32 @@ export class NPC {
                     rapidFloat() * Math.PI * 2,
                     rapidFloat() * Math.PI * 2
                 );
-                const initScale = 1 + (3 * rapidFloat());
+                const initScale = 1 + (4 * rapidFloat());
     
                 const r = this.voxelField.raycast(
                     pos,
                     dir,
-                    1000
+                    10000,
+                    true
                 );
                 let endPosition;
-                if (r != null) endPosition = new THREE.Vector3(r.x, r.y, r.z);
-    
+                if (r == null) {
+                    continue;
+                }
+
+                endPosition = new THREE.Vector3(r.x, r.y, r.z);
+                
                 this.blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
-                this.blob.setColorAt(i, new THREE.Color(clamp(rapidFloat(), 0.65, 1), 0, 0));
+                const col = new THREE.Color("rgb(227, 45, 76)");
+                // randomize color
+                col.r += (rapidFloat() * 0.1) - 0.05;
+                col.g += (rapidFloat() * 0.1) - 0.05;
+                col.b += (rapidFloat() * 0.1) - 0.05;
+                this.blob.setColorAt(i, col);
                 const thisBlob = new killBlob(
                     dir,
                     initScale,
-                    250 + (rapidFloat() * 100),
+                    350 + (rapidFloat() * 100),
                     endPosition,
                     this.blob,
                     i,
@@ -218,10 +249,16 @@ export class NPC {
             }
             this.LEVELHANDLER.scene.add(this.blob);
 
+            if (this.npcName == "entity") {
+                this.sceneObject.scale.divideScalar(4);
+                this.shootBar.position.y = 9999;
+                this.knowsWherePlayerIs = true;
+                this.fovConeMesh.scale.divideScalar(2);
+            }
         });
 
         LEVELHANDLER.NPCBank.push(this);
-        LEVELHANDLER.totalNPCs++;
+        if (this.isHostile) LEVELHANDLER.totalNPCs++;
     }
 
     depleteHealth(amount) {
@@ -297,23 +334,29 @@ export class NPC {
 
                 // If too far, move closer
                 const distanceToPlayerCamera = this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position);
-                if (distanceToPlayerCamera > 150) {
+                if (distanceToPlayerCamera > 150 || (this.npcName == "entity" && distanceToPlayerCamera > 50)) {
                     const direction = new THREE.Vector3();
                     this.LEVELHANDLER.camera.getWorldDirection(direction);
                     direction.y = 0;
                     direction.normalize();
-                    this.sceneObject.position.addScaledVector(direction, -delta * this.speed);
-                    this.runAnimation.play();
+                    direction.negate();
+                    const r = this.voxelField.raycast(this.sceneObject.position.clone().setY(4), direction, 100);
+                    if (!r) {
+                        this.sceneObject.position.addScaledVector(direction, delta * this.speed);
+                        this.runAnimation.play();
+                    }
                 }
                 else {
                     this.runAnimation.stop();
                     this.idleAnimation.play();
+                    if (this.npcName == "entity") this.shootPlayer(100);
                 }
             }
         }
     }
 
     shootPlayer(damage) {
+        if (this.friendlyNPCs.includes(this.npcName) || this.cantShootNPCs.includes(this.npcName) || !this.isHostile) return
         let c = 0.25;
         if (this.LEVELHANDLER.playerHealth < 25) c = 0.5;
         if (rapidFloat() < c) return;
@@ -376,16 +419,21 @@ export class NPC {
     }
 
     kill() {
+        if (this.isDead == true) return
+        if (this.friendlyNPCs.includes(this.npcName)) return
+        this.isDead = true;
         this.mixer.stopAllAction();
         this.health = 0;
         this.dieAnimation.play();
         this.shootBar.visible = false;
-        this.floorgore.visible = true;
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
-        this.LEVELHANDLER.totalNPCs--;
-        this.LEVELHANDLER.killBlobs.push(...this.blobs);
-
-        this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
+        if (this.isHostile) this.LEVELHANDLER.totalNPCs--;
+        if (this.npcName != "entity")
+        {
+            this.LEVELHANDLER.killBlobs.push(...this.blobs);
+            this.floorgore.visible = true;
+            if (!this.cantShootNPCs.includes(this.npcName)) this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
+        }
 
         this.LEVELHANDLER.isCameraShaking = true;
         setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
@@ -420,7 +468,6 @@ class killBlob {
     initScale
     speed
     sceneObject
-    lifetime
     isAlive
     endPosition
 
@@ -431,7 +478,6 @@ class killBlob {
         this.dir = dir;
         this.initScale = initScale;
         this.speed = speed;
-        this.lifetime = 0;
         this.isAlive = true;
         this.iMesh = iMesh;
         this.iMeshIndex = iMeshIndex;
@@ -448,21 +494,23 @@ class killBlob {
         // constraints
         const pos = new THREE.Vector3().setFromMatrixPosition(newMatrix);
 
-        if (this.endPosition && pos.distanceTo(this.endPosition) < 25)
+        if (pos.distanceTo(this.endPosition) < 25)
         {
             this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix.setPosition(this.endPosition));
+            this.iMesh.instanceMatrix.needsUpdate = true;
             this.isAlive = false;
         }
 
         // motion
         if (this.isAlive == true)
         {
-            this.initScale = clamp(this.initScale * (1 - (delta * 3)), 1, 100);
+            // set scale
+            this.initScale = clamp(this.initScale * (1 - (delta * 5)), 1, 100);
             newMatrix.makeScale(this.initScale, this.initScale, this.initScale);
 
+            // set position
             const npos = pos.addScaledVector(this.dir, this.speed * delta);
             this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix.setPosition(npos));
-            this.lifetime++;
             this.iMesh.instanceMatrix.needsUpdate = true;
         }
     }

@@ -103,7 +103,7 @@ class DiscreteVectorField {
 	// Origin: Starting Position
 	// Direction: Normalized Vector (ex. [0, 1, 0] is up from the origin)
 	// Length: The maximum number of steps to take. If the ray does not intersect a voxel, return null
-	raycast(origin, direction, length) {
+	raycast(origin, direction, length, ignoreExplosiveBlocks=false) {
 		if (!origin || !direction || !length) console.error("Incorrect Parameters for Raycast");
 		let x = Math.round(origin.x);
 		let y = Math.round(origin.y);
@@ -116,7 +116,7 @@ class DiscreteVectorField {
 		direction.z /= sqrMagnitude;
 		for (let i = 0; i < length; i++) {
 			const stepVoxel = this.get(Math.floor(x), Math.floor(y), Math.floor(z));
-			if (stepVoxel != null && stepVoxel.value == 1) {
+			if (stepVoxel != null && (stepVoxel.value == 1 || (ignoreExplosiveBlocks == false && stepVoxel.value == 2))) {
 				return {
 					x: Math.floor(x),
 					y: Math.floor(y),
@@ -339,19 +339,20 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 			thisVoxel.chunk.instanceMatrix.needsUpdate = true;
 			voxelField.set(position.x, position.y, position.z, 0, thisVoxel.indexInChunk, thisVoxel.chunk);
 			// Create a Particle:
-			if (rapidFloat() < particleChance) {
-				const voxelColor = new THREE.Color();
-				thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
-				const cameraDirection = new THREE.Vector3();
-				LEVELHANDLER.camera.getWorldDirection(cameraDirection);
-				cameraDirection.x += (rapidFloat() - 0.5) / 2;
-				cameraDirection.z += (rapidFloat() - 0.5) / 2;
-				cameraDirection.y = -1/10;
-				new Particle(particleHandler, thisVoxel.position, cameraDirection.multiplyScalar(3.5).setY(-2.5), voxelColor, 50);
+			if (particleHandler) {
+				if (rapidFloat() < particleChance) {
+					const voxelColor = new THREE.Color();
+					thisVoxel.chunk.getColorAt(thisVoxel.indexInChunk, voxelColor);
+					const cameraDirection = new THREE.Vector3();
+					LEVELHANDLER.camera.getWorldDirection(cameraDirection);
+					cameraDirection.x += (rapidFloat() - 0.5) / 2;
+					cameraDirection.z += (rapidFloat() - 0.5) / 2;
+					cameraDirection.y = -1/10;new Particle(particleHandler, thisVoxel.position, cameraDirection.multiplyScalar(3.5).setY(-2.5), voxelColor, 50);
+				}
 			}
 		}
 	}
-    
+
 	if (!recentlyEditedWorldModels.some(model => model.name == currentModel.name)) {
 		recentlyEditedWorldModels.push(currentModel);
 	}

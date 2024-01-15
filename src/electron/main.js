@@ -7,8 +7,8 @@ const fs = require('fs')
 function createWindow() {
     // Create the browser window.
     const mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 700,
+        width: 1100,
+        height: 640,
         // titleBarStyle: 'hidden',
         // titleBarOverlay: {
         //     color: '#cd373e',

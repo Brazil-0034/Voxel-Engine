@@ -1,14 +1,14 @@
 {
   "name": "voxelgame",
   "version": "1.0.0",
-  "description": "A minimal Electron application",
+  "description": "voxel engine and game",
   "main": "./src/electron/main.js",
-  "author": "example.com",
-  "homepage": "https://www.electronjs.org",
+  "author": "nowaythis.works",
+  "homepage": "https://www.nowaythis.works",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --ext .js .",
-    "dev": "electron . --enable-precise-memory-info",
+    "dev": "electron . --enable-precise-memory-info --no-user-gesture-required",
     "webgpu-test": "electron . --enable-unsafe-webgpu",
     "postinstall": "electron-builder install-app-deps",
     "build:win": "electron-builder --win --config",

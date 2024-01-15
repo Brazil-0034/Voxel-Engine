@@ -7,7 +7,7 @@
         "totalAmmo": 30,
         "weaponDamage": 50,
         "damageRange": 3,
-        "minimumDistance": 500,
+        "minimumDistance": 1500,
         "disableHeadBop": false,
         "followSpeed": 25,
         "hasMuzzleFlash": true,

@@ -462,6 +462,7 @@ const updateRightPanel = function (item, clear=false) {
         inspector.appendChild(enemyHealth);
         // [USERDATA] Enemy Type (Swat, Thug, )
         // Set the default to Swat
+        console.log(item.userData.enemyType);
         if (item.userData.enemyType == undefined) {
             item.userData.enemyType = "swat";
         }
@@ -469,7 +470,14 @@ const updateRightPanel = function (item, clear=false) {
         enemyType.classList.add("inspector-element");
         enemyType.innerHTML = "<h3>Enemy Type</h3>";
         const enemyTypeInput = document.createElement("select");
-        enemyTypeInput.innerHTML = "<option value='swat'>Swat</option><option value='thug'>Thug</option>";
+        enemyTypeInput.innerHTML = `
+        <option value='swat'>swat</option>
+        <option value='thug'>thug</option>
+        <option value='entity'>entity</option>
+        <option value='prison_break_bob'>prison_break_bob</option>
+        <option value='pharmacist'>pharmacist</option>
+        <option value='receptionist'>receptionist</option>
+        `;
         enemyTypeInput.value = item.userData.enemyType;
         enemyTypeInput.addEventListener("input", function () {
             selectedObjects.children.forEach(childObject => {
@@ -478,6 +486,20 @@ const updateRightPanel = function (item, clear=false) {
         });
         enemyType.appendChild(enemyTypeInput);
         inspector.appendChild(enemyType);
+        // isHostile bool
+        const isHostile = document.createElement("div");
+        isHostile.classList.add("inspector-element");
+        isHostile.innerHTML = "<h3>Is Hostile</h3>";
+        const isHostileInput = document.createElement("input");
+        isHostileInput.type = "checkbox";
+        isHostileInput.checked = item.userData.isHostile;
+        isHostileInput.addEventListener("input", function () {
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.isHostile = isHostileInput.checked;
+            });
+        });
+        isHostile.appendChild(isHostileInput);
+        inspector.appendChild(isHostile);
     }
     // For each material (if any) - this only applies to 3D objects in the world, so it can have properties such as cutaway as well
     if (item.material != undefined && item.userData.isEnemyNPC != true) {
@@ -656,6 +678,7 @@ transformControls.addEventListener('dragging-changed', function (event) {
                             console.error("Failed to process transform for type: " + child.userData.gameObjectType);
                             break;
                         case "WeaponPickup":
+                        case "Explosive":
                             child.scale.set(1,1,1);
                             break;
                         case "Wall":
@@ -698,7 +721,7 @@ transformControls.addEventListener('dragging-changed', function (event) {
                 child.position.y = Math.round(child.position.y);
                 child.position.z = Math.round(child.position.z);
                 // reattach to the controls (to keep it all seamless)
-                // attachHandles(child, true);
+                attachHandles(child, true);
             });
             // round the position of the selectedObjects to the nearest whole number
             tempSelObjs.forEach(sceneObject => {
@@ -806,13 +829,31 @@ const removeHandles = function(item) {
     }
 }
 
-const attachHandles = function (item, dontResetSelections=false, skipUpdate=false) {
+const selectAllOfColor = function() {
+    if (!lastAttachedObject) return
+    const color = lastAttachedObject.material.color;
+
+    scene.children.forEach(child => {
+        if (child.material && child.material.color.equals(color)) {
+            attachHandles(child, true, false, false);
+        }
+    });
+}
+
+// on press of "y" do selectAllOfColor
+document.body.addEventListener("keydown", function(event) {
+    if (event.key == "y") {
+        selectAllOfColor();
+    }
+});
+
+const attachHandles = function (item, dontResetSelections=false, skipUpdate=false, cleanSelect=true) {
     // bug fix for double-click attach:
     if (!retachAvailable) return;
     // make sure we dont select the ground floor
     if (item.userData.isGroundFloor) return;
     // if we already have it selected, forget about it!
-    if (selectedObjects.children.includes(item)) {
+    if (selectedObjects.children.includes(item) && cleanSelect == true) {
         // remove the item from the selection
         removeFromSelection(item);
         // if we have nothing selected, hide the transform controls
@@ -1070,7 +1111,9 @@ document.body.addEventListener('keydown', function (event) {
     }
 });
 
-const createEnemyNPC = function(position, rotationIntervals) {
+const createEnemyNPC = function(position, rotationIntervals, enemyType, isHostile) {
+    if (!enemyType) enemyType = "thug"
+    if (isHostile == undefined) isHostile = true;
     console.log(rotationIntervals);
     const enemyNPC = new THREE.Mesh(
         new THREE.ConeGeometry(5,15,3),
@@ -1088,6 +1131,8 @@ const createEnemyNPC = function(position, rotationIntervals) {
     enemyNPC.userData.rotationIntervals = rotationIntervals;
     enemyNPC.userData.isLight = false;
     enemyNPC.userData.gameObjectType = "EnemyNPC"
+    enemyNPC.userData.enemyType = enemyType;
+    enemyNPC.userData.isHostile = isHostile;
 
     enemyNPC.name = "Enemy NPC - " + Math.floor(Math.random() * 1000);
     addToScene(enemyNPC);
@@ -1095,12 +1140,36 @@ const createEnemyNPC = function(position, rotationIntervals) {
     return enemyNPC;
 }
 
+const createExplosive = function(position) {
+    const explosive = new THREE.Mesh(
+        new THREE.SphereGeometry(10),
+        new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.5
+        })
+    );
+    explosive.position.copy(position);
+    explosive.userData.existInGame = true;
+    explosive.userData.isEnemyNPC = false;
+    explosive.userData.isLight = false;
+    explosive.userData.isExplosive = true;
+
+    explosive.name = "Explosive - " + Math.floor(Math.random() * 1000);
+    addToScene(explosive);
+    MAPOBJECTS.push(explosive);
+    return explosive;
+}
+
 const createWeaponPickup = function(position, weaponType) {
     const weaponPickup = new THREE.Mesh(
         new THREE.SphereGeometry(10),
         new THREE.MeshBasicMaterial({
             color: 0x0000ff,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.5
         })
     );
     weaponPickup.position.copy(position);
@@ -1189,7 +1258,14 @@ const contextMenuClick = function (action) {
             enemyNPCPosition.copy(camera.position);
             enemyNPCPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
 
-            createEnemyNPC(enemyNPCPosition, 0);
+            createEnemyNPC(enemyNPCPosition, 0, "thug");
+            break;
+        case "Create Explosive":
+            const explosivePosition = new THREE.Vector3();
+            explosivePosition.copy(camera.position);
+            explosivePosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
+
+            createExplosive(explosivePosition);
             break;
         case "Create Weapon Pickup":
             const weaponPickupPosition = new THREE.Vector3();
@@ -1232,6 +1308,7 @@ const invokeContextMenu = function (e) {
         options.push("[] Add Entities");
         options.push("Create NPC Enemy");
         options.push("Create Weapon Pickup");
+        options.push("Create Explosive");
     }
     if (clickedElement.parentElement.id == "scene-objects-list") {
         options.push("Delete Object");
@@ -1388,9 +1465,12 @@ const saveProject = function () {
                 "isLight": mapObject.userData.isLight,
                 "lightBrightness": mapObject.userData.lightBrightness,
                 "isEnemyNPC": mapObject.userData.isEnemyNPC,
+                "enemyType": mapObject.userData.enemyType,
                 "weaponType": mapObject.userData.weaponType,
+                "isExplosive": mapObject.userData.isExplosive,
                 "rotationIntervals": mapObject.userData.rotationIntervals,
-                "interactionEvent": mapObject.userData.interactionEvent
+                "interactionEvent": mapObject.userData.interactionEvent,
+                "isHostile": mapObject.userData.isHostile
             });
         }
     });
@@ -1489,20 +1569,24 @@ const importProject = function () {
             var content = readerEvent.target.result;
             const parsedJSON = JSON.parse(content);
             const mapMakerSaveData = parsedJSON.mapMakerSave;
-            console.log(mapMakerSaveData);
 
             mapMakerSaveData.forEach(mapMakerObject => {
                 if (mapMakerObject.isEnemyNPC == true)
                 {
                     createEnemyNPC(
                         new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
-                        mapMakerObject.rotationIntervals
+                        mapMakerObject.rotationIntervals, mapMakerObject.enemyType, mapMakerObject.isHostile
                     );
                 }
                 else if (mapMakerObject.weaponType != undefined) {
                     createWeaponPickup(
                         new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
                         mapMakerObject.weaponType
+                    );
+                }
+                else if (mapMakerObject.isExplosive != undefined) {
+                    createExplosive(
+                        new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z)
                     );
                 }
                 else

@@ -1,0 +1,107 @@
+<style>
+    * {
+        margin: 0;
+        background: black;
+    }
+
+    video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    #skip {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        text-decoration: none;
+        color: white;
+        font-family: 'Montserrat';
+        opacity: 0.25;
+        transition: 0.5s;
+        cursor: pointer;
+    }
+
+    #skip:hover {
+        opacity: 1;
+    }
+</style>
+<link rel="stylesheet" href="style.css">
+
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "../opensource/threejs/build/three.module.js"
+            }
+        }
+    </script>
+
+    <div id="npc-chat" style="display:none">
+        <div id="npc-text"></div>
+        <span style="color:rgb(255, 5, 176); text-shadow: none; position: absolute; bottom: 5%; right: 5%;">[E]</span>
+    </div>
+</body>
+<script type="module">
+    import { startChatScan, checkChat, incrementChatIndex } from './ChatSystem.js';
+
+    // ##########
+    // META
+    // ##########
+    navigator.mediaSession.setActionHandler('play', function () { return });
+    navigator.mediaSession.setActionHandler('pause', function () { return });
+    navigator.mediaSession.setActionHandler('seekbackward', function () { return });
+    navigator.mediaSession.setActionHandler('seekforward', function () { return });
+    navigator.mediaSession.setActionHandler('previoustrack', function () { return });
+    navigator.mediaSession.setActionHandler('nexttrack', function () { return });
+
+
+    const video = document.createElement("video");
+    video.src = "../videos/phone call.mp4";
+    video.autoplay = true;
+    document.body.appendChild(video);
+
+    video.addEventListener("loadeddata", () => {
+        setTimeout(() => {
+            checkChat("phone_call");
+            playChatAudio();
+            video.pause();
+        }, 46 * 1000);
+        const audio = new Audio("../music/ambient_waves.mp3");
+        audio.volume = 0.5;
+        audio.loop = true;
+        audio.play();
+    });
+
+
+    const skip = document.createElement("a");
+    skip.id = "skip";
+    skip.href = "index.html?mapName=05_BEDROOM";
+    skip.innerText = "Skip Cutscene";
+    document.body.appendChild(skip);
+
+    startChatScan();
+
+    const chatAudios = [
+        new Audio("../sfx/cartoon voice 1.mp3"),
+        new Audio("../sfx/cartoon voice 2.mp3"),
+        new Audio("../sfx/cartoon voice 3.mp3"),
+        new Audio("../sfx/cartoon voice 4.mp3")
+    ]
+    let index = 0;
+
+    const playChatAudio = function() {
+        chatAudios[index].play();
+        chatAudios[index].rate = 0.5;
+        index++;
+        if (index >= chatAudios.length) index = 0;
+    }
+
+    document.addEventListener("keydown", e => {
+        if (document.querySelector("#npc-chat").style.display == "block" && e.key == "e") {
+            incrementChatIndex();
+            checkChat("phone_call")
+            playChatAudio();
+        }
+    });
+</script>
