@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setInteractionText } from './UIHandler.js'; // User Interface
 
 const chatBox = document.querySelector("#npc-text");
 let chatIndex = 0;
@@ -6,6 +7,7 @@ let canIncrementChatIndex = true;
 let chatTarget = "";
 let chatTargetIndex = 0;
 let levelID;
+let LEVELHANDLER;
 
 export const incrementChatIndex = function() {
     if (canIncrementChatIndex) {
@@ -32,7 +34,7 @@ const playChat = function(chat) {
         chatTarget = chat[chatIndex];
     }
     else {
-        if (levelID == "phone_call") window.location.href = "index.html?mapName=05_BEDROOM";
+        if (levelID == "phone_call") window.location.href = "../Base Game/cutscene.html?videoSrc=ezsleep&nextLevelURL=09_BUSINESS_CORP";
         npcChat.style.display = "none";
     }
 }
@@ -43,6 +45,13 @@ export const checkChat = function(ID, position) {
     switch (levelID) {
         default:
             break;
+        case "XX":
+            if (playerIsNear(position, 9999, 9972)) {
+                playChat([
+                    "Why did you kill those people?"
+                ])
+            }
+            break;
         case "00":
             if (playerIsNear(position, 9970, 9900)) {
                 playChat([
@@ -52,47 +61,56 @@ export const checkChat = function(ID, position) {
                 ]);
             }
             break;
+        case "13":
+            if (playerIsNear(position, 10000, 9598)) {
+                playChat([
+                    "Impressive work.",
+                    "I'm surprised you even made it this far.",
+                    ".          .          .          ",
+                    "I suppose this is where it ends for me",
+                    ".          .          .          ",
+                    "Do what you will."
+                ]);
+            }
+            break;
         case "phone_call":
             playChat([
-                "Listen. We got another job for you.",
-                "I know it's been awhile.",
-                "This one's easy. Be at the Beachside Inn.",
+                "Excellent work at the [Beachside Inn].",
+                "We are very proud of how far you have come.",
+                "Listen. We've got one more big job for you.",
+                "Perform well, and your training will be complete.",
+                "That's right.",
+                "You will become a special agent at the [CIA].",
+                "Tonight's job will be at the [Business Corporation].",
+                "We believe there are [Russian Agents] hiding there.",
                 "You know what to do.",
                 "Tonight."
             ]);
             break;
         case "05":
-            if (playerIsNear(position, 9929, 9840)) {
-                const endScreen = `
-                <div id="fade-control">
-                    <div id="widebar-carrier">
-                        <div id="level-stats" style="margin-top:50px;">
-                            <b id="next-level-text">Press [E] to Access Computer</b>
-                        </div>
-                    </div>
-                </div>`
-                document.querySelector("#end-screen").innerHTML = endScreen;
-            }
-            else {
-                const endScreen = `
-                <div id="fade-control">
-                    <div id="widebar-carrier">
-                        <div id="level-stats" style="margin-top:50px;">
-                            <b id="next-level-text">Hold [SPACE] to Go to Bed</b>
-                        </div>
-                    </div>
-                </div>`
-                document.querySelector("#end-screen").innerHTML = endScreen;
-            }
+            // if (playerIsNear(position, 9929, 9840)) {
+            //     const endScreen = `
+            //     <div id="fade-control">
+            //         <div id="widebar-carrier">
+            //             <div id="level-stats" style="margin-top:50px;">
+            //                 <b id="next-level-text">Press [E] to Access Computer</b>
+            //             </div>
+            //         </div>
+            //     </div>`
+            //     document.querySelector("#end-screen").innerHTML = endScreen;
+            // }
+            setInteractionText("Hold [SPACE] to Go to Bed");
             break;
-        case "08":
+        case "07":
             if (playerIsNear(position, 10000, 9660)) {
                 playChat([
-                    "welcome to foodmans-",
+                    "welcome to 24/7 dru-",
                     "Whoa!!! Haven't seen you in awhile.",
                     "You look like SHIT!!",
-                    "Listen. If you want the [slurrp juice],",
-                    "There's dudes in the room behind me tryna steal my shit.",
+                    "Listen.",
+                    "If you want some [slurrp juice],",
+                    "the dudes in the room behind me?",
+                    "they tryna STEAL it!!",
                     "Fix the problem and the [slurrp juice] is yours.",
                 ]);
             }
@@ -110,11 +128,21 @@ export const checkChat = function(ID, position) {
     }
 }
 
-export const startChatScan = function() {
+export const startChatScan = function(LevelHandler) {
+    LEVELHANDLER = LevelHandler;
     const boldOpen = `<b style="animation: funky-text 2.5s infinite">`;
     let n;
     n = setInterval(() => {
+        if (LEVELHANDLER) {
+            if (LEVELHANDLER.totalNPCs < LEVELHANDLER.NPCBank.length) {
+                npcChat.style.opacity = 0;
+                console.log(LEVELHANDLER.totalNPCs, LEVELHANDLER.NPCBank.length);
+            }
+        }
+        else npcChat.style.opacity = 1;
+
         const finalChat = chatTarget.replace("[", boldOpen).replace("]", `</b>`);
+
         if (chatTargetIndex < chatTarget.length) {
             chatBox.innerHTML = "";
             for (let i = 0; i < chatTargetIndex; i++) {
@@ -125,5 +153,6 @@ export const startChatScan = function() {
             chatTargetIndex++;
         }
         else if (chatBox.innerHTML != finalChat) chatBox.innerHTML = finalChat;
+
     }, 15);
 }

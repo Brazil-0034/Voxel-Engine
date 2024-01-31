@@ -102,10 +102,19 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 map: LEVELHANDLER.globalTextureLoader.load('../img/break_wall.png'),
                 transparent: true
             }));
-            assistObj.position.set(9970, 30, 9943);
+            assistObj.position.set(9970, 30, 9900);
             assistObj.rotation.y = Math.PI/2;
             assistObj.visible = false;
             LEVELHANDLER.assistObj = assistObj;
+            LEVELHANDLER.scene.add(assistObj);
+        }
+        if (levelName.substring(0,2) == "06") {
+            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(45, 15), new THREE.MeshBasicMaterial({
+                color: 0xcccccc,
+                map: LEVELHANDLER.globalTextureLoader.load('../img/shift_to_sprint.png'),
+                transparent: true
+            }));
+            assistObj.position.set(9806, 35, 9874);
             LEVELHANDLER.scene.add(assistObj);
         }
     })
@@ -893,7 +902,6 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
 
         itemsBuiltSoFar++;
         const doneness = Math.round((itemsBuiltSoFar/itemsToBuild)*100);
-        console.log(doneness);
         const loader = document.querySelector("#loader");
         if (doneness < 97) {
             loader.textContent = doneness + "%";
@@ -916,7 +924,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             cubeCamera.update(LEVELHANDLER.renderer,LEVELHANDLER.scene);
             lightProbe.copy(LightProbeGenerator.fromCubeRenderTarget(LEVELHANDLER.renderer, cubeRenderTarget));
 
-            if (LEVELHANDLER.totalNPCs == 0) LEVELHANDLER.isLevelComplete = true;
+            if (LEVELHANDLER.totalKillableNPCs == 0) LEVELHANDLER.isLevelComplete = true;
         }
     }
     const loader = new THREE.TextureLoader(manager);

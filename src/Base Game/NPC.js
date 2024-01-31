@@ -13,6 +13,8 @@ export class NPC {
     shootBar // shooting effect
 
     weaponType // weapon to drop
+    canShoot // shoot delay
+    shootTimer // shoot delay
 
     startingPosition // for reset
     startingRotation // for reset
@@ -42,13 +44,17 @@ export class NPC {
 
     friendlyNPCs
     cantShootNPCs
+    isKillable
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
     constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType, isHostile) {
-        this.friendlyNPCs = ["pharmacist"]
+        this.npcName = npcName;
+        this.friendlyNPCs = ["pharmacist", "frog"]
         this.cantShootNPCs = ["receptionist", "prison_break_bob"]
 
-        this.npcName = npcName;
+        if (this.friendlyNPCs.includes(this.npcName)) this.isKillable = false;
+        else this.isKillable = true;
+
         this.startingPosition = position;
         this.startingRotation = new THREE.Euler(0, rotationIntervals * Math.PI/4, 0);
         this.startingHealth = health;
@@ -63,6 +69,8 @@ export class NPC {
 
         this.LEVELHANDLER = LEVELHANDLER;
 
+        this.canShoot = false;
+
         this.speed = speed;
         this.health = health;
         this.isDead = false;
@@ -74,18 +82,22 @@ export class NPC {
             if (object.children[0].type == "SkinnedMesh") this.npcObject = object.children[0];
             else this.npcObject = object.children[1];
             this.npcObject.npcHandler = this;
-            this.sceneObject.traverse(function (childObject) {
-                if (childObject.isMesh) {
-                    // childObject.castShadow = true;
-                    // childObject.receiveShadow = true;
-                    childObject.material = new THREE.MeshPhongMaterial({
-                        map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png'),
-                        shininess: 0,
-                        specular: 0x000000
-                    });
-                }
-            });
 
+            if (npcName != "frog")
+            {
+                this.sceneObject.traverse(function (childObject) {
+                    if (childObject.isMesh) {
+                        // childObject.castShadow = true;
+                        // childObject.receiveShadow = true;
+                            childObject.material = new THREE.MeshPhongMaterial({
+                                map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png'),
+                                shininess: 0,
+                                specular: 0x000000
+                            });
+                    }
+                });
+            }
+            
             // Expand the bounding box (scale it 2x)
             this.npcObject.geometry.computeBoundingBox();
             this.npcObject.geometry.boundingBox.min.subScalar(50);
@@ -258,13 +270,14 @@ export class NPC {
         });
 
         LEVELHANDLER.NPCBank.push(this);
-        if (this.isHostile) LEVELHANDLER.totalNPCs++;
+        if (this.isHostile) LEVELHANDLER.totalKillableNPCs++;
+        LEVELHANDLER.totalNPCs++;
     }
 
     depleteHealth(amount) {
         this.knowsWherePlayerIs = true;
 		// Adjust Color
-		this.npcObject.material.color.r = 20 - (Math.random() * 5);
+		if (this.npcObject.material.color) this.npcObject.material.color.r = 20 - (Math.random() * 5);
         this.health -= amount;
         if (this.health <= 0) {
             this.kill();
@@ -278,7 +291,7 @@ export class NPC {
         // Update the animation mixer keyframe step
         this.mixer.update(delta);
         // lerp the color to 0xffffff
-        this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
+        if (this.npcObject.material.color) this.npcObject.material.color.lerp(new THREE.Color(0xffffff), delta * 10);
 
         if (this.health > 0) // 1 in ten frames ... good enough i guess
         {
@@ -355,8 +368,16 @@ export class NPC {
         }
     }
 
-    shootPlayer(damage) {
+    shootPlayer(delta) {
         if (this.friendlyNPCs.includes(this.npcName) || this.cantShootNPCs.includes(this.npcName) || !this.isHostile) return
+        if (this.canShoot == false) {
+            if (!this.shootTimer) {
+                this.shootTimer = setTimeout(() => {
+                    this.canShoot = true;
+                }, 250);
+            }
+            return;
+        }
         let c = 0.25;
         if (this.LEVELHANDLER.playerHealth < 25) c = 0.5;
         if (rapidFloat() < c) return;
@@ -364,10 +385,10 @@ export class NPC {
             // Update AI
             this.knowsWhrePlayerIs = true;
             // Update Player Health
-            this.LEVELHANDLER.playerHealth -= damage * 170;
+            this.LEVELHANDLER.playerHealth -= delta * 250;
             // Animations
             this.shootBar.visible = true;
-            this.shootBar.material.map.offset.y -= damage * 15;
+            this.shootBar.material.map.offset.y -= delta * 15;
             document.querySelector("#dead-overlay").style.opacity = 1;
             document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
             for (let i = 1; i < 3; i++)
@@ -419,15 +440,17 @@ export class NPC {
     }
 
     kill() {
+        if (this.isKillable == false) return;
         if (this.isDead == true) return
-        if (this.friendlyNPCs.includes(this.npcName)) return
         this.isDead = true;
         this.mixer.stopAllAction();
         this.health = 0;
         this.dieAnimation.play();
         this.shootBar.visible = false;
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
-        if (this.isHostile) this.LEVELHANDLER.totalNPCs--;
+        if (this.isHostile) this.LEVELHANDLER.totalKillableNPCs--;
+        console.log(this.LEVELHANDLER.totalKillableNPCs);
+        this.LEVELHANDLER.totalNPCs--;
         if (this.npcName != "entity")
         {
             this.LEVELHANDLER.killBlobs.push(...this.blobs);
@@ -450,7 +473,7 @@ export class NPC {
 
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
 
-        if (this.LEVELHANDLER.totalNPCs == 0) {
+        if (this.LEVELHANDLER.totalKillableNPCs == 0) {
             endGameState(this.LEVELHANDLER);
         }
 

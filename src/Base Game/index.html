@@ -62,7 +62,7 @@
 
 			<div id="npc-chat">
 				<div id="npc-text"></div>
-				<span id="e">[E]</span>
+				<span id="e">[F]</span>
 			</div>
 		</div>
 
@@ -292,8 +292,8 @@
 	// (Only one map can be loaded at once... unless?)
 	// TODO - origin offsets for multiple map loading?
 	//  ^ this is very unncessary but could be useful for features like streaming
+	LEVELHANDLER.SFXPlayer.startMusicPlayback(LEVELHANDLER.SFXPlayer.SelectMusicID(modelURL.substring(0,2)));
 	generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere);
-	LEVELHANDLER.SFXPlayer.startMusicPlayback();
 
 	// ##########
 	// PARTICLE ENGINE INITIALIZATION
@@ -320,7 +320,7 @@
 
 	const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster);
 	
-	startChatScan();
+	startChatScan(LEVELHANDLER);
 
 	let frameCounter = 0;
 	// ### RENDER LOOP ###
@@ -342,7 +342,7 @@
 		LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
 		document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
 		checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
-		if (INPUTHANDLER.isKeyPressed('e')) {
+		if (INPUTHANDLER.isKeyPressed('f')) {
 			incrementChatIndex();
 		}
 		if (INPUTHANDLER.isKeyPressed('t')) document.querySelector("#vizbox").style.display = "block";
@@ -366,6 +366,7 @@
 				setTimeout(() => {
 					let target = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
 					if (LEVELHANDLER.nextLevelURL.substring(0, 3) == "../") target = LEVELHANDLER.nextLevelURL;
+					if (LEVELHANDLER.nextLevelURL == "phone_call") target = "phone_call.html";
 					window.location.href = target;
 				}, 500);
 				LEVELHANDLER.renderer.domElement.style.animation = "shrink 0.75s ease-in-out forwards";

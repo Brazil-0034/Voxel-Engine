@@ -33,7 +33,7 @@ canvas {
 @keyframes funky-text {
     0% {
         color: rgb(247, 144, 247);
-        text-shadow: 6px 6px 0px rgba(211, 211, 211, 0.419);
+        text-shadow: 2px 2px 0px rgba(211, 211, 211, 0.419);
     }
 
     25% {
@@ -51,7 +51,7 @@ canvas {
 
     100% {
         color: rgb(247, 144, 247);
-        text-shadow: 6px 6px 0px rgba(211, 211, 211, 0.419);
+        text-shadow: 2px 2px 0px rgba(211, 211, 211, 0.419);
     }
 }
 
@@ -379,7 +379,8 @@ canvas {
     z-index: 1500;
     width: 100%;
     height: 3vh;
-    background: black;
+    background: rgba(0, 0, 0, 0.76);
+    border-top: 2px solid rgb(255, 5, 176);
     box-shadow: 5px 5px 0px rgb(255, 5, 176);
     position: absolute;
     bottom: 0%;
@@ -390,7 +391,7 @@ canvas {
     padding: 40px;
     font-family: 'VT323';
     font-size: 3vw;
-    text-shadow: 2px 2px 0px rgb(211, 211, 211);
+    text-shadow: 1px 1px 0px rgba(211, 211, 211, 0.396);
     overflow: hidden;
     white-space: nowrap;
     letter-spacing: .15em;
@@ -522,6 +523,7 @@ canvas {
 }
 
 .health {
+    opacity: 0;
     position: absolute;
     left: 20px;
     bottom: 20px;

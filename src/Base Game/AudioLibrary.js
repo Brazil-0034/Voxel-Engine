@@ -47,11 +47,11 @@ export class SoundEffectPlayer {
         })
         this.startLevelSound = new Howl({
             src: ['../sfx/start_level.mp3'],
-            volume: USERSETTINGS.SFXVolume * 10,
+            volume: USERSETTINGS.SFXVolume * 20,
         })
         this.endLevelSound = new Howl({
             src: ['../sfx/end_level.mp3'],
-            volume: USERSETTINGS.SFXVolume * 25,
+            volume: USERSETTINGS.SFXVolume * 35,
         })
 
         this.killSounds = [
@@ -61,11 +61,23 @@ export class SoundEffectPlayer {
             })
         ]
 
-        this.music = new Howl({
+        this.music = [
+            new Howl({
                 src: ['../music/ambient_waves.mp3'],
-                volume: USERSETTINGS.musicVolume * 0,
+                volume: USERSETTINGS.musicVolume * 1,
                 loop: true
-            })
+            }),
+            new Howl({
+                src: ['../music/Baddon - Mind OPERATOR.ogg'],
+                volume: USERSETTINGS.musicVolume * 1,
+                loop: true
+            }),
+            new Howl({
+                src: ['../music/Baddon - Speed Sensor.ogg'],
+                volume: USERSETTINGS.musicVolume * 1,
+                loop: true
+            }),
+        ]
 
         this.shootSound = new Howl({
             src: ['../sfx/heavy_shoot.ogg'],
@@ -76,8 +88,22 @@ export class SoundEffectPlayer {
 
     }
 
-    startMusicPlayback() {
-        this.music.play();
+    startMusicPlayback(index) {
+        if (index > -1) this.music[index].play();
+    }
+
+    SelectMusicID(LevelID) {
+        switch (LevelID) {
+            case "00":
+                return 0;
+            case "01":
+                return 1;
+            case "02":
+                return 2;
+            default:
+                console.error("No music assigned to level", LevelID);
+                return -1;
+        }
     }
     
     playRandomSound(soundArray, rate) {

@@ -215,7 +215,7 @@ export class WeaponHandler {
 				object.isActive = true;
 				object.weaponType = weaponType;
 				object.isSpawnedPostLoad = isSpawnedPostLoad;
-				if (position.y == 10) position.y = 0;
+				if (Math.round(position.y) == 10) position.y = 1;
 				object.position.set(position.x, position.y+1, position.z);
 				if (!isSpawnedPostLoad) object.position.add(globalOffset);
 				object.scale.divideScalar(50);

@@ -39,7 +39,7 @@
 
     <div id="npc-chat" style="display:none">
         <div id="npc-text"></div>
-        <span style="color:rgb(255, 5, 176); text-shadow: none; position: absolute; bottom: 5%; right: 5%;">[E]</span>
+        <span id="e">[F]</span>
     </div>
 </body>
 <script type="module">
@@ -57,7 +57,7 @@
 
 
     const video = document.createElement("video");
-    video.src = "../videos/phone call.mp4";
+    video.src = "../videos/need_your_meds.mp4";
     video.autoplay = true;
     document.body.appendChild(video);
 
@@ -66,7 +66,7 @@
             checkChat("phone_call");
             playChatAudio();
             video.pause();
-        }, 46 * 1000);
+        }, 19 * 1000);
         const audio = new Audio("../music/ambient_waves.mp3");
         audio.volume = 0.5;
         audio.loop = true;
@@ -75,8 +75,9 @@
 
 
     const skip = document.createElement("a");
+    skip.style.opacity = 0;
     skip.id = "skip";
-    skip.href = "index.html?mapName=05_BEDROOM";
+    skip.href = "../Base Game/cutscene.html?videoSrc=ezsleep&nextLevelURL=09_BUSINESS_CORP";
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
 
@@ -91,6 +92,7 @@
     let index = 0;
 
     const playChatAudio = function() {
+        chatAudios.forEach(audio => audio.pause());
         chatAudios[index].play();
         chatAudios[index].rate = 0.5;
         index++;
@@ -98,7 +100,7 @@
     }
 
     document.addEventListener("keydown", e => {
-        if (document.querySelector("#npc-chat").style.display == "block" && e.key == "e") {
+        if (document.querySelector("#npc-chat").style.display == "block" && e.key == "f") {
             incrementChatIndex();
             checkChat("phone_call")
             playChatAudio();

@@ -20,7 +20,7 @@ export const USERSETTINGS = {
 	baseFOV: 80,
     // AUDIO SETTINGS
     SFXVolume: 5 / 100,
-	musicVolume: 5,
+	musicVolume: 1,
 }
 
 // Data relevent to the game's currently loaded level
@@ -107,6 +107,7 @@ export class LevelHandler {
 
 		this.NPCBank = [];
 		this.totalNPCs = 0;
+		this.totalKillableNPCs = 0;
 		this.killBlobs =[];
 		
 		this.thrownWeaponBank = [];

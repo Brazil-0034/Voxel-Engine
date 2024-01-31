@@ -26,7 +26,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	if (LEVELHANDLER.deathCount > 0) {
 		if (LEVELHANDLER.assistObj) LEVELHANDLER.assistObj.visible = true;
 	}
-	LEVELHANDLER.camera.rotation.x = Math.PI/4;
+	// LEVELHANDLER.camera.rotation.x = Math.PI/4;
 	// Reset Voxels ...
 	for (let i = 0; i < displacedVoxels.length; i++)
 	{
@@ -60,7 +60,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	});
 	document.querySelector("#ammo-counter").textContent = WEAPONHANDLER.weaponRemainingAmmo
 	// Reset NPCs ...
-	LEVELHANDLER.totalNPCs = LEVELHANDLER.NPCBank.length;
+	LEVELHANDLER.totalNPCs = LEVELHANDLER.totalKillableNPCs = 0;
 	LEVELHANDLER.NPCBank.forEach(thisNPC => {
 		thisNPC.sceneObject.rotation.set(thisNPC.startingRotation.x, thisNPC.startingRotation.y, thisNPC.startingRotation.z);
 		thisNPC.sceneObject.position.set(thisNPC.startingPosition.x, thisNPC.startingPosition.y, thisNPC.startingPosition.z);
@@ -73,7 +73,10 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		thisNPC.idleAnimation.play();
 		thisNPC.mixer.timeScale = 1;
 		thisNPC.floorgore.visible = false;
-		if (thisNPC.isHostile == false) LEVELHANDLER.totalNPCs--;
+		thisNPC.shootTimer = undefined;
+		thisNPC.canShoot = false;
+		if (thisNPC.isHostile) LEVELHANDLER.totalKillableNPCs++;
+		LEVELHANDLER.totalNPCs++;
 	})
 	LEVELHANDLER.killBlobs.forEach(blob => {LEVELHANDLER.scene.remove(blob.iMesh); blob.isAlive = false;});
 	LEVELHANDLER.killBlobs = [];

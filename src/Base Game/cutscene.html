@@ -49,16 +49,18 @@
     video.src = "../videos/" + videoSrc + ".mp4";
     video.autoplay = true;
     document.body.appendChild(video);
+
+    let target = "index.html?mapName=" + nextLevelURL;
     
     video.addEventListener("loadeddata", () => {
         setTimeout(() => {
-            window.location.href = "index.html?mapName=" + nextLevelURL;
+            window.location.href = target;
         }, video.duration * 1000);
     });
 
     const skip = document.createElement("a");
     skip.id = "skip";
-    skip.href = "index.html?mapName=" + nextLevelURL;
+    skip.href = target;
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
 </script>

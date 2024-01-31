@@ -1,0 +1,26 @@
+{
+    "weaponData": {
+        "type": "ranged",
+        "name": "REVOLVER",
+        "helpText": "[Left Click] Shoot",
+        "fireRate": 250,
+        "totalAmmo": 6,
+        "weaponDamage": 100,
+        "damageRange": 6,
+        "minimumDistance": 1500,
+        "disableHeadBop": false,
+        "followSpeed": 25,
+        "hasMuzzleFlash": true,
+        "hasNoTexture": false,
+        "position": {
+            "x": 7.5,
+            "y": -10,
+            "z": -17
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        }
+    }
+}
