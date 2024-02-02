@@ -75,10 +75,10 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		thisNPC.floorgore.visible = false;
 		thisNPC.shootTimer = undefined;
 		thisNPC.canShoot = false;
+		thisNPC.blobs.forEach(blob => blob.reset());
 		if (thisNPC.isHostile) LEVELHANDLER.totalKillableNPCs++;
 		LEVELHANDLER.totalNPCs++;
 	})
-	LEVELHANDLER.killBlobs.forEach(blob => {LEVELHANDLER.scene.remove(blob.iMesh); blob.isAlive = false;});
 	LEVELHANDLER.killBlobs = [];
 	// Reset UI
 	document.querySelector("#dead-overlay").style.animation = "dead-fade-out 1.5s ease-out ";

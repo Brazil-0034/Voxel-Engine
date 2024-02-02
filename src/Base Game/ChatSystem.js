@@ -136,7 +136,6 @@ export const startChatScan = function(LevelHandler) {
         if (LEVELHANDLER) {
             if (LEVELHANDLER.totalNPCs < LEVELHANDLER.NPCBank.length) {
                 npcChat.style.opacity = 0;
-                console.log(LEVELHANDLER.totalNPCs, LEVELHANDLER.NPCBank.length);
             }
         }
         else npcChat.style.opacity = 1;

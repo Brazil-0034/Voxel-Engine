@@ -249,6 +249,7 @@ export class NPC {
                 col.b += (rapidFloat() * 0.1) - 0.05;
                 this.blob.setColorAt(i, col);
                 const thisBlob = new killBlob(
+                    pos,
                     dir,
                     initScale,
                     350 + (rapidFloat() * 100),
@@ -449,7 +450,6 @@ export class NPC {
         this.shootBar.visible = false;
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
         if (this.isHostile) this.LEVELHANDLER.totalKillableNPCs--;
-        console.log(this.LEVELHANDLER.totalKillableNPCs);
         this.LEVELHANDLER.totalNPCs--;
         if (this.npcName != "entity")
         {
@@ -497,7 +497,8 @@ class killBlob {
     iMesh
     iMeshIndex
 
-    constructor(dir, initScale, speed, endPosition, iMesh, iMeshIndex, voxelField) {
+    constructor(initPosition, dir, initScale, speed, endPosition, iMesh, iMeshIndex, voxelField) {
+        this.initPosition = initPosition;
         this.dir = dir;
         this.initScale = initScale;
         this.speed = speed;
@@ -527,6 +528,8 @@ class killBlob {
         // motion
         if (this.isAlive == true)
         {
+            this.iMesh.visible = true;
+
             // set scale
             this.initScale = clamp(this.initScale * (1 - (delta * 5)), 1, 100);
             newMatrix.makeScale(this.initScale, this.initScale, this.initScale);
@@ -536,5 +539,21 @@ class killBlob {
             this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix.setPosition(npos));
             this.iMesh.instanceMatrix.needsUpdate = true;
         }
+    }
+
+    reset() {
+        // set position to initialPosition
+        const newMatrix = new THREE.Matrix4();
+        this.iMesh.getMatrixAt(this.iMeshIndex, newMatrix);
+        this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix.setPosition(this.initPosition));
+        this.iMesh.instanceMatrix.needsUpdate = true;
+
+        // // set scale to initScale
+        // newMatrix.makeScale(this.initScale, this.initScale, this.initScale);
+        // this.iMesh.setMatrixAt(this.iMeshIndex, newMatrix);
+        // this.iMesh.instanceMatrix.needsUpdate = true;
+        this.iMesh.visible = false;
+
+        this.isAlive = true;
     }
 }
