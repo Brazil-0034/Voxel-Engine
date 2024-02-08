@@ -46,7 +46,7 @@ export class PlayerController {
             zAxis: 0,
         
             acceleration: 0.25,
-            maxSpeed: 0.015,
+            maxSpeed: 0.012,
             stepSize: 9500,
         }
     }
@@ -60,17 +60,18 @@ export class PlayerController {
             if (this.INPUTHANDLER.isKeyPressed("r")) resetGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
             
             // WS
-            if (this.INPUTHANDLER.isKeyPressed("w")) this.playerMotion.zAxis -= this.playerMotion.acceleration * delta;
-            if (this.INPUTHANDLER.isKeyPressed("s")) this.playerMotion.zAxis += this.playerMotion.acceleration * delta;
+            if (this.INPUTHANDLER.isKeyPressed("w")) this.playerMotion.zAxis = -this.playerMotion.maxSpeed;
+            if (this.INPUTHANDLER.isKeyPressed("s")) this.playerMotion.zAxis = this.playerMotion.maxSpeed;
             if ((!this.INPUTHANDLER.isKeyPressed("w") && !this.INPUTHANDLER.isKeyPressed("s")) || this.INPUTHANDLER.isKeyPressed("w") && this.INPUTHANDLER.isKeyPressed("s")) this.playerMotion.zAxis = lerp(this.playerMotion.zAxis, 0, delta * 10);
             // AD
-            if (this.INPUTHANDLER.isKeyPressed("a")) this.playerMotion.xAxis -= this.playerMotion.acceleration * delta;
-            if (this.INPUTHANDLER.isKeyPressed("d")) this.playerMotion.xAxis += this.playerMotion.acceleration * delta;
+            if (this.INPUTHANDLER.isKeyPressed("a")) this.playerMotion.xAxis = -this.playerMotion.maxSpeed;
+            if (this.INPUTHANDLER.isKeyPressed("d")) this.playerMotion.xAxis = this.playerMotion.maxSpeed;
             if ((!this.INPUTHANDLER.isKeyPressed("a") && !this.INPUTHANDLER.isKeyPressed("d")) || this.INPUTHANDLER.isKeyPressed("a") && this.INPUTHANDLER.isKeyPressed("d")) this.playerMotion.xAxis = lerp(this.playerMotion.xAxis, 0, delta * 10);
 
             // Keep within safe range
-            this.playerMotion.zAxis = clamp(this.playerMotion.zAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
-            this.playerMotion.xAxis = clamp(this.playerMotion.xAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
+            // this.playerMotion.zAxis = clamp(this.playerMotion.zAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
+            // this.playerMotion.xAxis = clamp(this.playerMotion.xAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
+            console.log("X: " + this.playerMotion.xAxis.toFixed(3) + " Z: " + this.playerMotion.zAxis.toFixed(3));
 
             // Walking
             let moveSpeedOffset = this.INPUTHANDLER.isKeyPressed("shift") ? 1.45 : 1;
@@ -227,7 +228,7 @@ export class PlayerController {
         
                                     this.raycaster.far = this.WEAPONHANDLER.weaponRange;
                                     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.npcObject));
+                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.hitboxCapsule));
         
                                     for (let i = 0; i < intersects.length; i++) {
                                         const mainObj = intersects[i].object;
@@ -335,7 +336,7 @@ export class PlayerController {
     calculateWeaponShot = function () {
         // Impact Effect
         if (this.WEAPONHANDLER.fireSprite && this.WEAPONHANDLER.hideMuzzleFlash != true) {
-            const scale = 125 + rapidFloat() * 100;
+            const scale = 325 + rapidFloat() * 100;
             this.WEAPONHANDLER.fireSprite.scale.set(scale, scale);
             this.WEAPONHANDLER.fireSprite.material.rotation = rapidFloat() * Math.PI * 2;
             this.WEAPONHANDLER.fireSprite.material.opacity = rapidFloat();

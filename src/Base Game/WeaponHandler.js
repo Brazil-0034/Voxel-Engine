@@ -276,7 +276,7 @@ export class WeaponHandler {
 			// Raycast for Enemies
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.npcObject));
+			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.hitboxCapsule));
 			intersects.forEach((intersect) => {
 				if (intersect.distance > this.LEVELHANDLER.camera.position.distanceTo(intersectPosition)) return;
 				if (intersect.object.npcHandler) intersect.object.npcHandler.depleteHealth(100);

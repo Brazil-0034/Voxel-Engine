@@ -13,18 +13,20 @@ export class Particle {
     lifetime
     hasBounced
 
-    constructor(particleMesh, position, direction, color, speed) {
+    constructor(particleMesh, position, direction, color, speed, hasGravity=true) {
         this.position = position;
         this.scale = new THREE.Vector3(1,1,1);
         this.rotation = new THREE.Quaternion();
         this.rotation.setFromUnitVectors(new THREE.Vector3(0,(Math.random() < 0.5 ? 1 : -1), 0), direction.clone().normalize());
         this.direction = direction.multiplyScalar(speed * Math.random());
+        if (!hasGravity) direction.multiplyScalar(-1);
         this.color = color;
         this.targetSpeed = speed;
         this.speed = 0.25;
         this.instanceBufferPosition = particleMesh.addParticle(this);
         this.lifetime = 0;
         this.hasBounced = false;
+        this.hasGravity = hasGravity;
     }
 }
 
@@ -69,13 +71,13 @@ export class ParticleMesh extends THREE.InstancedMesh {
                     if (!particle.hasBounced) particle.direction.y = clamp(Math.random() * 2500, 10, 2500) / (particle.lifetime + 25);
                     else {
                         particle.position.y = 3;
-                        particle.speed /= 2;
+                        if (particle.hasGravity) particle.speed /= 2;
                     }
                     particle.hasBounced = true;
                 }
                 particle.direction.y -= (256 - (particle.lifetime / 4)) * delta;
                 particle.position.x += particle.direction.x * delta * particle.speed / ((particle.lifetime + 1) * 10 * delta);
-                particle.position.y += particle.direction.y * delta * particle.speed / (2.5);
+                if (particle.hasGravity) particle.position.y += particle.direction.y * delta * particle.speed / (2.5);
                 particle.position.z += particle.direction.z * delta * particle.speed / ((particle.lifetime + 1) * 10 * delta);
                 particle.lifetime += 1;
     

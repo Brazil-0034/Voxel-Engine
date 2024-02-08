@@ -89,7 +89,6 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	document.querySelectorAll(".health").forEach(health => {health.style.visibility = "visible"});
 	document.querySelector("#interaction-text").style.visibility = "visible";
 	document.querySelector("#middle-crosshair").style.visibility = "visible";
-	LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
 	LEVELHANDLER.outliner.selectedObjects = [];
 	resetChatIndex();
 	// Reset SFX

@@ -32,6 +32,7 @@ export class NPC {
     fovConeMesh // for vision calculation
     fovConeHull // for vision calculation
     floorgore // for gore
+    hitboxCapsule // for raycasting
 
     knowsWherePlayerIs // self explanatory
     voxelField // for raycasting
@@ -83,7 +84,8 @@ export class NPC {
             else this.npcObject = object.children[1];
             this.npcObject.npcHandler = this;
 
-            if (npcName != "frog")
+            // if (npcName != "frog")
+            if (false)
             {
                 this.sceneObject.traverse(function (childObject) {
                     if (childObject.isMesh) {
@@ -103,10 +105,24 @@ export class NPC {
             this.npcObject.geometry.boundingBox.min.subScalar(50);
             this.npcObject.geometry.boundingBox.max.addScalar(50);
 
+            // Hitbox Capsule
+            const hitboxScale = 175;
+            this.hitboxCapsule = new THREE.Mesh(
+                new THREE.CylinderGeometry(hitboxScale, hitboxScale, 900, 8),
+                new THREE.MeshBasicMaterial({
+                    color: 0x00ff00, wireframe: true,
+                    visible: false
+                })
+            );
+            this.hitboxCapsule.npcHandler = this;
+            this.hitboxCapsule.position.set(0, 350, 0);
+            this.sceneObject.add(this.hitboxCapsule);
+
+
             // STEP 2: ASSIGN TRANSFORMS
             this.sceneObject.position.copy(position);
             this.sceneObject.position.add(globalOffset);
-            this.sceneObject.scale.multiplyScalar(0.065);
+            this.sceneObject.scale.multiplyScalar(0.055);
 
             // STEP 3: APPLY ANIMATIONS
             this.mixer = new THREE.AnimationMixer(this.sceneObject);
@@ -141,9 +157,9 @@ export class NPC {
 
             // create a "Field of View" cone in front of the head
             this.fovConeMesh = new THREE.Mesh(
-                new THREE.ConeGeometry(2, 6, 4),
+                new THREE.ConeGeometry(120, 500, 10),
                 new THREE.MeshBasicMaterial({
-                    color: 0x00ff00, wireframe: true,
+                    color: 0xffffff * Math.random(), wireframe: true,
                     visible: false
                 })
             );
@@ -158,13 +174,12 @@ export class NPC {
 
             headBone.attach(this.fovConeMesh);
             
-            this.fovConeMesh.scale.multiplyScalar(100);
             this.fovConeMesh.position.set(headBone.position.x, headBone.position.y, headBone.position.z);
-            this.fovConeMesh.translateY(-250);
-            this.fovConeMesh.translateZ(4000);
-            this.fovConeMesh.rotateX(-Math.PI/2);
+            this.fovConeMesh.rotateX(Math.PI/2);
+            this.fovConeMesh.rotateZ(Math.PI);
+            this.fovConeMesh.translateZ(250);
+            this.fovConeMesh.translateY(-350);
             
-
             this.fovConeHull = new ConvexHull();
             this.fovConeHull.setFromObject(this.fovConeMesh);
 
@@ -181,7 +196,7 @@ export class NPC {
 
             // Add a shooting effect
             this.shootBar = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.025, 0.025, 60, 8),
+                new THREE.CylinderGeometry(0.05, 0.05, 70, 8),
                 new THREE.MeshBasicMaterial({
                     map: LEVELHANDLER.globalTextureLoader.load("../img/shootbar.png"),
                     transparent: true,
@@ -192,9 +207,8 @@ export class NPC {
             this.npcObject.add(this.shootBar);
             this.shootBar.material.map.wrapS = this.shootBar.material.map.wrapT = THREE.RepeatWrapping;
             this.shootBar.material.map.repeat.set(1, 3);
-            this.shootBar.rotation.set(Math.PI/2, 0, 0);
-            this.shootBar.position.z += 32;
-            this.shootBar.position.y += 4;
+            this.shootBar.position.z -= 7;
+            this.shootBar.position.y -= 40;
             this.shootBar.visible = false;
 
             // blob handling
@@ -242,7 +256,7 @@ export class NPC {
                 endPosition = new THREE.Vector3(r.x, r.y, r.z);
                 
                 this.blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
-                const col = new THREE.Color("rgb(227, 45, 76)");
+                const col = new THREE.Color(0xab1630);
                 // randomize color
                 col.r += (rapidFloat() * 0.1) - 0.05;
                 col.g += (rapidFloat() * 0.1) - 0.05;

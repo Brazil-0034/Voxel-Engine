@@ -30,6 +30,7 @@ const cubeCamera = new THREE.CubeCamera( 1, 1000, cubeRenderTarget );
 const squareChunkSize = 64;
 
 let itemsBuiltSoFar = 0, itemsToBuild = 0;
+let levelID;
 
 export const voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
 export const voxelMaterial = new THREE.MeshLambertMaterial({
@@ -41,7 +42,7 @@ let levelName;
 export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere) {
     // level-specific tweaks
     levelName = modelURL;
-    const levelID = levelName.substring(0,2);
+    levelID = levelName.substring(0,2);
     LEVELHANDLER.levelID = levelID;
     LEVELHANDLER.nextLevelText = "go to the Next Floor";
     switch (levelID)
@@ -146,6 +147,13 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             const ambientColor = new THREE.Color(ambientColorData.r, ambientColorData.g, ambientColorData.b);
             worldSphere.material.color = ambientColor.clone().multiplyScalar(0.25);
             LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor = ambientColor;
+            // space levels
+            if (levelID == "XX") {
+                LEVELHANDLER.backlight.color = new THREE.Color(0x406ce6);
+                LEVELHANDLER.worldSphere.material.map = LEVELHANDLER.globalTextureLoader.load("../img/skybox_1.png");
+                LEVELHANDLER.worldSphere.material.map.repeat.set(1,1);
+                LEVELHANDLER.worldSphere.material.color = new THREE.Color(0xffffff);
+            }
 
             const mapObjects = JSON.parse(arg.metaData).mapMakerSave;
             const mod = 1; // scale modifier

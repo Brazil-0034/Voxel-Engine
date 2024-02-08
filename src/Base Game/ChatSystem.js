@@ -45,21 +45,23 @@ export const checkChat = function(ID, position) {
     switch (levelID) {
         default:
             break;
-        case "XX":
-            if (playerIsNear(position, 9999, 9972)) {
+        case "TE":
+            if (playerIsNear(position, 10000, 10000)) {
                 playChat([
-                    "Why did you kill those people?"
-                ])
+                    ". . .",
+                    "We need your help.",
+                    "World War 3 is coming.",
+                ]);
             }
             break;
         case "00":
-            if (playerIsNear(position, 9970, 9900)) {
-                playChat([
-                    "Welcome to the Beachside Inn!",
-                    "Unfortunately, we have no vacancies at this time.",
-                    "Please do not disturb our guests.",
-                ]);
-            }
+            // if (playerIsNear(position, 9970, 9900)) {
+            //     playChat([
+            //         "Welcome to the Beachside Inn!",
+            //         "Unfortunately, we have no vacancies at this time.",
+            //         "Please do not disturb our guests.",
+            //     ]);
+            // }
             break;
         case "13":
             if (playerIsNear(position, 10000, 9598)) {

@@ -68,11 +68,6 @@ export class SoundEffectPlayer {
                 loop: true
             }),
             new Howl({
-                src: ['../music/Baddon - Mind OPERATOR.ogg'],
-                volume: USERSETTINGS.musicVolume * 1,
-                loop: true
-            }),
-            new Howl({
                 src: ['../music/Baddon - Speed Sensor.ogg'],
                 volume: USERSETTINGS.musicVolume * 1,
                 loop: true

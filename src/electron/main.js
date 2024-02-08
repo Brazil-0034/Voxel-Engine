@@ -15,7 +15,7 @@ function createWindow() {
         //     symbolColor: '#ffffff',
         //     height: 40
         // },
-        icon: path.join(__dirname, '../img/icon.ico'),
+        icon: path.join(__dirname, '../../build/icon.ico'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: false,

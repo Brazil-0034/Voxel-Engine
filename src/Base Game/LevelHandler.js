@@ -44,6 +44,7 @@ export class LevelHandler {
 	timeModifier
 	particleHandler
 	backlight
+	worldSphere
 	defaultBacklightColor
 	nextLevelURL
 	isLevelComplete
