@@ -123,7 +123,7 @@ export const endGameState = function(LEVELHANDLER) {
 
 	setTimeout(() => {
 		document.querySelector("#fade-control").style.animation = "fade-out-some 1s ease-out forwards";
-	}, 8000);
+	}, 4000);
 	
 	LEVELHANDLER.SFXPlayer.playSound("levelClearSound", false);
 	LEVELHANDLER.isLevelComplete = true;

@@ -71,7 +71,6 @@ export class PlayerController {
             // Keep within safe range
             // this.playerMotion.zAxis = clamp(this.playerMotion.zAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
             // this.playerMotion.xAxis = clamp(this.playerMotion.xAxis, -this.playerMotion.maxSpeed, this.playerMotion.maxSpeed);
-            console.log("X: " + this.playerMotion.xAxis.toFixed(3) + " Z: " + this.playerMotion.zAxis.toFixed(3));
 
             // Walking
             let moveSpeedOffset = this.INPUTHANDLER.isKeyPressed("shift") ? 1.45 : 1;

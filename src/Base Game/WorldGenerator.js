@@ -923,7 +923,11 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             // Remove the Pump Cover
             const loader = document.querySelector("#loader-bg");
             setTimeout(() => { loader.style.animation = "fade-out-sharp 1s ease" }, 1000);
-            setTimeout(() => { loader.parentNode.removeChild(loader); LEVELHANDLER.levelFinishedLoading = true; }, 2000);
+            
+            // setTimeout(() => { loader.parentNode.removeChild(loader); LEVELHANDLER.levelFinishedLoading = true; }, 2000);
+            loader.parentNode.removeChild(loader);
+            LEVELHANDLER.levelFinishedLoading = true;
+            
             document.querySelector("#interaction-text").style.display = "block";
             document.querySelector("#npc-text").style.animation = "typewriter 2.5s steps(40, end) forwards";
             WEAPONHANDLER.isAttackAvailable = true;

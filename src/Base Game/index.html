@@ -62,7 +62,7 @@
 				</svg>
 			</div>
 
-			<div id="npc-chat">
+			<div id="npc-chat" style="visibility: hidden;">
 				<div id="npc-text"></div>
 				<span id="e">[F]</span>
 			</div>
@@ -78,6 +78,9 @@
 		
 		<!-- RESTART OVERLAY -->
 		<div id="restart-helper">Press [R] to Restart</div>
+
+		<!-- SETTINGS PANEL -->
+		<div id="pause-menu-holder"></div>
 
 	</div>
 
@@ -195,7 +198,7 @@
 	LEVELHANDLER.renderer.info.autoReset = false;
 	LEVELHANDLER.renderer.logarithmicDepthBuffer = true;
 	LEVELHANDLER.renderer.setSize(window.innerWidth, window.innerHeight);
-	LEVELHANDLER.renderer.setPixelRatio(window.devicePixelRatio);
+	LEVELHANDLER.renderer.setPixelRatio(window.devicePixelRatio/2);
 	document.body.appendChild(LEVELHANDLER.renderer.domElement);
 	LEVELHANDLER.renderer.domElement.style.zIndex = "-1";
 	LEVELHANDLER.renderer.shadowMap.enabled = false
@@ -332,6 +335,7 @@
 		composer.render();
 	}
 
+	const holder = document.querySelector("#pause-menu-holder");
 	const update = function () {
 		// Frame Calculations
 		frameCounter = (frameCounter + 1) % 60;
@@ -349,6 +353,25 @@
 		checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
 		if (INPUTHANDLER.isKeyPressed('f')) {
 			incrementChatIndex();
+		}
+		if (controls.isLocked == true) {
+			holder.innerHTML = "";
+			LEVELHANDLER.renderer.domElement.style.filter = "";
+		}
+		else if(holder.innerHTML == "") {
+			// if holder is empty ...
+			const pauseMenu = `
+			<div id="pause-menu">
+				<h1>PAUSED</h1>
+				<div style="margin-top: 50px">
+					<h3>RESUME</h3>
+					<h3>SETTINGS</h3>
+					<h3>EXIT</h3>
+				</div>
+			</div>
+			<div id="pause-menu-bg"></div>`;
+			LEVELHANDLER.renderer.domElement.style.filter = "grayscale(1)";
+			holder.innerHTML = pauseMenu;
 		}
 		if (INPUTHANDLER.isKeyPressed('t')) document.querySelector("#vizbox").style.display = "block";
 		else document.querySelector("#vizbox").style.display = "none";
@@ -467,6 +490,7 @@
             }, 3000);
         }
 	
+		document.querySelector("#npc-chat").style.visibility = "visible";
 		document.querySelector("#da-big-text").style.display = "none";
 		document.querySelector("#prevent-overlay").style.display = "none";
 		document.querySelectorAll(".health").forEach(e => e.style.visibility = "visible");
@@ -499,6 +523,15 @@
 		LEVELHANDLER.camera.aspect = width / height;
 		LEVELHANDLER.camera.updateProjectionMatrix();
 	}, false);
+
+	/*
+
+	NEW RENDER STACK (proposed by varun)
+	1. decrease rendertarget resolution
+	2. reduce color depth
+	3. dither
+
+	*/
 
 	setHelpText("");
 </script>

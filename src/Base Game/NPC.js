@@ -256,11 +256,10 @@ export class NPC {
                 endPosition = new THREE.Vector3(r.x, r.y, r.z);
                 
                 this.blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
-                const col = new THREE.Color(0xab1630);
+                const col = new THREE.Color(0xff0000);
                 // randomize color
-                col.r += (rapidFloat() * 0.1) - 0.05;
-                col.g += (rapidFloat() * 0.1) - 0.05;
-                col.b += (rapidFloat() * 0.1) - 0.05;
+                col.r += clamp((rapidFloat()) - 0.5, 0, 1);
+                col.multiplyScalar(0.25);
                 this.blob.setColorAt(i, col);
                 const thisBlob = new killBlob(
                     pos,
