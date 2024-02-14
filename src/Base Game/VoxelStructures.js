@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createVizSphere, rapidFloat } from './EngineMath.js'; // math functions
 import { ParticleMesh, Particle } from './ParticleEngine.js'; // particle system
 import { globalOffset } from './WorldGenerator.js'
+import { USERSETTINGS } from './LevelHandler.js'; // user settings and level info
 
 class blockData {
 	value
@@ -350,7 +351,7 @@ export const generateDestroyedChunkAt = function (destroyedVoxelsInChunk, USERSE
 					cameraDirection.y = -1/10;
 					let hasGravity = true;
 					if (LEVELHANDLER.levelID == "XX") hasGravity = false;
-					new Particle(particleHandler, thisVoxel.position, cameraDirection.multiplyScalar(3.5).setY(-2.5), voxelColor, 50, hasGravity);
+					if (!USERSETTINGS.disableParticles) new Particle(particleHandler, thisVoxel.position, cameraDirection.multiplyScalar(3.5).setY(-2.5), voxelColor, 50, hasGravity);
 				}
 			}
 		}
