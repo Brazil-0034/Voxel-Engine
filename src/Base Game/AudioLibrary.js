@@ -84,7 +84,7 @@ export class SoundEffectPlayer {
     }
 
     startMusicPlayback(index) {
-        if (index > -1) this.music[index].play();
+        // if (index > -1) this.music[index].play();
     }
 
     SelectMusicID(LevelID) {

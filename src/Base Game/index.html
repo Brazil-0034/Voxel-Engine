@@ -146,6 +146,8 @@
 	import { setHelpText, setInteractionText, getInteractionText } from './UIHandler.js'; // User Interface
 	import { generateWorld, voxelGeometry, voxelMaterial, globalOffset } from './WorldGenerator.js'; // Map Generation
 	import { PlayerController } from './PlayerMotionController.js'; // First Person Controller
+	// BROWSER ENGINE
+	const { ipcRenderer } = require('electron');
 
 	// ##########
 	// META
@@ -160,380 +162,410 @@
 	// ##########
 	// GLOBAL HANDLERS
 	// ##########
-	const LEVELHANDLER = new LevelHandler(
-		new THREE.Scene(),
-		new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
-	);
-	LEVELHANDLER.SFXPlayer.playSound('startLevelSound', false);
-	const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
-	const INPUTHANDLER = new InputHandler();
+	ipcRenderer.send('fetch-user-settings');
+	const updateUserSettings = (settings) => {
+		ipcRenderer.send('update-user-settings', settings);
+	}
+	ipcRenderer.on('fetch-user-settings-reply', (event, arg) => {
+		Object.assign(USERSETTINGS, arg);
+		console.log('User settings fetched:', USERSETTINGS);
 
-	// ##########
-	// WORLD SPHERE (BACKDROP COLOR)
-	// ##########
-	const worldSphere = new THREE.Mesh(
-		new THREE.SphereGeometry(5000, 16, 8),
-		new THREE.MeshBasicMaterial(
-			{
-				color: new THREE.Color(0xffffff),
-				side: THREE.DoubleSide,
-				map: LEVELHANDLER.globalTextureLoader.load("../textures/smooth.png")
-			}
+		const LEVELHANDLER = new LevelHandler(
+			new THREE.Scene(),
+			new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
+		);
+		LEVELHANDLER.SFXPlayer.playSound('startLevelSound', false);
+		const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
+		const INPUTHANDLER = new InputHandler();
+
+		// ##########
+		// WORLD SPHERE (BACKDROP COLOR)
+		// ##########
+		const worldSphere = new THREE.Mesh(
+			new THREE.SphereGeometry(5000, 16, 8),
+			new THREE.MeshBasicMaterial(
+				{
+					color: new THREE.Color(0xffffff),
+					side: THREE.DoubleSide,
+					map: LEVELHANDLER.globalTextureLoader.load("../textures/smooth.png")
+				}
+			)
 		)
-	)
-	worldSphere.material.map.wrapS = worldSphere.material.map.wrapT = THREE.RepeatWrapping;
-	worldSphere.material.map.repeat.set(10, 10);
-	LEVELHANDLER.scene.add(worldSphere);
-	LEVELHANDLER.worldSphere = worldSphere;
+		worldSphere.material.map.wrapS = worldSphere.material.map.wrapT = THREE.RepeatWrapping;
+		worldSphere.material.map.repeat.set(10, 10);
+		LEVELHANDLER.scene.add(worldSphere);
+		LEVELHANDLER.worldSphere = worldSphere;
 
-	// ##########
-	// RENDERER SETUP
-	// ##########
-	// Initializes the THREE.js renderer
-	LEVELHANDLER.renderer.powerPreference = "high-performance";
-	LEVELHANDLER.renderer.debug.checkShaderErrors = false;
-	// LEVELHANDLER.renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
-	LEVELHANDLER.renderer.outputEncoding = THREE.sRGBEncoding;
-	LEVELHANDLER.renderer.outputColorSpace = THREE.SRGBColorSpace;
-	LEVELHANDLER.renderer.info.autoReset = false;
-	LEVELHANDLER.renderer.logarithmicDepthBuffer = true;
-	LEVELHANDLER.renderer.setSize(window.innerWidth, window.innerHeight);
-	LEVELHANDLER.renderer.setPixelRatio(window.devicePixelRatio/2);
-	document.body.appendChild(LEVELHANDLER.renderer.domElement);
-	LEVELHANDLER.renderer.domElement.style.zIndex = "-1";
-	LEVELHANDLER.renderer.shadowMap.enabled = false
-	LEVELHANDLER.renderer.setClearColor(0xffffff)
-	// THREE.ColorManagement.legacyMode = false;
+		// ##########
+		// RENDERER SETUP
+		// ##########
+		// Initializes the THREE.js renderer
+		LEVELHANDLER.renderer.powerPreference = "high-performance";
+		LEVELHANDLER.renderer.debug.checkShaderErrors = false;
+		// LEVELHANDLER.renderer.toneMapping = THREE.ACESFilmicToneMapping // currently bugged out? (r152 see bug report from 2021 going back a few versions, im not smart enough to understand how to fix it... color math is so beyond me)
+		LEVELHANDLER.renderer.outputEncoding = THREE.sRGBEncoding;
+		LEVELHANDLER.renderer.outputColorSpace = THREE.SRGBColorSpace;
+		LEVELHANDLER.renderer.info.autoReset = false;
+		LEVELHANDLER.renderer.logarithmicDepthBuffer = true;
+		LEVELHANDLER.renderer.setSize(window.innerWidth, window.innerHeight);
+		LEVELHANDLER.renderer.setPixelRatio(window.devicePixelRatio/1.25);
+		document.body.appendChild(LEVELHANDLER.renderer.domElement);
+		LEVELHANDLER.renderer.domElement.style.zIndex = "-1";
+		LEVELHANDLER.renderer.shadowMap.enabled = false
+		LEVELHANDLER.renderer.setClearColor(0xffffff)
+		// THREE.ColorManagement.legacyMode = false;
 
-	// ##########
-	// ENVIRONMENT LIGHTING SETUP
-	// ##########
-	const lightProbe = new THREE.LightProbe();
-	LEVELHANDLER.scene.add(lightProbe);
-	const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256);
-	const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
-	{
-		// 	LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
-		// 	const cubemap = new THREE.CubeTextureLoader().load(
-		// 		[
-		// 			'../opensource/cherry_skybox/left.png',
-		// 			'../opensource/cherry_skybox/right.png',
-		// 			'../opensource/cherry_skybox/up.png',
-		// 			'../opensource/cherry_skybox/down.png',
-		// 			'../opensource/cherry_skybox/front.png',
-		// 			'../opensource/cherry_skybox/back.png',
-		// 		]
-		// 	)
-		// 	LEVELHANDLER.background = cubemap;
-	}
-
-	// ##########
-	// POST PROCESSING
-	// ##########
-	const composer = new EffectComposer(LEVELHANDLER.renderer);
-	// Ambient Occlusion
-	const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
-	n8aopass.setQualityMode("Ultra");
-	n8aopass.configuration.aoRadius = 24;
-	n8aopass.configuration.distanceFalloff = 1.0;
-	n8aopass.configuration.intensity = 4.5;
-	n8aopass.configuration.halfRes = true;
-	n8aopass.configuration.gammaCorrection = false;
-	composer.addPass(n8aopass);
-
-	// Outline
-	const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), LEVELHANDLER.scene, LEVELHANDLER.camera);
-	outlinePass.edgeStrength = 3;
-	outlinePass.visibleEdgeColor.set(0xffffff);
-	composer.addPass(outlinePass);
-	LEVELHANDLER.outliner = outlinePass;
-	LEVELHANDLER.outliner.selectedObjects = [];
-	LEVELHANDLER.weaponPickups.forEach(pickup => {
-		LEVELHANDLER.outliner.selectedObjects.push(pickup);
-	})
-
-	// Bloom
-	const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
-	composer.addPass(bloomPass);
-
-	if (USERSETTINGS.disablePostProcessing == true) {
-		n8aopass.enabled = false;
-		bloomPass.enabled = false;
-		const renderPass = new RenderPass(LEVELHANDLER.scene, LEVELHANDLER.camera);
-		composer.addPass(renderPass);
-	}
-
-	// What the hell is this?? I fucking hate javascript.
-	// Hours of research and there is no way around this awful bundling system
-	// The most popular language in the world feels like its in its infancy
-	// what shitholes designed this??
-	// ^ note from the future: i dont remembe why i wrote this or why i was so angry. the code it references seems to be missing now.
-
-	// ##########
-	// DEFAULT AMBIENT LIGHTING
-	// ##########
-	const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
-	LEVELHANDLER.scene.add(ambientLight);
-	LEVELHANDLER.backlight = ambientLight;
-
-	// ##########
-	// DOM CONTROLS (POINTERLOCKAPI)
-	// ##########
-	const controls = new PointerLockControls(LEVELHANDLER);
-	LEVELHANDLER.scene.add(controls.getObject());
-	LEVELHANDLER.controls = controls;
-
-
-	// ##########
-	// FILESYSTEM CONSTANTS
-	// ##########
-	// These mark locations in the local file system that store the map and current weapon
-	// get modelURL from URL param "mapName"
-	const modelURL = new URLSearchParams(window.location.search).get("mapName");
-	const weaponURL = 'nothing';
-	WEAPONHANDLER.pickupWeapon(weaponURL); // same as map, but for the weapon!
-
-	// This starts building the map ...
-	// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
-	// (Only one map can be loaded at once... unless?)
-	// TODO - origin offsets for multiple map loading?
-	//  ^ this is very unncessary but could be useful for features like streaming
-	LEVELHANDLER.SFXPlayer.startMusicPlayback(LEVELHANDLER.SFXPlayer.SelectMusicID(modelURL.substring(0,2)));
-	generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere);
-
-	// ##########
-	// PARTICLE ENGINE INITIALIZATION
-	// ##########
-	const particleHandler = new ParticleMesh(voxelGeometry, voxelMaterial, USERSETTINGS.particleQualityMode * 1000, 8000);
-	LEVELHANDLER.scene.add(particleHandler);
-	LEVELHANDLER.particleHandler = particleHandler;
-	particleHandler.frustumCulled = false;
-
-	const clock = new THREE.Clock();
-	const raycaster = new THREE.Raycaster();
-
-	const updateDebugViz = function (delta) {
-		document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
-		document.querySelector("#DRAWCALLSViz").textContent = LEVELHANDLER.renderer.info.render.calls + " calls (~ " + parseInt(LEVELHANDLER.potentialCleanCalls) + " clean)";
-		let numVoxels = LEVELHANDLER.numVoxels;
-		numVoxels = numVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-		document.querySelector("#NUMVOXELSViz").textContent = numVoxels + " voxels";
-		document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELHANDLER.numCoverBoxes + " IMESH Covers";
-		document.querySelector("#XViz").textContent = "X: " + Math.round(LEVELHANDLER.camera.position.x);
-		document.querySelector("#YViz").textContent = "Y: " + Math.round(LEVELHANDLER.camera.position.y);
-		document.querySelector("#ZViz").textContent = "Z: " + Math.round(LEVELHANDLER.camera.position.z);
-	}
-
-	const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster);
-	
-	startChatScan(LEVELHANDLER);
-
-	let frameCounter = 0;
-	// ### RENDER LOOP ###
-	const frustum = new THREE.Frustum();
-	const render = function() {
-		composer.render();
-	}
-
-	const holder = document.querySelector("#pause-menu-holder");
-	const update = function () {
-		// Frame Calculations
-		frameCounter = (frameCounter + 1) % 60;
-		const delta = clock.getDelta() * LEVELHANDLER.timeModifier;
-		// Debug Visualizer
-		updateDebugViz(delta);
-		// Player Movement Handling
-		if (LEVELHANDLER.levelFinishedLoading) playerController.update(delta);
-		// Update UI
-		document.querySelector("#interaction-text").style.opacity -= delta * 5;
-		if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = 1 - (LEVELHANDLER.playerHealth / 100);/* clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);*/
-		// Update Active NPC's
-		LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
-		document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
-		checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
-		if (INPUTHANDLER.isKeyPressed('f')) {
-			incrementChatIndex();
+		// ##########
+		// ENVIRONMENT LIGHTING SETUP
+		// ##########
+		const lightProbe = new THREE.LightProbe();
+		LEVELHANDLER.scene.add(lightProbe);
+		const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256);
+		const cubeCamera = new THREE.CubeCamera(1, 1000, cubeRenderTarget);
+		{
+			// 	LEVELHANDLER.scene.add( new LightProbeHelper( lightProbe, 5 ) );
+			// 	const cubemap = new THREE.CubeTextureLoader().load(
+			// 		[
+			// 			'../opensource/cherry_skybox/left.png',
+			// 			'../opensource/cherry_skybox/right.png',
+			// 			'../opensource/cherry_skybox/up.png',
+			// 			'../opensource/cherry_skybox/down.png',
+			// 			'../opensource/cherry_skybox/front.png',
+			// 			'../opensource/cherry_skybox/back.png',
+			// 		]
+			// 	)
+			// 	LEVELHANDLER.background = cubemap;
 		}
-		if (controls.isLocked == true) {
-			holder.innerHTML = "";
-			LEVELHANDLER.renderer.domElement.style.filter = "";
+
+		// ##########
+		// POST PROCESSING
+		// ##########
+		const composer = new EffectComposer(LEVELHANDLER.renderer);
+		// Ambient Occlusion
+		const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
+		n8aopass.setQualityMode("Ultra");
+		n8aopass.configuration.aoRadius = 24;
+		n8aopass.configuration.distanceFalloff = 1.0;
+		n8aopass.configuration.intensity = 4.5;
+		n8aopass.configuration.halfRes = true;
+		n8aopass.configuration.gammaCorrection = false;
+		composer.addPass(n8aopass);
+
+		// Outline
+		const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), LEVELHANDLER.scene, LEVELHANDLER.camera);
+		outlinePass.edgeStrength = 3;
+		outlinePass.visibleEdgeColor.set(0xffffff);
+		composer.addPass(outlinePass);
+		LEVELHANDLER.outliner = outlinePass;
+		LEVELHANDLER.outliner.selectedObjects = [];
+		LEVELHANDLER.weaponPickups.forEach(pickup => {
+			LEVELHANDLER.outliner.selectedObjects.push(pickup);
+		})
+
+		// Bloom
+		const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
+		composer.addPass(bloomPass);
+
+		if (USERSETTINGS.disablePostProcessing == true) {
+			n8aopass.enabled = false;
+			bloomPass.enabled = false;
+			const renderPass = new RenderPass(LEVELHANDLER.scene, LEVELHANDLER.camera);
+			composer.addPass(renderPass);
 		}
-		else if(holder.innerHTML == "") {
-			// if holder is empty ...
-			const pauseMenu = `
-			<div id="pause-menu">
-				<h1>PAUSED</h1>
-				<div style="margin-top: 50px">
-					<h3>RESUME</h3>
-					<h3>SETTINGS</h3>
-					<h3>EXIT</h3>
-				</div>
-			</div>
-			<div id="pause-menu-bg"></div>`;
-			LEVELHANDLER.renderer.domElement.style.filter = "grayscale(1)";
-			holder.innerHTML = pauseMenu;
+
+		// What the hell is this?? I fucking hate javascript.
+		// Hours of research and there is no way around this awful bundling system
+		// The most popular language in the world feels like its in its infancy
+		// what shitholes designed this??
+		// ^ note from the future: i dont remembe why i wrote this or why i was so angry. the code it references seems to be missing now.
+
+		// ##########
+		// DEFAULT AMBIENT LIGHTING
+		// ##########
+		const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
+		LEVELHANDLER.scene.add(ambientLight);
+		LEVELHANDLER.backlight = ambientLight;
+
+		// ##########
+		// DOM CONTROLS (POINTERLOCKAPI)
+		// ##########
+		const controls = new PointerLockControls(LEVELHANDLER);
+		LEVELHANDLER.scene.add(controls.getObject());
+		LEVELHANDLER.controls = controls;
+
+
+		// ##########
+		// FILESYSTEM CONSTANTS
+		// ##########
+		// These mark locations in the local file system that store the map and current weapon
+		// get modelURL from URL param "mapName"
+		const modelURL = new URLSearchParams(window.location.search).get("mapName");
+		const weaponURL = 'nothing';
+		WEAPONHANDLER.pickupWeapon(weaponURL); // same as map, but for the weapon!
+
+		// This starts building the map ...
+		// It attempts to load the JSON file, and allows quick transformations to the file (if needed / between versions) before calling buildWorldModel(), which actually builds the instanceMeshes
+		// (Only one map can be loaded at once... unless?)
+		// TODO - origin offsets for multiple map loading?
+		//  ^ this is very unncessary but could be useful for features like streaming
+		LEVELHANDLER.SFXPlayer.startMusicPlayback(LEVELHANDLER.SFXPlayer.SelectMusicID(modelURL.substring(0,2)));
+		generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere);
+
+		// ##########
+		// PARTICLE ENGINE INITIALIZATION
+		// ##########
+		const particleHandler = new ParticleMesh(voxelGeometry, voxelMaterial, USERSETTINGS.particleQualityMode * 1000, 8000);
+		LEVELHANDLER.scene.add(particleHandler);
+		LEVELHANDLER.particleHandler = particleHandler;
+		particleHandler.frustumCulled = false;
+
+		const clock = new THREE.Clock();
+		const raycaster = new THREE.Raycaster();
+
+		const updateDebugViz = function (delta) {
+			document.querySelector("#FPSViz").textContent = Math.round(1 / delta) + " fps";
+			document.querySelector("#DRAWCALLSViz").textContent = LEVELHANDLER.renderer.info.render.calls + " calls (~ " + parseInt(LEVELHANDLER.potentialCleanCalls) + " clean)";
+			let numVoxels = LEVELHANDLER.numVoxels;
+			numVoxels = numVoxels.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+			document.querySelector("#NUMVOXELSViz").textContent = numVoxels + " voxels";
+			document.querySelector("#NUMCOVERBOXESViz").textContent = LEVELHANDLER.numCoverBoxes + " IMESH Covers";
+			document.querySelector("#XViz").textContent = "X: " + Math.round(LEVELHANDLER.camera.position.x);
+			document.querySelector("#YViz").textContent = "Y: " + Math.round(LEVELHANDLER.camera.position.y);
+			document.querySelector("#ZViz").textContent = "Z: " + Math.round(LEVELHANDLER.camera.position.z);
 		}
-		if (INPUTHANDLER.isKeyPressed('t')) document.querySelector("#vizbox").style.display = "block";
-		else document.querySelector("#vizbox").style.display = "none";
-		// Update Active Particles
-		particleHandler.update(delta);
-		LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
-		// Update Skybox Attributes
-		worldSphere.position.copy(LEVELHANDLER.camera.position);
-		worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta / 100), worldSphere.material.map.center.y + (delta / 1000));
-		// Check Level Completion
-		if (LEVELHANDLER.isLevelComplete == true || INPUTHANDLER.isKeyPressed('y')) {
-			if (INPUTHANDLER.isKeyPressed(' ') || INPUTHANDLER.isKeyPressed('y')) {
-				LEVELHANDLER.SFXPlayer.playSound("endLevelSound", false);
-				LEVELHANDLER.isCameraShaking = true;
-				setTimeout(() => {LEVELHANDLER.isCameraShaking = false}, 150);
-				USERSETTINGS.screenShakeIntensity /= 0.25;
-				LEVELHANDLER.isLevelComplete = false;
-				document.querySelector("#cover-flash").style.animation = "expand 0.75s";
-				document.querySelector("#end-screen").style.display = document.querySelector("#ui-overlay").style.display = "none";
-				setTimeout(() => {
-					let target = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
-					if (LEVELHANDLER.nextLevelURL.substring(0, 3) == "../") target = LEVELHANDLER.nextLevelURL;
-					if (LEVELHANDLER.nextLevelURL == "phone_call") target = "phone_call.html";
-					window.location.href = target;
-				}, 500);
-				LEVELHANDLER.renderer.domElement.style.animation = "shrink 0.75s ease-in-out forwards";
+
+		const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster);
+		
+		startChatScan(LEVELHANDLER);
+
+		let frameCounter = 0;
+		// ### RENDER LOOP ###
+		const frustum = new THREE.Frustum();
+		const render = function() {
+			composer.render();
+		}
+
+		const holder = document.querySelector("#pause-menu-holder");
+		const update = function () {
+			// Frame Calculations
+			frameCounter = (frameCounter + 1) % 60;
+			const delta = clock.getDelta() * LEVELHANDLER.timeModifier;
+			// Debug Visualizer
+			updateDebugViz(delta);
+			// Player Movement Handling
+			if (LEVELHANDLER.levelFinishedLoading) playerController.update(delta);
+			// Update UI
+			document.querySelector("#interaction-text").style.opacity -= delta * 5;
+			if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = 1 - (LEVELHANDLER.playerHealth / 100);/* clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);*/
+			// Update Active NPC's
+			LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
+			document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
+			checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
+			if (INPUTHANDLER.isKeyPressed('f')) {
+				incrementChatIndex();
 			}
-		}
-		// Update Lights
-		// LEVELHANDLER.levelLights.forEach(light => {
-		// 	if (light.intensity > 0) light.intensity -= delta * 200;
-		// 	else light.intensity = light.baseIntensity;
-		// });
-		// Camera Shake
-		if (LEVELHANDLER.isCameraShaking) LEVELHANDLER.renderer.domElement.style.transform = "translate(" + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px, " + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px)";
-		else LEVELHANDLER.renderer.domElement.style.transform = "translate(0px, 0px)";
-		// Impact Effect Softening
-		if (WEAPONHANDLER.fireSprite) {
-			WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
-			WEAPONHANDLER.muzzleFire.material.opacity -= 15 * delta;
-		}
-		if (WEAPONHANDLER.weaponIsEquipped && WEAPONHANDLER.weaponRemainingAmmo == 0) {
-			setInteractionText("<b>[Q]</b> THROW WEAPON");
-		}
-
-		// #########
-		// DEBUG KEYS
-		// #########
-		// if (INPUTHANDLER.isKeyPressed("e")) {
-		// 	LEVELHANDLER.playerHeight += 0.5;
-		// }
-		// if (INPUTHANDLER.isKeyPressed("q")) {
-		// 	LEVELHANDLER.playerHeight -= 0.5;
-		// }
-		// DEBUG PANEL (in console)
-		if (INPUTHANDLER.isKeyPressed("p")) {
-			console.log("\n+==============================+\n")
-			console.log("CAMERA POSITION");
-			console.log(LEVELHANDLER.camera.position);
-			console.log("draw calls #");
-			console.log(LEVELHANDLER.renderer.info.render.calls);
-			console.log("THREE SCENE");
-			console.log(LEVELHANDLER.scene);
-			console.log("\n+==============================+\n")
-		}
-
-		// Use arrow keys to move the WEAPONHANDLER.weaponPosition
-		if (INPUTHANDLER.isKeyPressed("ArrowUp")) {
-			WEAPONHANDLER.weaponPosition.y += 10;
-		}
-		if (INPUTHANDLER.isKeyPressed("ArrowDown")) {
-			WEAPONHANDLER.weaponPosition.y -= 10;
-		}
-		if (INPUTHANDLER.isKeyPressed("ArrowLeft")) {
-			WEAPONHANDLER.weaponPosition.x -= 10;
-		}
-		if (INPUTHANDLER.isKeyPressed("ArrowRight")) {
-			WEAPONHANDLER.weaponPosition.x += 10;
-		}
-
-		frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(LEVELHANDLER.camera.projectionMatrix, LEVELHANDLER.camera.matrixWorldInverse));
-		instancedModelIndex.forEach(model => {
-			// model.visible = true;
-
-			if (frustum.intersectsBox(model.frustumBox)) {
-				if (!model.isCovered) {
-					model.visible = true;
+			if (controls.isLocked == true) {
+				holder.innerHTML = "";
+				LEVELHANDLER.renderer.domElement.style.filter = "";
+			}
+			else if(holder.innerHTML == "") {
+				// if holder is empty ...
+				const pauseMenu = `
+				<div id="pause-menu">
+					<h1>PAUSED</h1>
+					<div style="margin-top: 50px">
+						<h3>RESUME</h3>
+						<h3 id="settings-btn">SETTINGS</h3>
+						<h3><a href="../launcher/menu.html" style="color:white;text-decoration:none;">EXIT</a></h3>
+					</div>
+				</div>
+				<div id="pause-menu-bg"></div>`;
+				LEVELHANDLER.renderer.domElement.style.filter = "grayscale(1)";
+				holder.innerHTML = pauseMenu;
+				document.querySelector("#settings-btn").addEventListener('click', () => {
+					console.log("opened settings panel");
+					holder.innerHTML += `
+					<div id="settings-menu">
+						<h1>SETTINGS</h1>
+						<div style="margin-top: 50px">
+							<h4>SENSITIVITY</h4>
+							<input type="range" min="0.1" max="2" value="1" step="0.1" id="sensitivity-slider">
+							<h4>PARTICLES</h4>
+							<input type="checkbox" id="particles-checkbox">
+							<h4>FOV</h4>
+							<input type="range" min="60" max="120" value="80" step="1" id="fov-slider">
+						</div>
+					</div>`;
+					// PARTICLES SETTING
+					document.querySelector("#particles-checkbox").checked = !USERSETTINGS.disableParticles;
+					document.querySelector("#particles-checkbox").addEventListener('change', () => {
+						USERSETTINGS.disableParticles = !document.querySelector("#particles-checkbox").checked;
+						updateUserSettings(USERSETTINGS);
+					});
+				});
+			}
+			if (INPUTHANDLER.isKeyPressed('t')) document.querySelector("#vizbox").style.display = "block";
+			else document.querySelector("#vizbox").style.display = "none";
+			// Update Active Particles
+			particleHandler.update(delta);
+			LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
+			// Update Skybox Attributes
+			worldSphere.position.copy(LEVELHANDLER.camera.position);
+			worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta / 100), worldSphere.material.map.center.y + (delta / 1000));
+			// Check Level Completion
+			if (LEVELHANDLER.isLevelComplete == true || INPUTHANDLER.isKeyPressed('y')) {
+				if (INPUTHANDLER.isKeyPressed(' ') || INPUTHANDLER.isKeyPressed('y')) {
+					LEVELHANDLER.SFXPlayer.playSound("endLevelSound", false);
+					LEVELHANDLER.isCameraShaking = true;
+					setTimeout(() => {LEVELHANDLER.isCameraShaking = false}, 150);
+					USERSETTINGS.screenShakeIntensity /= 0.25;
+					LEVELHANDLER.isLevelComplete = false;
+					document.querySelector("#cover-flash").style.animation = "expand 0.75s";
+					document.querySelector("#end-screen").style.display = document.querySelector("#ui-overlay").style.display = "none";
+					setTimeout(() => {
+						let target = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
+						if (LEVELHANDLER.nextLevelURL.substring(0, 3) == "../") target = LEVELHANDLER.nextLevelURL;
+						if (LEVELHANDLER.nextLevelURL == "phone_call") target = "phone_call.html";
+						window.location.href = target;
+					}, 500);
+					LEVELHANDLER.renderer.domElement.style.animation = "shrink 0.75s ease-in-out forwards";
 				}
 			}
-			else {
-				model.visible = false;
+			// Update Lights
+			// LEVELHANDLER.levelLights.forEach(light => {
+			// 	if (light.intensity > 0) light.intensity -= delta * 200;
+			// 	else light.intensity = light.baseIntensity;
+			// });
+			// Camera Shake
+			if (LEVELHANDLER.isCameraShaking) LEVELHANDLER.renderer.domElement.style.transform = "translate(" + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px, " + (Math.random() * USERSETTINGS.screenShakeIntensity - USERSETTINGS.screenShakeIntensity / 2) + "px)";
+			else LEVELHANDLER.renderer.domElement.style.transform = "translate(0px, 0px)";
+			// Impact Effect Softening
+			if (WEAPONHANDLER.fireSprite) {
+				WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
+				WEAPONHANDLER.muzzleFire.material.opacity -= 15 * delta;
 			}
-		});
+			if (WEAPONHANDLER.weaponIsEquipped && WEAPONHANDLER.weaponRemainingAmmo == 0) {
+				setInteractionText("<b>[Q]</b> THROW WEAPON");
+			}
 
-		requestAnimationFrame(update);
-		LEVELHANDLER.renderer.info.reset();
-		render();
-	}
+			// #########
+			// DEBUG KEYS
+			// #########
+			// if (INPUTHANDLER.isKeyPressed("e")) {
+			// 	LEVELHANDLER.playerHeight += 0.5;
+			// }
+			// if (INPUTHANDLER.isKeyPressed("q")) {
+			// 	LEVELHANDLER.playerHeight -= 0.5;
+			// }
+			// DEBUG PANEL (in console)
+			if (INPUTHANDLER.isKeyPressed("p")) {
+				console.log("\n+==============================+\n")
+				console.log("CAMERA POSITION");
+				console.log(LEVELHANDLER.camera.position);
+				console.log("draw calls #");
+				console.log(LEVELHANDLER.renderer.info.render.calls);
+				console.log("THREE SCENE");
+				console.log(LEVELHANDLER.scene);
+				console.log("\n+==============================+\n")
+			}
 
-	const startGame = function() {
-		if (gameStarted) return;
-		document.querySelector("#da-big-text").innerHTML = "LOADING . . .";
-		controls.lock();
-		render();
-		
-		// INTRO LEVEL video
-		if (LEVELHANDLER.levelID == "00") {
-            const vidEl =`
-            <video id="ttywd" style="background: black;position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; width: 105%; height: 105%;">
-                <source src="../videos/ttywd.mp4" type="video/mp4">
-            </video>`;
-            document.querySelector("body").insertAdjacentHTML('beforeend', vidEl);
-            document.querySelector("#ttywd").play();
-            setTimeout(() => {
-                document.querySelector("video").remove();
-            }, 3000);
-        }
-	
-		document.querySelector("#npc-chat").style.visibility = "visible";
-		document.querySelector("#da-big-text").style.display = "none";
-		document.querySelector("#prevent-overlay").style.display = "none";
-		document.querySelectorAll(".health").forEach(e => e.style.visibility = "visible");
-		document.querySelector("#middle-crosshair").style.visibility = "visible";
-		document.querySelector("#interaction-text").style.visibility = "visible";
-		update();
-	}
+			// Use arrow keys to move the WEAPONHANDLER.weaponPosition
+			if (INPUTHANDLER.isKeyPressed("ArrowUp")) {
+				WEAPONHANDLER.weaponPosition.y += 10;
+			}
+			if (INPUTHANDLER.isKeyPressed("ArrowDown")) {
+				WEAPONHANDLER.weaponPosition.y -= 10;
+			}
+			if (INPUTHANDLER.isKeyPressed("ArrowLeft")) {
+				WEAPONHANDLER.weaponPosition.x -= 10;
+			}
+			if (INPUTHANDLER.isKeyPressed("ArrowRight")) {
+				WEAPONHANDLER.weaponPosition.x += 10;
+			}
 
-	let gameStarted = false;
-	const n = () => {
-		if (LEVELHANDLER.levelFinishedLoading == false) return;
-		controls.lock();
-		if (!gameStarted) {
-			startGame();
-			gameStarted = true;
+			frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(LEVELHANDLER.camera.projectionMatrix, LEVELHANDLER.camera.matrixWorldInverse));
+			instancedModelIndex.forEach(model => {
+				// model.visible = true;
+
+				if (frustum.intersectsBox(model.frustumBox)) {
+					if (!model.isCovered) {
+						model.visible = true;
+					}
+				}
+				else {
+					model.visible = false;
+				}
+			});
+
+			requestAnimationFrame(update);
+			LEVELHANDLER.renderer.info.reset();
+			render();
 		}
-	};
 
-	document.body.addEventListener('click', n);
+		const startGame = function() {
+			if (gameStarted) return;
+			document.querySelector("#da-big-text").innerHTML = "LOADING . . .";
+			controls.lock();
+			render();
+			
+			// INTRO LEVEL video
+			if (LEVELHANDLER.levelID == "00") {
+	            const vidEl =`
+	            <video id="ttywd" style="background: black;position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; width: 105%; height: 105%;">
+	                <source src="../videos/ttywd.mp4" type="video/mp4">
+	            </video>`;
+	            document.querySelector("body").insertAdjacentHTML('beforeend', vidEl);
+	            document.querySelector("#ttywd").play();
+	            setTimeout(() => {
+	                document.querySelector("video").remove();
+	            }, 3000);
+	        }
+		
+			document.querySelector("#npc-chat").style.visibility = "visible";
+			document.querySelector("#da-big-text").style.display = "none";
+			document.querySelector("#prevent-overlay").style.display = "none";
+			document.querySelectorAll(".health").forEach(e => e.style.visibility = "visible");
+			document.querySelector("#middle-crosshair").style.visibility = "visible";
+			document.querySelector("#interaction-text").style.visibility = "visible";
+			update();
+		}
+
+		let gameStarted = false;
+		const n = () => {
+			if (LEVELHANDLER.levelFinishedLoading == false) return;
+			controls.lock();
+			if (!gameStarted) {
+				startGame();
+				gameStarted = true;
+			}
+		};
+
+		LEVELHANDLER.renderer.domElement.addEventListener('click', n);
 
 
 
-	// window resize handler
-	window.addEventListener('resize', () => {
-		const width = window.innerWidth;
-		const height = window.innerHeight;
-		console.log("Handling resize ->", width, height)
-		LEVELHANDLER.renderer.setSize(width, height);
-		composer.setSize(width, height);
-		LEVELHANDLER.camera.aspect = width / height;
-		LEVELHANDLER.camera.updateProjectionMatrix();
-	}, false);
+		// window resize handler
+		window.addEventListener('resize', () => {
+			const width = window.innerWidth;
+			const height = window.innerHeight;
+			console.log("Handling resize ->", width, height)
+			LEVELHANDLER.renderer.setSize(width, height);
+			composer.setSize(width, height);
+			LEVELHANDLER.camera.aspect = width / height;
+			LEVELHANDLER.camera.updateProjectionMatrix();
+		}, false);
 
-	/*
+		/*
 
-	NEW RENDER STACK (proposed by varun)
-	1. decrease rendertarget resolution
-	2. reduce color depth
-	3. dither
+		NEW RENDER STACK (proposed by varun)
+		1. decrease rendertarget resolution
+		2. reduce color depth
+		3. dither
 
-	*/
+		*/
 
-	setHelpText("");
+		setHelpText("");
+	});
 </script>
 
 </html>

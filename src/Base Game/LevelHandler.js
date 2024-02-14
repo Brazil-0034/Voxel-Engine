@@ -5,23 +5,7 @@ import { rapidFloat } from './EngineMath.js'; // math functions
 import { SoundEffectPlayer } from './AudioLibrary.js'; // SFX and Music
 
 // Data relevant to the user's graphics and gameplay settings
-export const USERSETTINGS = {
-	// LEVEL / DEBUG SETTINGS
-	debugMode: false,
-	blockoutMode: false,
-	disableCollisions: false,
-	// GRAPHICS SETTINGS
-	useSpriteParticles: true,
-	particleQualityMode: 3, // 1 -> 3, the number gets multiplied by 100 for the # of particles
-	disablePostProcessing: false,
-	// ACCESSIBILITY
-	screenShakeIntensity: 50,
-	// DISPLAY SETTINGS
-	baseFOV: 80,
-    // AUDIO SETTINGS
-    SFXVolume: 5 / 100,
-	musicVolume: 1,
-}
+export const USERSETTINGS = {};
 
 // Data relevent to the game's currently loaded level
 export class LevelHandler {

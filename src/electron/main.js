@@ -43,6 +43,33 @@ function createWindow() {
 
     // IPC Event Handler
     var ipc = require('electron').ipcMain
+    // USERSETTINGS
+    ipc.on('fetch-user-settings', function (event) {
+        console.log('Fetch User Settings...')
+        // send the user settings to the renderer
+        // "fetch-user-settings-reply"
+        // read file USERSETTINGS.json in ../ 
+        fs.readFile(__dirname + '/../USERSETTINGS.json', 'utf8', function (err, data) {
+            if (err) {
+                console.log(err)
+                return
+            }
+            event.sender.send('fetch-user-settings-reply', JSON.parse(data))
+        });
+    });
+    ipc.on('update-user-settings', function (event, arg) {
+        console.log('Update User Settings...')
+        // write to file USERSETTINGS.json in ../ 
+        fs.writeFile(__dirname + '/../USERSETTINGS.json', JSON.stringify(arg), function (err) {
+            if (err) {
+                console.log(err)
+                return
+            }
+            else console.log('USER SETTINGS WRITE SUCCESS')
+        });
+    });
+
+    // WORLD GEN
     ipc.on('list-maps', function (event) {
         console.log('List Maps...')
         // return an array of stringsd with everything in /maps/

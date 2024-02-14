@@ -83,10 +83,36 @@ canvas {
     color: white;
     box-shadow: 25px 0px 200px rgba(0, 0, 0, 0.488);
     z-index: 9999;
+    pointer-events: all;
+}
+
+#settings-menu {
+    font-family: 'VT323';
+    font-size: 2.5vw;
+    animation: flicker-in 0.2s forwards;
+    position: absolute;
+    right: 10%;
+    transform: translate(0, -50%);
+    top: 50%;
+    background: rgba(118, 118, 118, 0.114);
+    border-right: 0.25vw solid rgba(143, 143, 143, 0.216);
+    padding: 30px;
+    color: white;
+    box-shadow: 25px 0px 200px rgba(0, 0, 0, 0.488);
+    z-index: 99999;
+    pointer-events: all;
 }
 
 #pause-menu h3 {
     margin-top: 15px;
+    transition: 0.15s;
+    z-index: 99999;
+    cursor: pointer;
+}
+
+#pause-menu h3:hover {
+    opacity: 0.5;
+    padding-left: 5px;
 }
 
 .on-drugs {
