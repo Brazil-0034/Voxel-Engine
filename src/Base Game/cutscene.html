@@ -61,6 +61,8 @@
     const skip = document.createElement("a");
     skip.id = "skip";
     skip.href = target;
+    skip.style.opacity = "0";
+    setTimeout(() => skip.style.opacity = "1", 10000);
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
 </script>

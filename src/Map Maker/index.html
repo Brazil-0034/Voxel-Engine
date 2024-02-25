@@ -472,7 +472,9 @@ const updateRightPanel = function (item, clear=false) {
         const enemyTypeInput = document.createElement("select");
         enemyTypeInput.innerHTML = `
         <option value='swat'>swat</option>
-        <option value='thug'>thug</option>
+        <option value='thug1'>thug1</option>
+        <option value='thug2'>thug2</option>
+        <option value='thug3'>thug3</option>
         <option value='entity'>entity</option>
         <option value='prison_break_bob'>prison_break_bob</option>
         <option value='pharmacist'>pharmacist</option>
@@ -481,6 +483,8 @@ const updateRightPanel = function (item, clear=false) {
         <option value='astronaut'>astronaut</option>
         <option value='bossman_joe'>bossman_joe</option>
         <option value='prisoner'>prisoner</option>
+        <option value='cop'>cop</option>
+        <option value='DEBUG_TEST'>DEBUG_TEST</option>
         `;
         enemyTypeInput.value = item.userData.enemyType;
         enemyTypeInput.addEventListener("input", function () {

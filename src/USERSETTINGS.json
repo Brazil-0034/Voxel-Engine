@@ -1,1 +1,1 @@
-{"debugMode":false,"blockoutMode":false,"disableCollisions":false,"disableParticles":true,"particleQualityMode":3,"disablePostProcessing":false,"screenShakeIntensity":50,"baseFOV":80,"SFXVolume":0.05,"musicVolume":1}
+{"debugMode":false,"blockoutMode":false,"disableCollisions":false,"disableParticles":false,"mouseSensitivity":1,"particleQualityMode":3,"disablePostProcessing":false,"screenShakeIntensity":50,"baseFOV":80,"SFXVolume":0.05,"musicVolume":1}

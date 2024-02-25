@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { globalOffset } from './WorldGenerator.js';
 import { rapidFloat } from './EngineMath.js';
+
+const getClipByName = (animations, clipName) => {
+	for (let i = 0; i < animations.length; i++)
+		if (animations[i].name.toLowerCase().includes(clipName.toLowerCase())) return animations[i];
+}
+
 export class WeaponHandler {
     // MAIN
     LEVELHANDLER
@@ -11,11 +17,21 @@ export class WeaponHandler {
 	isAttackAvailable
 
     // MODEL
-    weaponModel
+    weaponModel // hands
+	gunObject // gun
+	importedWeaponPosition
+	importedWeaponRotation
+	importedWeaponScale
     weaponTarget
     weaponPosition
     weaponRotation
 	flashlight
+
+	// ANIMATION
+	handAnimationMixer
+	idleAction
+	attackAction
+	holdGunAction
 
 	// PARTICLES & JUICE
 	hideMuzzleFlash
@@ -63,13 +79,37 @@ export class WeaponHandler {
 		const WEAPONHANDLER = this;
 		// Initialize with HANDS
 		LEVELHANDLER.globalModelLoader.load(
-			'../weapons/fists/fists.fbx',
+			'../weapons/hands/hands.fbx',
 			function (object) {
 				object.scale.divideScalar(50);
 				if (WEAPONHANDLER.weaponModel) LEVELHANDLER.scene.remove(WEAPONHANDLER.weaponModel);
 				WEAPONHANDLER.weaponModel = object;
 				LEVELHANDLER.scene.add(WEAPONHANDLER.weaponModel);
-				WEAPONHANDLER.weaponModel.rotation.set(Math.PI/2,Math.PI/2,Math.PI/2)
+
+				// play the first animation in the fbx
+				WEAPONHANDLER.handAnimationMixer = new THREE.AnimationMixer(object);
+
+				WEAPONHANDLER.attackAction = WEAPONHANDLER.handAnimationMixer.clipAction(getClipByName(object.animations, "Attack"));
+				WEAPONHANDLER.attackAction.setLoop(THREE.LoopRepeat);
+				WEAPONHANDLER.attackAction.setDuration(WEAPONHANDLER.attackAction._clip.duration / 3); // 3x speed
+
+				WEAPONHANDLER.holdGunAction = WEAPONHANDLER.handAnimationMixer.clipAction(getClipByName(object.animations, "HoldGun"));
+				WEAPONHANDLER.holdGunAction.setLoop(THREE.LoopRepeat);
+
+				WEAPONHANDLER.idleAction = WEAPONHANDLER.handAnimationMixer.clipAction(getClipByName(object.animations, "Idle"));
+				WEAPONHANDLER.idleAction.setLoop(THREE.LoopRepeat);
+				WEAPONHANDLER.idleAction.play();
+
+				// imported weapon position
+				// find the child object named "WEAPON_POSITION" and set it to the weapon position importedWeaponPosition
+				object.traverse((child) => {
+					if (child.name == "WEAPON_POSITION") {
+						WEAPONHANDLER.importedWeaponPosition = child.position;
+						WEAPONHANDLER.importedWeaponRotation = child.rotation;
+						WEAPONHANDLER.importedWeaponScale = child.scale;
+						WEAPONHANDLER.importedWeaponScale.divideScalar(100);
+					}
+				});
 			}
 		);
 		// Then, load the weapon metadata from the .json file
@@ -95,18 +135,29 @@ export class WeaponHandler {
 					basePath + '.fbx',
 					function (object) {
 						if (!isNothing) {
-							WEAPONHANDLER.weaponModel.scale.set(1/50,1/50,1/50);
+							// if it is NOT fists ...
+							WEAPONHANDLER.weaponIsEquipped = true;
+
+							object.scale.copy(WEAPONHANDLER.importedWeaponScale);
+							object.position.copy(WEAPONHANDLER.importedWeaponPosition);
+							object.rotation.copy(WEAPONHANDLER.importedWeaponRotation);
 						}
 						object.isHoldableWeapon = true;
 						WEAPONHANDLER.weaponModel.add(object);
-						WEAPONHANDLER.weaponModel.scale.y = 0;
-						if (!isNothing) WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped = true;
+						WEAPONHANDLER.gunObject = object;
 						// Load in the texture for the weapon
 						if (!jsonModel.weaponData.hasNoTexture) object.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
 						// Adjust the scale from standard magicavoxel scaling
 						object.name = jsonModel.weaponData.name;
 						// json reads for weapon data
+						// camera adjustments
 						WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType = jsonModel.weaponData.type;
+						if (WEAPONHANDLER.weaponType == "ranged") {
+							LEVELHANDLER.camera.near = 1/10;
+						}
+						else LEVELHANDLER.camera.near = 1;
+						LEVELHANDLER.camera.updateProjectionMatrix();
+						// ammo
 						WEAPONHANDLER.defaultRemainingAmmo = WEAPONHANDLER.weaponRemainingAmmo = document.querySelector("#ammo-counter").textContent = jsonModel.weaponData.totalAmmo;
 						// account for infinite ammo ...
 						if (WEAPONHANDLER.weaponRemainingAmmo == 0) {
@@ -119,7 +170,7 @@ export class WeaponHandler {
 						WEAPONHANDLER.weaponDamage = jsonModel.weaponData.weaponDamage;
 						WEAPONHANDLER.weaponFollowSpeed = jsonModel.weaponData.followSpeed;
 						WEAPONHANDLER.weaponHelpText = jsonModel.weaponData.helpText;
-						WEAPONHANDLER.weaponPosition = new THREE.Vector3(jsonModel.weaponData.position.x, jsonModel.weaponData.position.y, jsonModel.weaponData.position.z);
+						WEAPONHANDLER.weaponPosition = new THREE.Vector3(0,0,0);
 						WEAPONHANDLER.weaponRange = WEAPONHANDLER.defaultWeaponRange = jsonModel.weaponData.minimumDistance;
 						WEAPONHANDLER.weaponTarget = new THREE.Mesh(
 							new THREE.BoxGeometry(1, 1, 1),
@@ -256,12 +307,13 @@ export class WeaponHandler {
 			const intersect = voxelField.raycast(this.LEVELHANDLER.camera.position, cameraDir, 1000);
 	
 			// Generate a Weapon Clone
-			const weaponClone = this.weaponModel.clone();
+			const weaponClone = this.gunObject.clone();
+			weaponClone.scale.divideScalar(this.importedWeaponPosition.x / 5);
 			weaponClone.children.forEach((child) => {
 				if (child.name == "hand") child.visible = false;
 			});
 			this.setWeaponVisible(false);
-			weaponClone.children[0].material = this.weaponModel.children[0].material.clone();
+			weaponClone.children[0].material = this.gunObject.children[0].material.clone();
 			weaponClone.position.copy(this.LEVELHANDLER.camera.position);
 			weaponClone.rotation.set(0, 0, 0);
 			this.LEVELHANDLER.addThrownWeapon(weaponClone);

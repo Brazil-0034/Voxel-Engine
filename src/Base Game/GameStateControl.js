@@ -53,6 +53,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		});
 	}
 	LEVELHANDLER.explosives.map(explosives => explosives.children[0]).forEach(explosive => explosive.parent.visible = true);
+	LEVELHANDLER.camera.near = 1;
 	// Reset Pickups
 	LEVELHANDLER.weaponPickups.forEach(pickup => {
 		if (pickup.isSpawnedPostLoad == false) pickup.visible = pickup.isActive = true;
@@ -89,6 +90,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	document.querySelectorAll(".health").forEach(health => {health.style.visibility = "visible"});
 	document.querySelector("#interaction-text").style.visibility = "visible";
 	document.querySelector("#middle-crosshair").style.visibility = "visible";
+	document.querySelector("#reverse").style.opacity = 0.5;
 	LEVELHANDLER.outliner.selectedObjects = [];
 	resetChatIndex();
 	// Reset SFX

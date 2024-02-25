@@ -12,6 +12,7 @@ export class LevelHandler {
 	// Data about Renderer
 	scene
 	camera
+	weaponCamera
 	renderer
 	potentialCleanCalls
 	outliner

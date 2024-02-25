@@ -44,7 +44,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
     levelName = modelURL;
     levelID = levelName.substring(0,2);
     LEVELHANDLER.levelID = levelID;
-    LEVELHANDLER.nextLevelText = "go to the Next Floor";
+    LEVELHANDLER.nextLevelText = "Keep Going";
     switch (levelID)
     {
         case "05":
@@ -75,7 +75,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
         levelText.position.set(0, 256, 0);
         levelText.position.add(globalOffset);
         levelText.rotation.y = -Math.PI/4;
-        LEVELHANDLER.scene.add(levelText);
+        // LEVELHANDLER.scene.add(levelText);
 
         // DEMO TUTORIAL ###############
         if (levelName.substring(0,2) == "00") {
@@ -97,7 +97,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             assistObj2.rotation.y = -Math.PI/2;
             LEVELHANDLER.scene.add(assistObj2);
         }
-        if (levelName.substring(0,2) == "02") {
+        if (levelName.substring(0,2) == "01") {
             const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(65, 55), new THREE.MeshBasicMaterial({
                 color: 0xffffff,
                 map: LEVELHANDLER.globalTextureLoader.load('../img/break_wall.png'),
@@ -164,7 +164,6 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     itemsToBuild++;
                 }
             });
-            if (itemsToBuild == 0) removeLoader();
 
             // Filter 1: Cutaways
             // These must be processed BEFORE boxes, but by nature can exist in save files in random order

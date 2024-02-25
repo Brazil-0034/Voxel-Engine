@@ -1,0 +1,26 @@
+{
+    "weaponData": {
+        "type": "melee",
+        "name": "SLEDGEHAMMER",
+        "helpText": "[Left Click] Swing",
+        "fireRate": 200,
+        "totalAmmo": 0,
+        "weaponDamage": 100,
+        "damageRange": 6,
+        "minimumDistance": 50,
+        "disableHeadBop": false,
+        "followSpeed": 25,
+        "hasMuzzleFlash": false,
+        "hasNoTexture": false,
+        "position": {
+            "x": 7.5,
+            "y": -10,
+            "z": -20
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        }
+    }
+}

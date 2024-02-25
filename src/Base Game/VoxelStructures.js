@@ -293,7 +293,7 @@ export const VoxelFace = Object.freeze({
 // They act as a pre-filter for the world builder, masking out sections voxels should NOT be placed at
 export const cutawayField = new DiscreteVectorField();
 export const addToCutawayStack = function (scale, position) {
-	console.log("Added a cutaway at " + position.x + ", " + position.y + ", " + position.z + " with scale " + scale);
+	// console.log("Added a cutaway at " + position.x + ", " + position.y + ", " + position.z + " with scale " + scale);
 	for (let x = position.x - (scale.x / 2); x < position.x + (scale.x / 2); x++) {
 		for (let y = position.y - (scale.y / 2); y < position.y + (scale.y / 2); y++) {
 			for (let z = position.z - (scale.z / 2); z < position.z + (scale.z / 2); z++) {

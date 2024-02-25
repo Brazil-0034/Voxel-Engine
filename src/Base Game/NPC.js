@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { ConvexHull } from 'three/addons/math/ConvexHull.js';
 import { lerp, clamp, createVizSphere, rapidFloat } from './EngineMath.js';
 import { pauseGameState, endGameState } from './GameStateControl.js';
-import { LevelHandler } from './LevelHandler.js';
+import { LevelHandler, USERSETTINGS } from './LevelHandler.js';
 import { globalOffset } from './WorldGenerator.js'
 
 // This will be the main system for spawning and handling NPC behavior
@@ -84,17 +84,14 @@ export class NPC {
             else this.npcObject = object.children[1];
             this.npcObject.npcHandler = this;
 
-            // if (npcName != "frog")
-            if (false)
+            if (npcName != "frog")
             {
                 this.sceneObject.traverse(function (childObject) {
                     if (childObject.isMesh) {
                         // childObject.castShadow = true;
                         // childObject.receiveShadow = true;
-                            childObject.material = new THREE.MeshPhongMaterial({
-                                map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png'),
-                                shininess: 0,
-                                specular: 0x000000
+                            childObject.material = new THREE.MeshLambertMaterial({
+                                map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png')
                             });
                     }
                 });
@@ -122,7 +119,7 @@ export class NPC {
             // STEP 2: ASSIGN TRANSFORMS
             this.sceneObject.position.copy(position);
             this.sceneObject.position.add(globalOffset);
-            this.sceneObject.scale.multiplyScalar(0.055);
+            this.sceneObject.scale.multiplyScalar(0.065);
 
             // STEP 3: APPLY ANIMATIONS
             this.mixer = new THREE.AnimationMixer(this.sceneObject);
@@ -207,9 +204,9 @@ export class NPC {
             this.npcObject.add(this.shootBar);
             this.shootBar.material.map.wrapS = this.shootBar.material.map.wrapT = THREE.RepeatWrapping;
             this.shootBar.material.map.repeat.set(1, 3);
-            this.shootBar.position.z -= 7;
-            this.shootBar.position.y -= 40;
             this.shootBar.visible = false;
+            this.shootBar.rotation.x = Math.PI/2;
+            this.shootBar.position.y = 4;
 
             // blob handling
             const count = 250;
@@ -466,14 +463,16 @@ export class NPC {
         this.LEVELHANDLER.totalNPCs--;
         if (this.npcName != "entity")
         {
-            this.LEVELHANDLER.killBlobs.push(...this.blobs);
-            this.floorgore.visible = true;
+            if (!USERSETTINGS.disableParticles)
+            {
+                this.LEVELHANDLER.killBlobs.push(...this.blobs);
+                this.floorgore.visible = true;
+            }
             if (!this.cantShootNPCs.includes(this.npcName)) this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
         }
 
         this.LEVELHANDLER.isCameraShaking = true;
         setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
-
         const ec = document.querySelector("#enemy-counter");
         ec.style.color = "#fc3903";
         ec.style.opacity = 1;

@@ -3,6 +3,7 @@ import {
 	EventDispatcher,
 	Vector3
 } from 'three';
+import { USERSETTINGS } from './LevelHandler.js';
 
 const _euler = new Euler( 0, 0, 0, 'YXZ' );
 const _vector = new Vector3();
@@ -117,8 +118,8 @@ function onMouseMove( event ) {
 
 	if ( this.isLocked === false ) return;
 
-	const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-	const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+	const movementX = (event.movementX || event.mozMovementX || event.webkitMovementX || 0) * USERSETTINGS.mouseSensitivity;
+	const movementY = (event.movementY || event.mozMovementY || event.webkitMovementY || 0) * USERSETTINGS.mouseSensitivity;
 
 	const camera = this.camera;
 	_euler.setFromQuaternion( camera.quaternion );

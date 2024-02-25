@@ -46,11 +46,25 @@ export const checkChat = function(ID, position) {
         default:
             break;
         case "TE":
-            if (playerIsNear(position, 10000, 10000)) {
+            // front desk convo
+            if (playerIsNear(position, 9887, 9617)) {
+                playChat([
+                    // at motel
+                    "Thank you for visiting the [Uptown Motel]!",
+                    "We have one room available.",
+                    ". . .",
+                    "Alright, you're all set.",
+                    "You'll be in [Room 3].",
+                    "Please enjoy your stay!"
+                ]);
+            }
+            // cop convo
+            if (playerIsNear(position, 10100, 9620)) {
                 playChat([
                     ". . .",
-                    "We need your help.",
-                    "World War 3 is coming.",
+                    "These break-ins are getting out of hand",
+                    "If only the mayor would do something about it.",
+                    ". . .",
                 ]);
             }
             break;
@@ -139,6 +153,7 @@ export const startChatScan = function(LevelHandler) {
             if (LEVELHANDLER.totalNPCs < LEVELHANDLER.NPCBank.length) {
                 npcChat.style.opacity = 0;
             }
+            else npcChat.style.opacity = 1;
         }
         else npcChat.style.opacity = 1;
 
