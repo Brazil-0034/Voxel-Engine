@@ -34,7 +34,7 @@ const playChat = function(chat) {
         chatTarget = chat[chatIndex];
     }
     else {
-        if (levelID == "phone_call") window.location.href = "../Base Game/cutscene.html?videoSrc=ezsleep&nextLevelURL=09_BUSINESS_CORP";
+        if (levelID == "phone_call") window.location.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=00_INN_LOBBY";
         npcChat.style.display = "none";
     }
 }
@@ -91,16 +91,15 @@ export const checkChat = function(ID, position) {
             break;
         case "phone_call":
             playChat([
-                "Excellent work at the [Beachside Inn].",
-                "We are very proud of how far you have come.",
-                "Listen. We've got one more big job for you.",
-                "Perform well, and your training will be complete.",
-                "That's right.",
-                "You will become a special agent at the [CIA].",
-                "Tonight's job will be at the [Business Corporation].",
-                "We believe there are [Russian Agents] hiding there.",
-                "You know what to do.",
-                "Tonight."
+                "Listen up, Agent.",
+                "We have a job for you.",
+                "There are reports of [RUSSIAN SPIES] nearby.",
+                "They are cooped up in the [BEACHSIDE INN].",
+                "We need you to clear the building.",
+                "And as usual,",
+                "Leave [NO WITNESSES].",
+                ". . .",
+                "Good luck, Agent."
             ]);
             break;
         case "05":

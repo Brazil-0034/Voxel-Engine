@@ -37,10 +37,13 @@
         }
     </script>
 
-    <div id="npc-chat" style="display:none">
-        <div id="npc-text"></div>
-        <span id="e">[F]</span>
-    </div>
+    <form>
+        <fieldset id="npc-chat" style="display:none">
+            <legend id="npc-speaker">[CIA Phone Call]</legend>
+            <div id="npc-text">Test Content</div>
+            <span id="f">[F]</span>
+        </fieldset>
+    </form>
 </body>
 <script type="module">
     import { startChatScan, checkChat, incrementChatIndex } from './ChatSystem.js';
@@ -57,7 +60,7 @@
 
 
     const video = document.createElement("video");
-    video.src = "../videos/need_your_meds.mp4";
+    video.src = "../videos/phone_call.mp4";
     video.autoplay = true;
     document.body.appendChild(video);
 
@@ -66,7 +69,7 @@
             checkChat("phone_call");
             playChatAudio();
             video.pause();
-        }, 19 * 1000);
+        }, 10 * 1000);
         const audio = new Audio("../music/ambient_waves.mp3");
         audio.volume = 0.5;
         audio.loop = true;
@@ -77,7 +80,7 @@
     const skip = document.createElement("a");
     skip.style.opacity = 0;
     skip.id = "skip";
-    skip.href = "../Base Game/cutscene.html?videoSrc=ezsleep&nextLevelURL=09_BUSINESS_CORP";
+    skip.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=00_INN_LOBBY";
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
 
