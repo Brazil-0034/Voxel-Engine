@@ -77,29 +77,41 @@ export const checkChat = function(ID, position) {
             //     ]);
             // }
             break;
-        case "13":
+        case "04":
             if (playerIsNear(position, 10000, 9598)) {
                 playChat([
-                    "Impressive work.",
-                    "I'm surprised you even made it this far.",
-                    ".          .          .          ",
-                    "I suppose this is where it ends for me",
-                    ".          .          .          ",
-                    "Do what you will."
+                    ". . .",
+                    "You've thrown a real wrench into our plans.",
+                    "Who sent you?",
+                    ". . .",
+                    "Very well.",
+                    "Do what you must."
                 ]);
             }
             break;
         case "phone_call":
             playChat([
-                "Listen up, Agent.",
-                "We have a job for you.",
-                "There are reports of [RUSSIAN SPIES] nearby.",
-                "They are cooped up in the [BEACHSIDE INN].",
-                "We need you to clear the building.",
+                "Hey, listen.",
+                "I know that you've been out of the game for a while.",
+                "But we both know that \"real, honest work\" isn't enough to pay the bills.",
+                ". . .",
+                "I've got a new job for you.",
+                "Remember those [Bikers] from the east side?",
+                "They're holed up in the [Beachside Inn].",
+                "I need you to take care of the problem.",
+                ". . .",
                 "And as usual,",
                 "Leave [NO WITNESSES].",
-                ". . .",
-                "Good luck, Agent."
+                
+                // "Listen up, Agent.",
+                // "We have a job for you.",
+                // "There are reports of [RUSSIAN SPIES] nearby.",
+                // "They are cooped up in the [BEACHSIDE INN].",
+                // "We need you to clear the building.",
+                // "And as usual,",
+                // "Leave [NO WITNESSES].",
+                // ". . .",
+                // "Good luck, Agent."
             ]);
             break;
         case "05":
@@ -114,7 +126,14 @@ export const checkChat = function(ID, position) {
             //     </div>`
             //     document.querySelector("#end-screen").innerHTML = endScreen;
             // }
-            setInteractionText("Hold [SPACE] to Go to Bed");
+            // setInteractionText("Hold [SPACE] to Go to Bed");
+            if (playerIsNear(position, 9926, 9843)) {
+                setInteractionText("Press [F] to Access Computer");
+            }
+            if (playerIsNear(position, 10068, 9875)) {
+                setInteractionText("Hold [SPACE] to Go to Bed");
+            }
+
             break;
         case "07":
             if (playerIsNear(position, 10000, 9660)) {
@@ -167,7 +186,7 @@ export const startChatScan = function(LevelHandler) {
             }
             chatTargetIndex++;
         }
-        else if (chatBox.innerHTML != finalChat) chatBox.innerHTML = finalChat;
+        else chatBox.innerHTML = finalChat;
 
     }, 15);
 }

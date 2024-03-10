@@ -59,7 +59,7 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 		if (pickup.isSpawnedPostLoad == false) pickup.visible = pickup.isActive = true;
 		else pickup.visible = pickup.isActive = false;
 	});
-	document.querySelector("#ammo-counter").textContent = WEAPONHANDLER.weaponRemainingAmmo
+	document.querySelector("#ammo-counter").textContent = WEAPONHANDLER.weaponRemainingAmmo;
 	// Reset NPCs ...
 	LEVELHANDLER.totalNPCs = LEVELHANDLER.totalKillableNPCs = 0;
 	LEVELHANDLER.NPCBank.forEach(thisNPC => {

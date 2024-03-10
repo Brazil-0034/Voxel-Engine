@@ -118,6 +118,24 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             assistObj.position.set(9806, 35, 9874);
             LEVELHANDLER.scene.add(assistObj);
         }
+        if (levelName.substring(0,2) == "05") {
+            console.log("BUILDING ASSIST CONE ...");
+            const assistObj = new THREE.Mesh(
+                new THREE.ConeGeometry(3.5, 8, 3),
+                new THREE.MeshLambertMaterial({
+                    color: 0xf5e942,
+                    emissive: 0xf5e942,
+                    emissiveIntensity: 2.5
+                })
+            );
+            assistObj.position.set(9914, 40, 9843);
+            assistObj.rotation.x = Math.PI;
+            LEVELHANDLER.scene.add(assistObj);
+            // sin wave up and down position Y
+            setInterval(() => {
+                assistObj.position.y = 40 + Math.sin(Date.now() / 100) * 2;
+            }, 1);
+        }
     })
 
     ipcRenderer.send('list-maps');
@@ -928,7 +946,6 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             LEVELHANDLER.levelFinishedLoading = true;
             
             document.querySelector("#interaction-text").style.display = "block";
-            document.querySelector("#npc-text").style.animation = "typewriter 2.5s steps(40, end) forwards";
             WEAPONHANDLER.isAttackAvailable = true;
 
             // Update the light probe !!!
