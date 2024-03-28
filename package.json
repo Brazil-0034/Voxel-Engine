@@ -4,11 +4,11 @@
   "description": "voxel engine and game",
   "main": "./src/electron/main.js",
   "author": "nowaythis.works",
-  "homepage": "https://www.nowaythis.works",
+  "homepage": "https://nowaythis.works",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --ext .js .",
-    "dev": "electron . --enable-precise-memory-info --no-user-gesture-required",
+    "dev": "electron . --enable-precise-memory-info --no-user-gesture-required --force_high_performance_gpu",
     "webgpu-test": "electron . --enable-unsafe-webgpu",
     "postinstall": "electron-builder install-app-deps",
     "build:win": "electron-builder --win --config",

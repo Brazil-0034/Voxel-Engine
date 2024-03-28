@@ -1,6 +1,9 @@
 <style>
     * {
         margin: 0;
+    }
+
+    html {
         background: black;
     }
 
@@ -62,7 +65,7 @@
     skip.id = "skip";
     skip.href = target;
     skip.style.opacity = "0";
-    setTimeout(() => skip.style.opacity = "1", 10000);
+    setTimeout(() => skip.style.opacity = "0.25", 5000);
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
 </script>

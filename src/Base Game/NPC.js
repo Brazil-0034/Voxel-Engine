@@ -84,18 +84,15 @@ export class NPC {
             else this.npcObject = object.children[1];
             this.npcObject.npcHandler = this;
 
-            if (npcName != "frog")
-            {
-                this.sceneObject.traverse(function (childObject) {
-                    if (childObject.isMesh) {
-                        // childObject.castShadow = true;
-                        // childObject.receiveShadow = true;
-                            childObject.material = new THREE.MeshLambertMaterial({
-                                map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png')
-                            });
-                    }
-                });
-            }
+            this.sceneObject.traverse(function (childObject) {
+                if (childObject.isMesh) {
+                    // childObject.castShadow = true;
+                    // childObject.receiveShadow = true;
+                        childObject.material = new THREE.MeshLambertMaterial({
+                            map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png')
+                        });
+                }
+            });
             
             // Expand the bounding box (scale it 2x)
             this.npcObject.geometry.computeBoundingBox();
@@ -103,7 +100,7 @@ export class NPC {
             this.npcObject.geometry.boundingBox.max.addScalar(50);
 
             // Hitbox Capsule
-            const hitboxScale = 175;
+            const hitboxScale = 200;
             this.hitboxCapsule = new THREE.Mesh(
                 new THREE.CylinderGeometry(hitboxScale, hitboxScale, 900, 8),
                 new THREE.MeshBasicMaterial({
@@ -153,8 +150,12 @@ export class NPC {
             });
 
             // create a "Field of View" cone in front of the head
+            const fovLength = 125;
+            const fovConeGeometry = new THREE.CylinderGeometry(5, 20, fovLength, 10);
+            // shift the pivot point of the cone to the tip
+            fovConeGeometry.translate(0, -fovLength/2, 0);
             this.fovConeMesh = new THREE.Mesh(
-                new THREE.ConeGeometry(120, 500, 10),
+                fovConeGeometry,
                 new THREE.MeshBasicMaterial({
                     color: 0xffffff * Math.random(), wireframe: true,
                     visible: false
@@ -169,13 +170,11 @@ export class NPC {
                 if (bones[i].position.y > headBone.position.y) headBone = bones[i];
             }
 
-            headBone.attach(this.fovConeMesh);
-            
-            this.fovConeMesh.position.set(headBone.position.x, headBone.position.y, headBone.position.z);
-            this.fovConeMesh.rotateX(Math.PI/2);
-            this.fovConeMesh.rotateZ(Math.PI);
-            this.fovConeMesh.translateZ(250);
-            this.fovConeMesh.translateY(-350);
+            this.npcObject.add(this.fovConeMesh);
+            this.fovConeMesh.position.set(headBone.position.x, headBone.position.y - 150, headBone.position.z);
+            if (this.npcName.includes("thug")) this.fovConeMesh.position.y -= 2;
+            this.fovConeMesh.rotation.x = -Math.PI/2;
+
             
             this.fovConeHull = new ConvexHull();
             this.fovConeHull.setFromObject(this.fovConeMesh);
@@ -203,10 +202,10 @@ export class NPC {
             );
             this.npcObject.add(this.shootBar);
             this.shootBar.material.map.wrapS = this.shootBar.material.map.wrapT = THREE.RepeatWrapping;
-            this.shootBar.material.map.repeat.set(1, 3);
+            this.shootBar.material.map.repeat.set(1, 6);
             this.shootBar.visible = false;
             this.shootBar.rotation.x = Math.PI/2;
-            this.shootBar.position.y = 4;
+            this.shootBar.position.y = 4.25;
 
             // blob handling
             const count = 250;
@@ -358,7 +357,7 @@ export class NPC {
 
                 // If too far, move closer
                 const distanceToPlayerCamera = this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position);
-                if (distanceToPlayerCamera > 150 || (this.npcName == "entity" && distanceToPlayerCamera > 50)) {
+                if (distanceToPlayerCamera > 20 || (this.npcName == "entity" && distanceToPlayerCamera > 50)) {
                     const direction = new THREE.Vector3();
                     this.LEVELHANDLER.camera.getWorldDirection(direction);
                     direction.y = 0;
@@ -394,9 +393,10 @@ export class NPC {
         if (rapidFloat() < c) return;
         if (this.health > 0) {
             // Update AI
-            this.knowsWhrePlayerIs = true;
+            this.knowsWherePlayerIs = true;
             // Update Player Health
             this.LEVELHANDLER.playerHealth -= delta * 250;
+            this.LEVELHANDLER.hasBeenShot = true;
             // Animations
             this.shootBar.visible = true;
             this.shootBar.material.map.offset.y -= delta * 15;
@@ -458,8 +458,12 @@ export class NPC {
         this.health = 0;
         this.dieAnimation.play();
         this.shootBar.visible = false;
-        this.floorgore.position.copy(this.sceneObject.position.clone().setY(2));
+        this.floorgore.position.copy(this.sceneObject.position.clone().setY(3));
         if (this.isHostile) this.LEVELHANDLER.totalKillableNPCs--;
+        if (this.LEVELHANDLER.levelID == "00") {
+            this.LEVELHANDLER.assistObj.visible = false;
+            this.LEVELHANDLER.assistObj.material.opacity = 0;
+        }
         this.LEVELHANDLER.totalNPCs--;
         if (this.npcName != "entity")
         {
@@ -468,7 +472,7 @@ export class NPC {
                 this.LEVELHANDLER.killBlobs.push(...this.blobs);
                 this.floorgore.visible = true;
             }
-            if (!this.cantShootNPCs.includes(this.npcName)) this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
+            if (this.isHostile) this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
         }
 
         this.LEVELHANDLER.isCameraShaking = true;
@@ -484,17 +488,21 @@ export class NPC {
         }, 150);
 
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
+        if (this.LEVELHANDLER.hasKilledYet == false) {
+            this.LEVELHANDLER.SFXPlayer.startMusicPlayback(this.LEVELHANDLER.SFXPlayer.SelectMusicID(this.LEVELHANDLER.levelID));
+            this.LEVELHANDLER.hasKilledYet = true;
+        }
 
         if (this.LEVELHANDLER.totalKillableNPCs == 0) {
             endGameState(this.LEVELHANDLER);
         }
 
         const killUIEffect = document.createElement("div");
-        killUIEffect.innerHTML = `<img src="../img/diamond-expand.gif" style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 64px; z-index: 1000; opacity: 0.25">`;
+        killUIEffect.innerHTML = `<img src="../img/diamond-expand.gif" style="position: absolute; margin: auto; left: 0; right: 0; top: 0; bottom: 0; max-width: 64px; z-index: 1000; opacity: 0.75">`;
         document.body.appendChild(killUIEffect);
         setTimeout(() => {
             killUIEffect.remove();
-        }, 250);
+        }, 300);
     }
 }
 

@@ -40,13 +40,26 @@ export class LevelHandler {
 	levelID
 	explosives
 
+	// Data aboutt Elevator
+	elevatorText
+	elevatorLoadingText
+	elevatorDoorRight
+	elevatorDoorLeft
+	elevatorHasOpened
+
 	// Data about Player
 	playerHeight
 	playerHealth
 	playerCanMove
+	hasKilledYet
 	lastKiller
 	controls
 	deathCount
+	timers
+
+	// Data about Player Challenges
+	hasBeenShot
+	hasShotYet
 
 	// Data about WorldBuilding
 	globalTextureLoader
@@ -85,6 +98,7 @@ export class LevelHandler {
 		this.playerCanMove = true;
 		this.lastKiller = [];
 		this.deathCount = 0;
+		this.hasKilledYet = false;
 
 		this.isCameraShaking = false;
 
@@ -97,6 +111,10 @@ export class LevelHandler {
 		this.killBlobs =[];
 		
 		this.thrownWeaponBank = [];
+		this.timers = [];
+
+		this.hasBeenShot = false;
+		this.hasShotYet = false;
 	}
 
 	clearGarbage() {
@@ -133,6 +151,55 @@ export class LevelHandler {
 		explosive.children[0].blocksToDestroy = blocksToDestroy;
 
 		this.explosives.push(explosive);
+	}
+
+	freezeTimer() {
+		this.timers.forEach(timer => clearInterval(timer));
+		document.querySelector("#timer").classList.add("done");
+	}
+
+	initializeTimer() {
+		this.freezeTimer();
+		document.querySelector("#timer").classList.remove("done");
+		const timerSeconds = document.querySelector("#timer-seconds");
+		const timerCentiseconds = document.querySelector("#timer-centiseconds");
+		timerSeconds.textContent = "0";
+		timerCentiseconds.textContent = "00";
+		// update seconds
+		this.timers.push(setInterval(() => {
+			if (this.playerHealth > 0) {
+				timerSeconds.textContent = parseInt(timerSeconds.textContent) + 1;
+			}
+		}, 1000));
+		// update centiseconds
+		this.timers.push(setInterval(() => {
+			if (this.playerHealth > 0) {
+				timerCentiseconds.textContent = parseInt(timerCentiseconds.textContent) + 1;
+				// if it is single-digit centiseconds, add a leading zero
+				if (parseInt(timerCentiseconds.textContent) < 10) {
+					timerCentiseconds.textContent = "0" + parseInt(timerCentiseconds.textContent);
+				}
+				if (parseInt(timerCentiseconds.textContent) > 99) {
+					timerCentiseconds.textContent = "00";
+				}
+			}
+		}, 10));
+	}
+
+	goToNextLevel() {
+		this.SFXPlayer.playSound("endLevelSound", false);
+		this.isCameraShaking = true;
+		setTimeout(() => {this.isCameraShaking = false}, 150);
+		USERSETTINGS.screenShakeIntensity /= 0.25;
+		this.isLevelComplete = false;
+		document.querySelector("#cover-flash").style.animation = "expand 0.75s";
+		document.querySelector("#end-screen").style.display = document.querySelector("#ui-overlay").style.display = "none";
+		setTimeout(() => {
+			let target = "index.html?mapName=" + this.nextLevelURL;
+			if (this.nextLevelURL.substring(0, 3) == "../") target = this.nextLevelURL;
+			window.location.href = target;
+		}, 500);
+		this.renderer.domElement.style.animation = "shrink 0.75s ease-in-out forwards";
 	}
 }
 

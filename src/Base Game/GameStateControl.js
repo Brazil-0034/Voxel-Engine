@@ -4,23 +4,24 @@ import { displacedVoxels, resetDisplacedVoxels } from './VoxelStructures.js'
 import { voxelField } from './VoxelStructures.js';
 import { resetChatIndex } from './ChatSystem.js';
 
-let internalTimer = new THREE.Clock();
-internalTimer.start();
-
+// when die
 export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
-	internalTimer.stop();
 	LEVELHANDLER.playerCanMove = false;
 	WEAPONHANDLER.setWeaponVisible(false);
 	document.querySelector("#dead-overlay").style.animation = "fade-in 0.05s ease-in forwards";
 	document.querySelector("#restart-helper").style.visibility = "visible";
+	LEVELHANDLER.isCameraShaking = false;
 }
 
+// when level reset
 export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	// Reset Player ...
 	// LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
 	LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
 	LEVELHANDLER.camera.rotation.copy(new THREE.Euler(0,0,0));
 	LEVELHANDLER.playerCanMove = true;
+	LEVELHANDLER.hasBeenShot = false;
+	LEVELHANDLER.hasShotYet = false;
 	WEAPONHANDLER.setWeaponVisible(true);
 	LEVELHANDLER.playerHealth = 100;
 	if (LEVELHANDLER.deathCount > 0) {
@@ -92,40 +93,63 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	document.querySelector("#middle-crosshair").style.visibility = "visible";
 	document.querySelector("#reverse").style.opacity = 0.5;
 	LEVELHANDLER.outliner.selectedObjects = [];
+	LEVELHANDLER.initializeTimer();
 	resetChatIndex();
 	// Reset SFX
 	// LEVELHANDLER.SFXPlayer.setSoundPlaying("levelClearSound", false);
 	// Clean Garbage
 	LEVELHANDLER.clearGarbage();
-	// Reset Timer ...
-	internalTimer = new THREE.Clock();
-	internalTimer.start();
 }
 
+// when next level
 export const endGameState = function(LEVELHANDLER) {
-	internalTimer.stop();
+	LEVELHANDLER.freezeTimer();
+	
 	document.querySelector("#center-ui").style.visibility = "hidden";
 	document.querySelectorAll(".health").forEach(health => {health.style.visibility = "hidden"});
 	if (LEVELHANDLER.assistObj) LEVELHANDLER.assistObj.visible = false;
 	// add end screen to DOM
 	const endScreen = `
-	<div id="fade-control">
-		<div id="widebar-carrier">
-			<div id="widebar">
+	<div id="widebar-carrier">
+		<div id="widebar">
+			<div id="fade-control">
 				<img id="widebar-text" src="../img/level_clear.gif"/>
 			</div>
-			<b id="next-level-text">Hold [SPACE] to <span id="next-phrase"></span></b>
 		</div>
+		<b id="next-level-text"></b>
 	</div>`
 	document.querySelector("#end-screen").innerHTML = endScreen;
+	const createBar = () => {
+		const whiteBar = document.createElement("div");
+		whiteBar.innerHTML = "🠶";
+		whiteBar.id = "whitebar";
+		document.body.appendChild(whiteBar);
+	}
+	createBar();
+	// setTimeout(() => createBar(), 100);
 
 	document.querySelector("#middle-crosshair").style.visibility = "hidden";
 	document.querySelector("#interaction-text").style.visibility = "hidden";
-	document.querySelector("#next-phrase").innerHTML = LEVELHANDLER.nextLevelText;
 
 	setTimeout(() => {
-		document.querySelector("#fade-control").style.animation = "fade-out-some 1s ease-out forwards";
-	}, 4000);
+		document.querySelector("#fade-control").style.display = "none";
+		document.querySelector("#widebar-carrier").innerHTML += `
+		<div id="bonus-challenges">
+			<img src="../img/challenges.gif" class="bonus-challenges-text"/>
+		</div>`
+
+		console.log("HAS SHOT YET:", LEVELHANDLER.hasShotYet);
+		console.log("HAS BEEN SHOT:", LEVELHANDLER.hasBeenShot);
+
+		setTimeout(() => {
+			document.querySelector("#bonus-challenges").innerHTML += `
+			<img src="../img/noshotsfired` + (LEVELHANDLER.hasShotYet ? `-failed` : ``) + `.gif" class="bonus-challenges-text" />`
+		}, 250);
+		setTimeout(() => {
+			document.querySelector("#bonus-challenges").innerHTML += `
+			<img src="../img/noshotstaken` + (LEVELHANDLER.hasBeenShot ? `-failed` : ``) + `.gif"class="bonus-challenges-text" />`
+		}, 500);
+	}, 3500);
 	
 	LEVELHANDLER.SFXPlayer.playSound("levelClearSound", false);
 	LEVELHANDLER.isLevelComplete = true;

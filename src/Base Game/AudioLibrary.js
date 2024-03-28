@@ -8,6 +8,9 @@ export class SoundEffectPlayer {
     killSounds
     music
     shootSound
+    chatSounds
+    dingSound
+    elevatorShakeSound
     isPlayingShootSound
 
     USERSETTINGS
@@ -47,12 +50,31 @@ export class SoundEffectPlayer {
         })
         this.startLevelSound = new Howl({
             src: ['../sfx/start_level.mp3'],
-            volume: USERSETTINGS.SFXVolume * 20,
+            volume: USERSETTINGS.SFXVolume * 30,
         })
         this.endLevelSound = new Howl({
             src: ['../sfx/end_level.mp3'],
             volume: USERSETTINGS.SFXVolume * 35,
         })
+
+        this.chatSounds = [
+            new Howl({
+                src: ['../sfx/keeb_1.ogg'],
+                volume: USERSETTINGS.SFXVolume * 10
+            }),
+            new Howl({
+                src: ['../sfx/keeb_2.ogg'],
+                volume: USERSETTINGS.SFXVolume * 10
+            }),
+            new Howl({
+                src: ['../sfx/keeb_3.ogg'],
+                volume: USERSETTINGS.SFXVolume * 10
+            }),
+            new Howl({
+                src: ['../sfx/keeb_4.ogg'],
+                volume: USERSETTINGS.SFXVolume * 10
+            }),
+        ]
 
         this.killSounds = [
             new Howl({
@@ -63,7 +85,7 @@ export class SoundEffectPlayer {
 
         this.music = [
             new Howl({
-                src: ['../music/ambient_waves.mp3'],
+                src: ['../music/ambient - ambient_waves.mp3'],
                 volume: USERSETTINGS.musicVolume * 1,
                 loop: true
             }),
@@ -72,7 +94,22 @@ export class SoundEffectPlayer {
                 volume: USERSETTINGS.musicVolume * 1,
                 loop: true
             }),
+            new Howl({
+                src: ['../music/Austin - Evil.ogg'],
+                volume: USERSETTINGS.musicVolume * 1,
+                loop: true
+            })
         ]
+
+        this.dingSound = new Howl({
+            src: ['../sfx/ding.wav'],
+            volume: USERSETTINGS.SFXVolume * 10
+        });
+
+        this.elevatorShakeSound = new Howl({
+            src: ['../sfx/elevator.wav'],
+            volume: USERSETTINGS.SFXVolume * 10
+        });
 
         this.shootSound = new Howl({
             src: ['../sfx/heavy_shoot.ogg'],
@@ -84,13 +121,13 @@ export class SoundEffectPlayer {
     }
 
     startMusicPlayback(index) {
-        // if (index > -1) this.music[index].play();
+        if (index > -1) this.music[index].play();
     }
 
     SelectMusicID(LevelID) {
         switch (LevelID) {
             case "00":
-                return 0;
+                return 2;
             case "01":
                 return 1;
             case "02":

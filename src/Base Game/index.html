@@ -33,6 +33,9 @@
 	<div id="dead-overlay"></div>
 	<div id="prevent-overlay"></div>
 	<div id="ui-overlay">
+		<div id="timer">
+			<span id="timer-seconds">0</span>:<span id="timer-centiseconds">00</span>
+		</div>
 		<div id="da-big-text">Left-Click to Start</div>
 		<!-- The red part -->
 		<div style="display: block">
@@ -64,7 +67,7 @@
 
 			<form>
 				<fieldset id="npc-chat" style="display:none">
-					<legend id="npc-speaker">[ANONYMOUS CALLER]</legend>
+					<legend id="npc-speaker"></legend>
 					<div id="npc-text"></div>
 					<span id="f">[F]</span>
 				</fieldset>
@@ -244,38 +247,42 @@
 		// ##########
 		// POST PROCESSING
 		// ##########
-		const composer = new EffectComposer(LEVELHANDLER.renderer);
-		// Ambient Occlusion
-		const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
-		n8aopass.setQualityMode("Ultra");
-		n8aopass.configuration.aoRadius = 24;
-		n8aopass.configuration.distanceFalloff = 1.0;
-		n8aopass.configuration.intensity = 4.5;
-		n8aopass.configuration.halfRes = true;
-		n8aopass.configuration.gammaCorrection = false;
-		composer.addPass(n8aopass);
+		let composer;
+		const buildRenderer = function() {
+			composer = new EffectComposer(LEVELHANDLER.renderer);
+			// Ambient Occlusion
+			const n8aopass = new N8AOPass(LEVELHANDLER.scene, LEVELHANDLER.camera, window.innerWidth, window.innerHeight);
+			n8aopass.setQualityMode("Ultra");
+			n8aopass.configuration.aoRadius = 24;
+			n8aopass.configuration.distanceFalloff = 1.0;
+			n8aopass.configuration.intensity = 4.5;
+			n8aopass.configuration.halfRes = true;
+			n8aopass.configuration.gammaCorrection = false;
+			composer.addPass(n8aopass);
 
-		// Outline
-		const outlinePass = new OutlinePass(new THREE.Vector2(16, 9), LEVELHANDLER.scene, LEVELHANDLER.camera);
-		outlinePass.edgeStrength = 3;
-		outlinePass.visibleEdgeColor.set(0xffffff);
-		// composer.addPass(outlinePass);
-		LEVELHANDLER.outliner = outlinePass;
-		LEVELHANDLER.outliner.selectedObjects = [];
-		LEVELHANDLER.weaponPickups.forEach(pickup => {
-			LEVELHANDLER.outliner.selectedObjects.push(pickup);
-		})
+			// Outline
+			const outlinePass = new OutlinePass(new THREE.Vector2(16, 9), LEVELHANDLER.scene, LEVELHANDLER.camera);
+			outlinePass.edgeStrength = 3;
+			outlinePass.visibleEdgeColor.set(0xffffff);
+			// composer.addPass(outlinePass);
+			LEVELHANDLER.outliner = outlinePass;
+			LEVELHANDLER.outliner.selectedObjects = [];
+			LEVELHANDLER.weaponPickups.forEach(pickup => {
+				LEVELHANDLER.outliner.selectedObjects.push(pickup);
+			})
 
-		// Bloom
-		const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
-		composer.addPass(bloomPass);
+			// Bloom
+			const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
+			composer.addPass(bloomPass);
 
-		if (USERSETTINGS.disablePostProcessing == true) {
-			n8aopass.enabled = false;
-			bloomPass.enabled = false;
-			const renderPass = new RenderPass(LEVELHANDLER.scene, LEVELHANDLER.camera);
-			composer.addPass(renderPass);
+			if (USERSETTINGS.disablePostProcessing == true) {
+				n8aopass.enabled = false;
+				bloomPass.enabled = false;
+				const renderPass = new RenderPass(LEVELHANDLER.scene, LEVELHANDLER.camera);
+				composer.addPass(renderPass);
+			}
 		}
+		buildRenderer();
 
 		// What the hell is this?? I fucking hate javascript.
 		// Hours of research and there is no way around this awful bundling system
@@ -312,7 +319,6 @@
 		// (Only one map can be loaded at once... unless?)
 		// TODO - origin offsets for multiple map loading?
 		//  ^ this is very unncessary but could be useful for features like streaming
-		LEVELHANDLER.SFXPlayer.startMusicPlayback(LEVELHANDLER.SFXPlayer.SelectMusicID(modelURL.substring(0,2)));
 		generateWorld(modelURL, LEVELHANDLER, USERSETTINGS, WEAPONHANDLER, worldSphere);
 
 		// ##########
@@ -340,7 +346,7 @@
 
 		const playerController = new PlayerController(controls, LEVELHANDLER, USERSETTINGS, INPUTHANDLER, WEAPONHANDLER, raycaster);
 		
-		startChatScan(LEVELHANDLER);
+		startChatScan(LEVELHANDLER, INPUTHANDLER);
 
 		let frameCounter = 0;
 		// ### RENDER LOOP ###
@@ -368,7 +374,7 @@
 			document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
 			checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
 			if (INPUTHANDLER.isKeyPressed('f')) {
-				incrementChatIndex();
+				incrementChatIndex(LEVELHANDLER.SFXPlayer);
 			}
 			if (controls.isLocked == true) {
 				holder.innerHTML = "";
@@ -398,6 +404,8 @@
 							<input type="range" min="0.1" max="2" value="1" step="0.1" id="sensitivity-slider">
 							<h4>PARTICLES</h4>
 							<input type="checkbox" id="particles-checkbox">
+							<h4>POST PROCESSING</h4>
+							<input type="checkbox" id="post-processing-checkbox">
 							<h4>FOV</h4>
 							<input type="range" min="60" max="120" value="80" step="1" id="fov-slider">
 							<br />
@@ -408,6 +416,14 @@
 					document.querySelector("#particles-checkbox").checked = !USERSETTINGS.disableParticles;
 					document.querySelector("#particles-checkbox").addEventListener('change', () => {
 						USERSETTINGS.disableParticles = !document.querySelector("#particles-checkbox").checked;
+						updateUserSettings(USERSETTINGS);
+					});
+					// POST PROCESSING SETTING
+					document.querySelector("#post-processing-checkbox").checked = !USERSETTINGS.disablePostProcessing;
+					document.querySelector("#post-processing-checkbox").addEventListener('change', () => {
+						USERSETTINGS.disablePostProcessing = !document.querySelector("#post-processing-checkbox").checked;
+						// rebuild the renderer
+						buildRenderer();
 						updateUserSettings(USERSETTINGS);
 					});
 					// SENSITIVITY SETTING
@@ -443,24 +459,9 @@
 			// Update Skybox Attributes
 			worldSphere.position.copy(LEVELHANDLER.camera.position);
 			worldSphere.material.map.center.set(worldSphere.material.map.center.x + (delta / 100), worldSphere.material.map.center.y + (delta / 1000));
-			// Check Level Completion
-			if (LEVELHANDLER.isLevelComplete == true || INPUTHANDLER.isKeyPressed('y')) {
-				if (INPUTHANDLER.isKeyPressed(' ') || INPUTHANDLER.isKeyPressed('y')) {
-					LEVELHANDLER.SFXPlayer.playSound("endLevelSound", false);
-					LEVELHANDLER.isCameraShaking = true;
-					setTimeout(() => {LEVELHANDLER.isCameraShaking = false}, 150);
-					USERSETTINGS.screenShakeIntensity /= 0.25;
-					LEVELHANDLER.isLevelComplete = false;
-					document.querySelector("#cover-flash").style.animation = "expand 0.75s";
-					document.querySelector("#end-screen").style.display = document.querySelector("#ui-overlay").style.display = "none";
-					setTimeout(() => {
-						let target = "index.html?mapName=" + LEVELHANDLER.nextLevelURL;
-						if (LEVELHANDLER.nextLevelURL.substring(0, 3) == "../") target = LEVELHANDLER.nextLevelURL;
-						if (LEVELHANDLER.nextLevelURL == "phone_call") target = "phone_call.html";
-						window.location.href = target;
-					}, 500);
-					LEVELHANDLER.renderer.domElement.style.animation = "shrink 0.75s ease-in-out forwards";
-				}
+			// [DEBUG] Level Skipping
+			if (INPUTHANDLER.isKeyPressed('y')) {
+				LEVELHANDLER.goToNextLevel();
 			}
 			// Update Lights
 			// LEVELHANDLER.levelLights.forEach(light => {
@@ -551,6 +552,37 @@
 	        //         document.querySelector("video").remove();
 	        //     }, 3000);
 	        // }
+
+			const elevatorDuration = 2;
+			LEVELHANDLER.isCameraShaking = true;
+			USERSETTINGS.screenShakeIntensity /= 3;
+			LEVELHANDLER.SFXPlayer.elevatorShakeSound.play();
+	        setTimeout(() => {
+				LEVELHANDLER.initializeTimer();
+				LEVELHANDLER.isCameraShaking = false;
+				// update elevator text
+	            LEVELHANDLER.elevatorLoadingText.visible = false;
+	            LEVELHANDLER.elevatorText.visible = true;
+
+				LEVELHANDLER.SFXPlayer.dingSound.play();
+
+				// adjust lighting
+				LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
+				
+				// move elevator doors
+				let n;
+				n = setInterval(() => {
+					LEVELHANDLER.elevatorDoorLeft.position.x -= 0.25;
+					LEVELHANDLER.elevatorDoorRight.position.x += 0.25;
+				}, 10);
+
+				setTimeout(() => {
+					clearInterval(n);
+					LEVELHANDLER.elevatorDoorLeft.visible = LEVELHANDLER.elevatorDoorRight.visible = false;
+					USERSETTINGS.screenShakeIntensity *= 3;
+					LEVELHANDLER.elevatorHasOpened = true;
+				}, 1000);
+			}, elevatorDuration * 1000);
 		
 			document.querySelector("#npc-chat").style.visibility = "visible";
 			document.querySelector("#da-big-text").style.display = "none";

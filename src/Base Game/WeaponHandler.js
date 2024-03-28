@@ -91,7 +91,7 @@ export class WeaponHandler {
 
 				WEAPONHANDLER.attackAction = WEAPONHANDLER.handAnimationMixer.clipAction(getClipByName(object.animations, "Attack"));
 				WEAPONHANDLER.attackAction.setLoop(THREE.LoopRepeat);
-				WEAPONHANDLER.attackAction.setDuration(WEAPONHANDLER.attackAction._clip.duration / 3); // 3x speed
+				WEAPONHANDLER.attackAction.setDuration(WEAPONHANDLER.attackAction._clip.duration / 4); // 4x speed
 
 				WEAPONHANDLER.holdGunAction = WEAPONHANDLER.handAnimationMixer.clipAction(getClipByName(object.animations, "HoldGun"));
 				WEAPONHANDLER.holdGunAction.setLoop(THREE.LoopRepeat);
@@ -144,6 +144,7 @@ export class WeaponHandler {
 						}
 						object.isHoldableWeapon = true;
 						WEAPONHANDLER.weaponModel.add(object);
+						WEAPONHANDLER.weaponModel.scale.y = 0.1;
 						WEAPONHANDLER.gunObject = object;
 						// Load in the texture for the weapon
 						if (!jsonModel.weaponData.hasNoTexture) object.children[0].material.map = LEVELHANDLER.globalTextureLoader.load(basePath + '.png');
@@ -313,7 +314,14 @@ export class WeaponHandler {
 				if (child.name == "hand") child.visible = false;
 			});
 			this.setWeaponVisible(false);
-			weaponClone.children[0].material = this.gunObject.children[0].material.clone();
+			if (Array.isArray(this.gunObject.children[0].material))
+			{
+				for (let i = 0; i < this.gunObject.children[0].material.length; i++)
+				{
+					weaponClone.children[0].material[i] = this.gunObject.children[0].material[i].clone();
+				}
+			}
+			else weaponClone.children[0].material = this.gunObject.children[0].material.clone();
 			weaponClone.position.copy(this.LEVELHANDLER.camera.position);
 			weaponClone.rotation.set(0, 0, 0);
 			this.LEVELHANDLER.addThrownWeapon(weaponClone);
@@ -330,7 +338,10 @@ export class WeaponHandler {
 			raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
 			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.hitboxCapsule));
 			intersects.forEach((intersect) => {
-				if (intersect.distance > this.LEVELHANDLER.camera.position.distanceTo(intersectPosition)) return;
+				if (intersectPosition.x != 0 && intersectPosition.y != 0 && intersectPosition.z != 0)
+				{
+					if (intersect.distance > this.LEVELHANDLER.camera.position.distanceTo(intersectPosition)) return;
+				}
 				if (intersect.object.npcHandler) intersect.object.npcHandler.depleteHealth(100);
 			});
 			// Prevent Shooting

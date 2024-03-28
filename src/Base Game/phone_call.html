@@ -69,7 +69,7 @@
             checkChat("phone_call");
             playChatAudio();
             video.pause();
-        }, 10 * 1000);
+        }, 12.25 * 1000);
         const audio = new Audio("../music/ambient_waves.mp3");
         audio.volume = 0.5;
         audio.loop = true;
@@ -80,7 +80,7 @@
     const skip = document.createElement("a");
     skip.style.opacity = 0;
     skip.id = "skip";
-    skip.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=04_TOP_FLOOR";
+    skip.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=00_INN_LOBBY";
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
 

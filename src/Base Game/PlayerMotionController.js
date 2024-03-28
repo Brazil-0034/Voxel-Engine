@@ -198,86 +198,79 @@ export class PlayerController {
                 const baseScale = 0.0;
                 const maxScale = 0.2;
                 const speed = 1;
-				this.LEVELHANDLER.isCameraShaking = false;
-                if (this.INPUTHANDLER.isLeftClicking && this.LEVELHANDLER.controls.isLocked == true) {
-                    switch (this.WEAPONHANDLER.weaponType) {
-                        case undefined:
-                            break;
-                        default:
-                            console.error("Illegal Weapon Type - \"" + this.WEAPONHANDLER.weaponType + "\"");
-                            break;
-                        case "melee":
-                            if (!this.WEAPONHANDLER.weaponIsEquipped) {
-                                // smoothly fade from idleAnimation to attackAnimation
-                                if (this.WEAPONHANDLER.attackAction && this.WEAPONHANDLER.idleAction) {
-                                    this.WEAPONHANDLER.attackAction.play();
-                                    this.WEAPONHANDLER.idleAction.weight = lerp(this.WEAPONHANDLER.idleAction.weight, 0, 10 * delta);
-                                    this.WEAPONHANDLER.attackAction.weight = lerp(this.WEAPONHANDLER.attackAction.weight, 1, 10 * delta);
-                                }
+				if (this.LEVELHANDLER.elevatorHasOpened) this.LEVELHANDLER.isCameraShaking = false;
+                if (this.INPUTHANDLER.isLeftClicking) {
+                    if (this.WEAPONHANDLER.weaponType == "melee") {
+                        if (!this.WEAPONHANDLER.weaponIsEquipped) {
+                            // smoothly fade from idleAnimation to attackAnimation
+                            if (this.WEAPONHANDLER.attackAction && this.WEAPONHANDLER.idleAction) {
+                                this.WEAPONHANDLER.attackAction.play();
+                                this.WEAPONHANDLER.idleAction.weight = lerp(this.WEAPONHANDLER.idleAction.weight, 0, 10 * delta);
+                                this.WEAPONHANDLER.attackAction.weight = lerp(this.WEAPONHANDLER.attackAction.weight, 1, 10 * delta);
                             }
-                        case "ranged":
-                            if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
-                            {
-                                if (this.WEAPONHANDLER.weaponType == "ranged") this.LEVELHANDLER.isCameraShaking = true;
-                                ac.textContent = this.WEAPONHANDLER.weaponRemainingAmmo;
-                                ac.style.opacity = 0.35;
-                                // Animate Crosshair
-                                mc.style.maxWidth = lerp(parseInt(mc.style.maxWidth), 0, 10 * delta) + "px";
-                                
-                                if (this.WEAPONHANDLER.isAttackAvailable) {
-                                    this.WEAPONHANDLER.weaponRemainingAmmo--;
-                                    // if (this.WEAPONHANDLER.fireSprite && this.WEAPONHANDLER.weaponType == "ranged") {
-                                    //     const weaponShakeIntensity = 1.25;
-                                    //     this.WEAPONHANDLER.weaponTarget.position.set(
-                                    //         this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-                                    //         this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-                                    //         this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-                                    //     );
-                                    // }
+                        }
+                    }
+                    else this.LEVELHANDLER.hasShotYet = true;
+                    if (this.WEAPONHANDLER.weaponRemainingAmmo > 0)
+                    {
+                        if (this.WEAPONHANDLER.weaponType == "ranged") this.LEVELHANDLER.isCameraShaking = true;
+                        ac.textContent = this.WEAPONHANDLER.weaponRemainingAmmo;
+                        ac.style.opacity = 0.35;
+                        // Animate Crosshair
+                        mc.style.maxWidth = lerp(parseInt(mc.style.maxWidth), 0, 10 * delta) + "px";
+                        
+                        if (this.WEAPONHANDLER.isAttackAvailable) {
+                            this.WEAPONHANDLER.weaponRemainingAmmo--;
+                            // if (this.WEAPONHANDLER.fireSprite && this.WEAPONHANDLER.weaponType == "ranged") {
+                            //     const weaponShakeIntensity = 1.25;
+                            //     this.WEAPONHANDLER.weaponTarget.position.set(
+                            //         this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
+                            //         this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
+                            //         this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
+                            //     );
+                            // }
 
-                                    if (this.WEAPONHANDLER.fireAnimation) {
-                                        this.WEAPONHANDLER.fireAnimation.play();
+                            if (this.WEAPONHANDLER.fireAnimation) {
+                                this.WEAPONHANDLER.fireAnimation.play();
+                            }
+                            
+                            // Play Sound
+                            // this.LEVELHANDLER.SFXPlayer.playSound("shootSound", false);
+                            if (this.WEAPONHANDLER.weaponType == "ranged") this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", true);
+
+                            // GOD i HATE javascript
+                            // type annotations? NO.
+                            // parameter delcarations? NO.
+                            // return types? NO.
+                            // why don't i just kill myself now?
+                            this.calculateWeaponShot();
+
+                            this.raycaster.far = this.WEAPONHANDLER.weaponRange;
+                            this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+                            const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.hitboxCapsule));
+
+                            for (let i = 0; i < intersects.length; i++) {
+                                const mainObj = intersects[i].object;
+                                if (mainObj.npcHandler)
+                                {
+                                    if (mainObj.npcHandler.health > 0) {
+                                        // Register Hit
+                                        mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
                                     }
-                                    
-                                    // Play Sound
-                                    // this.LEVELHANDLER.SFXPlayer.playSound("shootSound", false);
-                                    if (this.WEAPONHANDLER.weaponType == "ranged") this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", true);
-        
-                                    // GOD i HATE javascript
-                                    // type annotations? NO.
-                                    // parameter delcarations? NO.
-                                    // return types? NO.
-                                    // why don't i just kill myself now?
-                                    this.calculateWeaponShot();
-        
-                                    this.raycaster.far = this.WEAPONHANDLER.weaponRange;
-                                    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
-                                    const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.hitboxCapsule));
-        
-                                    for (let i = 0; i < intersects.length; i++) {
-                                        const mainObj = intersects[i].object;
-                                        if (mainObj.npcHandler)
-                                        {
-                                            if (mainObj.npcHandler.health > 0) {
-                                                // Register Hit
-                                                mainObj.npcHandler.depleteHealth(this.WEAPONHANDLER.weaponDamage);
-                                            }
-                                            // Squelch!
-                                            this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
-                                        }
-                                    }
-        
-                                    this.WEAPONHANDLER.isAttackAvailable = false;
-                                    setTimeout(() => {this.WEAPONHANDLER.isAttackAvailable = true}, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
+                                    // Squelch!
+                                    this.LEVELHANDLER.SFXPlayer.playSound("hitSound");
                                 }
                             }
-                            else {
-                                ac.innerHTML = `<span style="color:#b82323">0</span>`
-                                ac.style.opacity = 1;
-                                // Stop Sound
-                                this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
-                            }
-                            break;
+
+                            this.WEAPONHANDLER.isAttackAvailable = false;
+                            setTimeout(() => {this.WEAPONHANDLER.isAttackAvailable = true}, this.WEAPONHANDLER.fireRate, this.WEAPONHANDLER);
+                        }
+                    }
+                    else {
+                        ac.innerHTML = `<span style="color:#b82323">0</span>`
+                        ac.style.opacity = 1;
+                        // Stop Sound
+                        this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
                     }
                 }
                 else
@@ -343,6 +336,16 @@ export class PlayerController {
 
             // throwing
             if (this.INPUTHANDLER.isKeyPressed("q") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
+        }
+        else
+        {
+            // Stop Sound
+            this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
+            // smoothly fade from attackAnimation to idleAnimation
+            if (this.WEAPONHANDLER.attackAction && this.WEAPONHANDLER.idleAction && !this.WEAPONHANDLER.weaponIsEquipped) {
+                this.WEAPONHANDLER.idleAction.weight = lerp(this.WEAPONHANDLER.idleAction.weight, 1, 10 * delta);
+                this.WEAPONHANDLER.attackAction.weight = lerp(this.WEAPONHANDLER.attackAction.weight, 0, 10 * delta);
+            }
         }
 
         // Assign Weapon Position

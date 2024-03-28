@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { setInteractionText } from './UIHandler.js'; // User Interface
+import { USERSETTINGS } from './LevelHandler.js';
 
 const chatBox = document.querySelector("#npc-text");
+const speakerName = document.querySelector("#npc-speaker");
 let chatIndex = 0;
 let canIncrementChatIndex = true;
 let chatTarget = "";
 let chatTargetIndex = 0;
 let levelID;
-let LEVELHANDLER;
+let LEVELHANDLER, INPUTHANDLER;
 
 export const incrementChatIndex = function() {
     if (canIncrementChatIndex) {
@@ -17,6 +19,7 @@ export const incrementChatIndex = function() {
         setTimeout(() => {
             canIncrementChatIndex = true;
         }, 250);
+        LEVELHANDLER.SFXPlayer.playRandomSound("chatSounds", 1);
     }
 }
 
@@ -28,6 +31,7 @@ const playerIsNear = function(position, x, z) {
 
 const npcChat = document.querySelector("#npc-chat");
 const playChat = function(chat) {
+    // chat.unshift(". . .");
     npcChat.style.display = "block";
     if (chat[chatIndex])
     {
@@ -36,64 +40,88 @@ const playChat = function(chat) {
     else {
         if (levelID == "phone_call") window.location.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=00_INN_LOBBY";
         npcChat.style.display = "none";
+        if (LEVELHANDLER.levelID == "00" && LEVELHANDLER.assistObj.hasBeenActivated == false) {
+            LEVELHANDLER.assistObj.visible = true;
+            let n;
+            n = setInterval(() => {
+                if (LEVELHANDLER.assistObj.position.y < 45) {
+                    if (LEVELHANDLER.assistObj.material.opacity < 1) LEVELHANDLER.assistObj.material.opacity += 0.1;
+                    LEVELHANDLER.assistObj.position.lerp(new THREE.Vector3(LEVELHANDLER.assistObj.position.x, 45, LEVELHANDLER.assistObj.position.z), 0.1);
+                }
+                else clearInterval(n);
+            }, 5)
+            LEVELHANDLER.assistObj.hasBeenActivated = true;
+        }
     }
 }
 
 export const checkChat = function(ID, position) {
     levelID = ID;
     npcChat.style.display = "none";
+    // end level condition
+    if (LEVELHANDLER.isLevelComplete) {
+        if (USERSETTINGS.useQuickReturn == true) {
+            const nextLevelText = document.querySelector("#next-level-text");
+            if (nextLevelText) {
+                nextLevelText.innerHTML = "Hold [SPACE] to Continue";
+                if (INPUTHANDLER.isKeyPressed(' ')) {
+                    LEVELHANDLER.goToNextLevel();
+                }
+            }
+        }
+        else
+        {
+            const nextLevelText = document.querySelector("#next-level-text");
+            if (nextLevelText) {
+                nextLevelText.innerHTML = "Return to the Elevator";
+                if (playerIsNear(position, 10000, 10000)) {
+                    nextLevelText.innerHTML = "Hold [SPACE] to Continue";
+                    if (INPUTHANDLER.isKeyPressed(' ')) {
+                        LEVELHANDLER.goToNextLevel();
+                    }
+                }
+            }
+        }
+    }
     switch (levelID) {
         default:
             break;
-        case "TE":
-            // front desk convo
-            if (playerIsNear(position, 9887, 9617)) {
-                playChat([
-                    // at motel
-                    "Thank you for visiting the [Uptown Motel]!",
-                    "We have one room available.",
-                    ". . .",
-                    "Alright, you're all set.",
-                    "You'll be in [Room 3].",
-                    "Please enjoy your stay!"
-                ]);
-            }
-            // cop convo
-            if (playerIsNear(position, 10100, 9620)) {
-                playChat([
-                    ". . .",
-                    "These break-ins are getting out of hand",
-                    "If only the mayor would do something about it.",
-                    ". . .",
-                ]);
-            }
-            break;
         case "00":
-            // if (playerIsNear(position, 9970, 9900)) {
-            //     playChat([
-            //         "Welcome to the Beachside Inn!",
-            //         "Unfortunately, we have no vacancies at this time.",
-            //         "Please do not disturb our guests.",
-            //     ]);
-            // }
+            if (playerIsNear(position, 10000, 9830)) {
+                playChat([
+                    "*ahem*",
+                    "Welcome to the [EVIL CORP] headquarters.",
+                    "We hope you enjoy your visit."
+                ]);
+            }
             break;
         case "04":
-            if (playerIsNear(position, 10000, 9598)) {
+            speakerName.innerHTML = "GANG LEADER";
+            if (playerIsNear(position, position.x, 9598)) {
                 playChat([
+                    // ". . .",
+                    // "You've thrown a real wrench into our plans.",
+                    // "Who sent you?",
+                    // ". . .",
+                    // "Very well.",
+                    // "Do what you must."
                     ". . .",
+                    "Impressive.",
+                    "We didn't expect you to get this far.",
                     "You've thrown a real wrench into our plans.",
-                    "Who sent you?",
                     ". . .",
-                    "Very well.",
+                    "But it doesn't matter.",
                     "Do what you must."
                 ]);
             }
             break;
         case "phone_call":
+            speakerName.innerHTML = "[ANONYMOUS CALLER]";
             playChat([
                 "Hey, listen.",
                 "I know that you've been out of the game for a while.",
                 "But we both know that \"real, honest work\" isn't enough to pay the bills.",
+                "And besides, dog food prices are through the roof!!",
                 ". . .",
                 "I've got a new job for you.",
                 "Remember those [Bikers] from the east side?",
@@ -162,8 +190,9 @@ export const checkChat = function(ID, position) {
     }
 }
 
-export const startChatScan = function(LevelHandler) {
+export const startChatScan = function(LevelHandler, InputHandler) {
     LEVELHANDLER = LevelHandler;
+    INPUTHANDLER = InputHandler;
     const boldOpen = `<b style="animation: funky-text 2.5s infinite">`;
     let n;
     n = setInterval(() => {

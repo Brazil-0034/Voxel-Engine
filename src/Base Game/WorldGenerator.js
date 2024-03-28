@@ -63,7 +63,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 
     // Zeroeth Step: Level Text
     const loader = new FontLoader();
-    loader.load('../opensource/fonts/Lilita/Lilita One_Regular.json', (font) => {
+    loader.load('../opensource/fonts/elevator-new/regular.json', (font) => {
         const levelTitleGeometry = new TextGeometry(levelName, {
             font: font,
             size: 120,
@@ -77,25 +77,69 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
         levelText.rotation.y = -Math.PI/4;
         // LEVELHANDLER.scene.add(levelText);
 
+        // ELEVATOR TEXT
+        // 10000 9940
+        const loadingTextGeometry = new TextGeometry(" ^ ^ ^ ^ ^ ", {
+            font: font,
+            size: 2.5,
+            height: 1
+        });
+        const loadingText = new THREE.Mesh(loadingTextGeometry, new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xffe942)
+        }));
+        loadingText.position.set(10000 - 12, 55, 9938);
+        LEVELHANDLER.scene.add(loadingText);
+
+        const elevatorTextGeometry = new TextGeometry("FLOOR " + parseInt(parseInt(levelID) + 1), {
+            font: font,
+            size: 2.5,
+            height: 1
+        });
+        const elevatorText = new THREE.Mesh(elevatorTextGeometry, new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xffe942)
+        }));
+        elevatorText.position.set(10000 - 12.25, 55, 9938);
+        elevatorText.visible = false;
+        LEVELHANDLER.scene.add(elevatorText);
+
+        LEVELHANDLER.elevatorText = elevatorText;
+        LEVELHANDLER.elevatorLoadingText = loadingText;
+        LEVELHANDLER.elevatorHasOpened = false;
+
+        // ELEVATOR DOORS
+        const elevatorDoorLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(32, 64, 2),
+            new THREE.MeshLambertMaterial({
+                color: 0x696969
+            })
+        );
+        LEVELHANDLER.scene.add(elevatorDoorLeft);
+        elevatorDoorLeft.position.set(10000 - 15, 32, 10000 - 64);
+        LEVELHANDLER.elevatorDoorLeft = elevatorDoorLeft;
+
+        const elevatorDoorRight = new THREE.Mesh(
+            new THREE.BoxGeometry(32, 64, 2),
+            new THREE.MeshLambertMaterial({
+                color: 0x696969
+            })
+        );
+        LEVELHANDLER.scene.add(elevatorDoorRight);
+        elevatorDoorRight.position.set(10000 + 15, 32, 10000 - 64);
+        LEVELHANDLER.elevatorDoorRight = elevatorDoorRight;
+
+
         // DEMO TUTORIAL ###############
         if (levelName.substring(0,2) == "00") {
-            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(85, 40), new THREE.MeshBasicMaterial({
+            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(25, 25), new THREE.MeshBasicMaterial({
                 color: 0xffffff,
-                map: LEVELHANDLER.globalTextureLoader.load('../img/shoot_thru_wall.png'),
-                transparent: true
+                map: LEVELHANDLER.globalTextureLoader.load('../img/leftclicktopunch.png'),
+                transparent: true,
+                opacity: 0
             }));
-            assistObj.position.set(10286, 30, 9710);
-            assistObj.rotation.y = -Math.PI/2;
+            assistObj.position.set(10000, 30, 9810);
             LEVELHANDLER.scene.add(assistObj);
-
-            const assistObj2 = new THREE.Mesh(new THREE.PlaneGeometry(85, 40), new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                map: LEVELHANDLER.globalTextureLoader.load('../img/throwweapon.png'),
-                transparent: true
-            }));
-            assistObj2.position.set(10414, 30, 9790);
-            assistObj2.rotation.y = -Math.PI/2;
-            LEVELHANDLER.scene.add(assistObj2);
+            assistObj.visible = assistObj.hasBeenActivated = false;
+            LEVELHANDLER.assistObj = assistObj;
         }
         if (levelName.substring(0,2) == "01") {
             const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(65, 55), new THREE.MeshBasicMaterial({
@@ -103,20 +147,28 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 map: LEVELHANDLER.globalTextureLoader.load('../img/break_wall.png'),
                 transparent: true
             }));
-            assistObj.position.set(9970, 30, 9900);
-            assistObj.rotation.y = Math.PI/2;
+            assistObj.position.set(9970, 30, 9890);
             assistObj.visible = false;
+            assistObj.rotation.y = Math.PI/2;
             LEVELHANDLER.assistObj = assistObj;
             LEVELHANDLER.scene.add(assistObj);
         }
-        if (levelName.substring(0,2) == "06") {
-            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(45, 15), new THREE.MeshBasicMaterial({
+        if (levelName.substring(0,2) == "02") {
+            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({
                 color: 0xcccccc,
-                map: LEVELHANDLER.globalTextureLoader.load('../img/shift_to_sprint.png'),
+                map: LEVELHANDLER.globalTextureLoader.load('../img/shootthruwall.png'),
                 transparent: true
             }));
-            assistObj.position.set(9806, 35, 9874);
+            assistObj.position.set(9907, 35, 9520);
+            assistObj.rotation.y = Math.PI/2;
             LEVELHANDLER.scene.add(assistObj);
+            const assistObj2 = new THREE.Mesh(new THREE.PlaneGeometry(25, 25), new THREE.MeshBasicMaterial({
+                color: 0xcccccc,
+                map: LEVELHANDLER.globalTextureLoader.load('../img/pressqtothrow.png'),
+                transparent: true
+            }));
+            assistObj2.position.set(10070, 35, 9706);
+            LEVELHANDLER.scene.add(assistObj2);
         }
         if (levelName.substring(0,2) == "05") {
             console.log("BUILDING ASSIST CONE ...");
@@ -164,7 +216,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             const ambientColorData = JSON.parse(arg.metaData).ambientColor;
             const ambientColor = new THREE.Color(ambientColorData.r, ambientColorData.g, ambientColorData.b);
             worldSphere.material.color = ambientColor.clone().multiplyScalar(0.25);
-            LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor = ambientColor;
+            LEVELHANDLER.defaultBacklightColor = ambientColor;
             // space levels
             if (levelID == "XX") {
                 LEVELHANDLER.backlight.color = new THREE.Color(0x406ce6);
@@ -243,7 +295,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                         '../character_models/thug_idle.png',
                         new THREE.Vector3(position.x, 1, position.z),
                         -mapMakerObject.rotationIntervals,
-                        100 + rapidFloat() * 100,
+                        25 + rapidFloat() * 75,
                         100,
                         LEVELHANDLER,
                         voxelField,

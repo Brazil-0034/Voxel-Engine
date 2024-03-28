@@ -5,7 +5,7 @@
         "helpText": "[Left Click] Shoot",
         "fireRate": 40,
         "totalAmmo": 30,
-        "weaponDamage": 50,
+        "weaponDamage": 25,
         "damageRange": 3,
         "minimumDistance": 1500,
         "disableHeadBop": false,
