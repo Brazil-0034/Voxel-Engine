@@ -19,7 +19,6 @@
     "@babylonjs/core": "^6.16.0",
     "@electron-toolkit/preload": "^1.0.3",
     "@electron-toolkit/utils": "^1.0.2",
-    "babylonjs": "^6.16.0",
     "cannon": "^0.6.2",
     "express": "^4.18.2"
   },

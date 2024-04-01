@@ -33,7 +33,6 @@ class PointerLockControls extends EventDispatcher {
 
 		this._onMouseMove = onMouseMove.bind( this );
 		this._onPointerlockChange = onPointerlockChange.bind( this );
-		this._onPointerlockError = onPointerlockError.bind( this );
 
 		this.connect();
 
@@ -43,7 +42,6 @@ class PointerLockControls extends EventDispatcher {
 
 		this.domElement.ownerDocument.addEventListener( 'mousemove', this._onMouseMove );
 		this.domElement.ownerDocument.addEventListener( 'pointerlockchange', this._onPointerlockChange );
-		this.domElement.ownerDocument.addEventListener( 'pointerlockerror', this._onPointerlockError );
 
 	}
 
@@ -51,7 +49,6 @@ class PointerLockControls extends EventDispatcher {
 
 		this.domElement.ownerDocument.removeEventListener( 'mousemove', this._onMouseMove );
 		this.domElement.ownerDocument.removeEventListener( 'pointerlockchange', this._onPointerlockChange );
-		this.domElement.ownerDocument.removeEventListener( 'pointerlockerror', this._onPointerlockError );
 
 	}
 
@@ -151,12 +148,6 @@ function onPointerlockChange() {
 		this.isLocked = false;
 
 	}
-
-}
-
-function onPointerlockError() {
-
-	console.error( 'THREE.PointerLockControls: Unable to use Pointer Lock API' );
 
 }
 

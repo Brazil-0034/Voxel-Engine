@@ -3,10 +3,15 @@ import { globalOffset } from './WorldGenerator.js'
 import { displacedVoxels, resetDisplacedVoxels } from './VoxelStructures.js'
 import { voxelField } from './VoxelStructures.js';
 import { resetChatIndex } from './ChatSystem.js';
+import { WeaponHandler } from './WeaponHandler.js';
+import { createVizSphere } from './EngineMath.js';
 
 // when die
 export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.playerCanMove = false;
+	LEVELHANDLER.camera.fov = 180;
+	LEVELHANDLER.camera.lookAt(LEVELHANDLER.lastPlayerKiller.sceneObject.position.clone().setY(35));
+	LEVELHANDLER.lastPlayerKiller.npcObject.material.color = new THREE.Color(0xff0000);
 	WEAPONHANDLER.setWeaponVisible(false);
 	document.querySelector("#dead-overlay").style.animation = "fade-in 0.05s ease-in forwards";
 	document.querySelector("#restart-helper").style.visibility = "visible";
@@ -40,30 +45,30 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.levelLights.forEach(light => {light.intensity = light.baseIntensity});
 	resetDisplacedVoxels();
 	// // Reset Weapon
-	WEAPONHANDLER.pickupWeapon("nothing");
-	WEAPONHANDLER.weaponRemainingAmmo = WEAPONHANDLER.defaultRemainingAmmo;
-	WEAPONHANDLER.weaponType = WEAPONHANDLER.defaultWeaponType;
-	WEAPONHANDLER.weaponRange = WEAPONHANDLER.defaultWeaponRange;
-	WEAPONHANDLER.hideMuzzleFlash = WEAPONHANDLER.defaultHideMuzzleFlash;
-	WEAPONHANDLER.weaponIsEquipped = WEAPONHANDLER.defaultWeaponIsEquipped;
-	if (WEAPONHANDLER.weaponModel) {
-		WEAPONHANDLER.weaponModel.position.copy(WEAPONHANDLER.weaponTarget.position);
-		WEAPONHANDLER.weaponModel.children.forEach(child => {
-			child.visible = true;
-			if (child.isHoldableWeapon == true) WEAPONHANDLER.weaponModel.remove(child)
-		});
-	}
+	// WEAPONHANDLER.pickupWeapon("nothing");
+	WEAPONHANDLER.throwWeapon(true);
 	LEVELHANDLER.explosives.map(explosives => explosives.children[0]).forEach(explosive => explosive.parent.visible = true);
-	LEVELHANDLER.camera.near = 1;
 	// Reset Pickups
 	LEVELHANDLER.weaponPickups.forEach(pickup => {
-		if (pickup.isSpawnedPostLoad == false) pickup.visible = pickup.isActive = true;
-		else pickup.visible = pickup.isActive = false;
+		if (pickup.isSpawnedPostLoad) // if it is a level-placed weapon
+		{
+			pickup.visible = true;
+			pickup.isActive = true;
+		}
+		else { // if it is an NPC weapon drp[]
+			pickup.visible = false;
+			pickup.isActive = false;
+		}
+		if (pickup.thrownWeaponAnimationInterval) clearInterval(pickup.thrownWeaponAnimationInterval);
+		pickup.position.copy(pickup.initialPosition);
+		pickup.rotation.copy(pickup.initialRotation);
+		pickup.scale.copy(pickup.initialScale);
 	});
 	document.querySelector("#ammo-counter").textContent = WEAPONHANDLER.weaponRemainingAmmo;
 	// Reset NPCs ...
 	LEVELHANDLER.totalNPCs = LEVELHANDLER.totalKillableNPCs = 0;
 	LEVELHANDLER.NPCBank.forEach(thisNPC => {
+		thisNPC.npcObject.material.color = new THREE.Color(0xffffff);
 		thisNPC.sceneObject.rotation.set(thisNPC.startingRotation.x, thisNPC.startingRotation.y, thisNPC.startingRotation.z);
 		thisNPC.sceneObject.position.set(thisNPC.startingPosition.x, thisNPC.startingPosition.y, thisNPC.startingPosition.z);
 		thisNPC.sceneObject.position.add(globalOffset);
@@ -95,10 +100,6 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 	LEVELHANDLER.outliner.selectedObjects = [];
 	LEVELHANDLER.initializeTimer();
 	resetChatIndex();
-	// Reset SFX
-	// LEVELHANDLER.SFXPlayer.setSoundPlaying("levelClearSound", false);
-	// Clean Garbage
-	LEVELHANDLER.clearGarbage();
 }
 
 // when next level
@@ -113,7 +114,7 @@ export const endGameState = function(LEVELHANDLER) {
 	<div id="widebar-carrier">
 		<div id="widebar">
 			<div id="fade-control">
-				<img id="widebar-text" src="../img/level_clear.gif"/>
+				<img id="widebar-text" src="../img/level_clear.gif?` + new Date().getTime() + `"/>
 			</div>
 		</div>
 		<b id="next-level-text"></b>
@@ -135,7 +136,7 @@ export const endGameState = function(LEVELHANDLER) {
 		document.querySelector("#fade-control").style.display = "none";
 		document.querySelector("#widebar-carrier").innerHTML += `
 		<div id="bonus-challenges">
-			<img src="../img/challenges.gif" class="bonus-challenges-text"/>
+			<img src="../img/challenges.gif?` + new Date().getTime() + `" class="bonus-challenges-text-header" />
 		</div>`
 
 		console.log("HAS SHOT YET:", LEVELHANDLER.hasShotYet);
@@ -143,12 +144,18 @@ export const endGameState = function(LEVELHANDLER) {
 
 		setTimeout(() => {
 			document.querySelector("#bonus-challenges").innerHTML += `
-			<img src="../img/noshotsfired` + (LEVELHANDLER.hasShotYet ? `-failed` : ``) + `.gif" class="bonus-challenges-text" />`
+			<img src="../img/noshotsfired` + (LEVELHANDLER.hasShotYet ? `-failed` : ``) + `.gif?` + new Date().getTime() + `" class="bonus-challenges-text" />`
 		}, 250);
 		setTimeout(() => {
 			document.querySelector("#bonus-challenges").innerHTML += `
-			<img src="../img/noshotstaken` + (LEVELHANDLER.hasBeenShot ? `-failed` : ``) + `.gif"class="bonus-challenges-text" />`
+			<img src="../img/noshotstaken` + (LEVELHANDLER.hasBeenShot ? `-failed` : ``) + `.gif?` + new Date().getTime() + `" class="bonus-challenges-text" />`
 		}, 500);
+		const timerSeconds = document.querySelector("#timer-seconds");
+		const timerCentiseconds = document.querySelector("#timer-centiseconds");
+		setTimeout(() => {
+			document.querySelector("#bonus-challenges").innerHTML += `
+			<img src="../img/under7seconds` + (parseInt(timerSeconds.textContent) > 6 ? `-failed` : ``) + `.gif?` + new Date().getTime() + `" class="bonus-challenges-text" />`
+		}, 750);
 	}, 3500);
 	
 	LEVELHANDLER.SFXPlayer.playSound("levelClearSound", false);

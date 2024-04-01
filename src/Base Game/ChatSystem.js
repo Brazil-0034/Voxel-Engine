@@ -88,6 +88,7 @@ export const checkChat = function(ID, position) {
             break;
         case "00":
             if (playerIsNear(position, 10000, 9830)) {
+                speakerName.innerHTML = "RECEPTIONIST";
                 playChat([
                     "*ahem*",
                     "Welcome to the [EVIL CORP] headquarters.",
@@ -95,9 +96,9 @@ export const checkChat = function(ID, position) {
                 ]);
             }
             break;
-        case "04":
-            speakerName.innerHTML = "GANG LEADER";
+        case "05":
             if (playerIsNear(position, position.x, 9598)) {
+                speakerName.innerHTML = "MANAGER";
                 playChat([
                     // ". . .",
                     // "You've thrown a real wrench into our plans.",
@@ -107,11 +108,26 @@ export const checkChat = function(ID, position) {
                     // "Do what you must."
                     ". . .",
                     "Impressive.",
-                    "We didn't expect you to get this far.",
-                    "You've thrown a real wrench into our plans.",
+                    "Nobody's ever gotten this far.",
+                    ". . .",
+                    "You've still got a long way to go.",
                     ". . .",
                     "But it doesn't matter.",
                     "Do what you must."
+                ]);
+            }
+            break;
+        case "06":
+            if (playerIsNear(position, 10000, 9717)) {
+                speakerName.innerHTML = "SCIENTIST";
+                playChat([
+                    "Welcome to the [EVIL CORP] department of Research and Development.",
+                    "Sorry, but visitors are not allowed on this floor.",
+                    "Please leave immediately.",
+                    ". . .",
+                    "I hate my job.",
+                    ". . .",
+                    "I'm so lonely."
                 ]);
             }
             break;

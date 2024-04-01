@@ -117,20 +117,22 @@ class DiscreteVectorField {
 		direction.z /= sqrMagnitude;
 		for (let i = 0; i < length; i++) {
 			const stepVoxel = this.get(Math.floor(x), Math.floor(y), Math.floor(z));
-			if (stepVoxel != null && (stepVoxel.value == 1 || (ignoreExplosiveBlocks == false && stepVoxel.value == 2))) {
-				return {
-					x: Math.floor(x),
-					y: Math.floor(y),
-					z: Math.floor(z),
-					index: stepVoxel.indexInChunk,
-					chunk: stepVoxel.chunk
-				};
+			if (stepVoxel != null) {
+				if ((stepVoxel.value == 1 || (ignoreExplosiveBlocks == false && stepVoxel.value == 2))) {
+					return {
+						x: Math.floor(x),
+						y: Math.floor(y),
+						z: Math.floor(z),
+						index: stepVoxel.indexInChunk,
+						chunk: stepVoxel.chunk
+					};
+				}
 			}
 			x += direction.x;
 			y += direction.y;
 			z += direction.z;
 		}
-		return null; // TODO: js hates nulls, switch to 0 or change get() to return null as well
+		return null;
 	}
 
 	// pretty useless implementation

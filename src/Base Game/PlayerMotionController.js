@@ -182,16 +182,18 @@ export class PlayerController {
                 ac.style.opacity = 0.15;
                 // Ranged Anim
                 if (this.WEAPONHANDLER.weaponIsEquipped) {
-                    if (this.WEAPONHANDLER.holdGunAction && this.WEAPONHANDLER.idleAction) {
+                    if (this.WEAPONHANDLER.holdGunAction && this.WEAPONHANDLER.idleAction && this.WEAPONHANDLER.attackAction) {
                         this.WEAPONHANDLER.holdGunAction.play();
                         this.WEAPONHANDLER.idleAction.weight = lerp(this.WEAPONHANDLER.idleAction.weight, 0, 10 * delta);
+                        this.WEAPONHANDLER.attackAction.weight = lerp(this.WEAPONHANDLER.idleAction.weight, 0, 10 * delta);
                         this.WEAPONHANDLER.holdGunAction.weight = lerp(this.WEAPONHANDLER.holdGunAction.weight, 1, 10 * delta);
                     }
                 }
                 else {
-                    if (this.WEAPONHANDLER.holdGunAction && this.WEAPONHANDLER.idleAction) {
+                    if (this.WEAPONHANDLER.holdGunAction && this.WEAPONHANDLER.idleAction && this.WEAPONHANDLER.attackAction) {
                         this.WEAPONHANDLER.holdGunAction.weight = lerp(this.WEAPONHANDLER.holdGunAction.weight, 0, 5 * delta);
                         this.WEAPONHANDLER.idleAction.weight = lerp(this.WEAPONHANDLER.idleAction.weight, 1, 5 * delta);
+                        this.WEAPONHANDLER.attackAction.weight = lerp(this.WEAPONHANDLER.attackAction.weight, 0, 5 * delta);
                     }
                 }
                 // Melee
@@ -221,14 +223,6 @@ export class PlayerController {
                         
                         if (this.WEAPONHANDLER.isAttackAvailable) {
                             this.WEAPONHANDLER.weaponRemainingAmmo--;
-                            // if (this.WEAPONHANDLER.fireSprite && this.WEAPONHANDLER.weaponType == "ranged") {
-                            //     const weaponShakeIntensity = 1.25;
-                            //     this.WEAPONHANDLER.weaponTarget.position.set(
-                            //         this.WEAPONHANDLER.weaponPosition.x + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 - 0.5,
-                            //         this.WEAPONHANDLER.weaponPosition.y + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5,
-                            //         this.WEAPONHANDLER.weaponPosition.z + rapidFloat() * weaponShakeIntensity - weaponShakeIntensity / 2 + 0.5
-                            //     );
-                            // }
 
                             if (this.WEAPONHANDLER.fireAnimation) {
                                 this.WEAPONHANDLER.fireAnimation.play();
@@ -326,16 +320,16 @@ export class PlayerController {
                         if (this.WEAPONHANDLER.weaponType != "melee") setInteractionText("<b>[E]</b> SWAP WEAPON");
                         if (this.INPUTHANDLER.isKeyPressed("e") && this.LEVELHANDLER.playerCanMove == true)
                         {
-                            pickup.visible = false;
+                            // pickup.visible = false;
                             pickup.isActive = false;
-                            this.WEAPONHANDLER.pickupWeapon(pickup.weaponType);
+                            this.WEAPONHANDLER.pickupWeapon(pickup);
                         }
                     }
                 }
             })
 
             // throwing
-            if (this.INPUTHANDLER.isKeyPressed("q") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon(voxelField);
+            if (this.INPUTHANDLER.isKeyPressed("q") && this.LEVELHANDLER.playerCanMove == true) this.WEAPONHANDLER.throwWeapon();
         }
         else
         {
@@ -370,18 +364,12 @@ export class PlayerController {
         }
 
         this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
+        this.raycaster.far = this.WEAPONHANDLER.weaponRange;
         const intersects = this.raycaster.intersectObjects(this.LEVELHANDLER.explosives.map(explosives => explosives.children[0]));
         if (intersects.length > 0)
         {
             const explosive = intersects[0].object;
-            if (explosive.parent.visible) {
-                const blocksToDestroy = explosive.blocksToDestroy;
-                console.log(rapidFloat());
-                generateDestroyedChunkAt(blocksToDestroy, this.USERSETTINGS, this.LEVELHANDLER, this.LEVELHANDLER.particleHandler, explosive);
-                explosive.parent.visible = false;
-				this.LEVELHANDLER.isCameraShaking = true;
-				setTimeout(() => {this.LEVELHANDLER.isCameraShaking = false;}, 150);
-            }
+            this.LEVELHANDLER.triggerExplosive(explosive);
         }
         else
         {

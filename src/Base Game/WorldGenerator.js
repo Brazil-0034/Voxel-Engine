@@ -52,13 +52,13 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             document.querySelector("#interaction-text").style.visibility = "hidden";
             document.querySelector("#health-uis").style.display = "none";
             break;
-        case "06":
-        case "07":
-            LEVELHANDLER.nextLevelText = "try to Wake Up";
-            document.querySelector("#loader-bg").style.filter = "contrast(150%)";
-            LEVELHANDLER.nextLevelText = "try to Wake Up";
-            document.querySelector("#health-uis").style.display = "none";
-            break;
+        // case "06":
+        // case "07":
+        //     LEVELHANDLER.nextLevelText = "try to Wake Up";
+        //     document.querySelector("#loader-bg").style.filter = "contrast(150%)";
+        //     LEVELHANDLER.nextLevelText = "try to Wake Up";
+        //     document.querySelector("#health-uis").style.display = "none";
+        //     break;
     }
 
     // Zeroeth Step: Level Text
@@ -154,20 +154,28 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             LEVELHANDLER.scene.add(assistObj);
         }
         if (levelName.substring(0,2) == "02") {
-            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({
-                color: 0xcccccc,
-                map: LEVELHANDLER.globalTextureLoader.load('../img/shootthruwall.png'),
-                transparent: true
-            }));
-            assistObj.position.set(9907, 35, 9520);
-            assistObj.rotation.y = Math.PI/2;
-            LEVELHANDLER.scene.add(assistObj);
-            const assistObj2 = new THREE.Mesh(new THREE.PlaneGeometry(25, 25), new THREE.MeshBasicMaterial({
+            // const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({
+            //     color: 0xcccccc,
+            //     map: LEVELHANDLER.globalTextureLoader.load('../img/shootthruwall.png'),
+            //     transparent: true
+            // }));
+            // assistObj.position.set(9907, 35, 9520);
+            // assistObj.rotation.y = Math.PI/2;
+            // LEVELHANDLER.scene.add(assistObj);
+            const assistObj = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshBasicMaterial({
                 color: 0xcccccc,
                 map: LEVELHANDLER.globalTextureLoader.load('../img/pressqtothrow.png'),
                 transparent: true
             }));
-            assistObj2.position.set(10070, 35, 9706);
+            assistObj.position.set(10030, 15, 9706);
+            LEVELHANDLER.scene.add(assistObj);
+
+            const assistObj2 = new THREE.Mesh(new THREE.PlaneGeometry(68, 68), new THREE.MeshBasicMaterial({
+                color: 0xcccccc,
+                map: LEVELHANDLER.globalTextureLoader.load('../img/pressqtothrow_2.png'),
+                transparent: true
+            }));
+            assistObj2.position.set(10165, 25, 9491);
             LEVELHANDLER.scene.add(assistObj2);
         }
         if (levelName.substring(0,2) == "05") {
@@ -308,7 +316,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 // Weapon Pickups
                 if (mapMakerObject.weaponType != undefined) {
                     
-                    WEAPONHANDLER.createWeaponPickup(mapMakerObject.weaponType, new THREE.Vector3(position.x, position.y, position.z));
+                    WEAPONHANDLER.createWeaponPickup(mapMakerObject.weaponType, new THREE.Vector3(position.x, position.y, position.z), true);
                 }
                 else if (mapMakerObject.isExplosive != undefined) {
                     if (position.y == 10) position.y = 3;
@@ -320,7 +328,9 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 }
             });
 
+            LEVELHANDLER.numExplosivesProcessed = LEVELHANDLER.numExplosives = 0;
             explosiveList.forEach(position => {
+                LEVELHANDLER.numExplosives++;
                 WEAPONHANDLER.createExplosive(new THREE.Vector3(position.x + globalOffset.x, position.y + globalOffset.y, position.z + globalOffset.z));
             })
         });

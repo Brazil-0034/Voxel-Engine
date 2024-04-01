@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { voxelField } from './VoxelStructures.js';
+import { voxelField, generateDestroyedChunkAt } from './VoxelStructures.js'; // data structures for handling voxels
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { rapidFloat } from './EngineMath.js'; // math functions
 import { SoundEffectPlayer } from './AudioLibrary.js'; // SFX and Music
@@ -40,7 +40,7 @@ export class LevelHandler {
 	levelID
 	explosives
 
-	// Data aboutt Elevator
+	// Data about Elevator
 	elevatorText
 	elevatorLoadingText
 	elevatorDoorRight
@@ -51,6 +51,7 @@ export class LevelHandler {
 	playerHeight
 	playerHealth
 	playerCanMove
+	lastPlayerKiller
 	hasKilledYet
 	lastKiller
 	controls
@@ -64,6 +65,8 @@ export class LevelHandler {
 	// Data about WorldBuilding
 	globalTextureLoader
 	globalModelLoader
+	numExplosivesProcessed
+	numExplosives
 
 	// Data about NPCs
 	NPCBank
@@ -110,23 +113,10 @@ export class LevelHandler {
 		this.totalKillableNPCs = 0;
 		this.killBlobs =[];
 		
-		this.thrownWeaponBank = [];
 		this.timers = [];
 
 		this.hasBeenShot = false;
 		this.hasShotYet = false;
-	}
-
-	clearGarbage() {
-		this.thrownWeaponBank.forEach((thrownWeapon) => {
-			this.scene.remove(thrownWeapon);
-			thrownWeapon.children[0].material.dispose();
-		});
-	}
-
-	addThrownWeapon(thrownWeapon) {
-		this.scene.add(thrownWeapon);
-		this.thrownWeaponBank.push(thrownWeapon);
 	}
 
 	registerExplosive(explosive) {
@@ -149,8 +139,34 @@ export class LevelHandler {
 			}
 		}
 		explosive.children[0].blocksToDestroy = blocksToDestroy;
+		explosive.explosiveRadius = explosiveRadius;
 
 		this.explosives.push(explosive);
+	}
+
+	triggerExplosive(explosive) {
+		if (explosive.parent.visible) {
+			const explosiveRangeMultiplier = 3;
+			// process explosive's blocks destroyed
+			const blocksToDestroy = explosive.blocksToDestroy;
+			generateDestroyedChunkAt(blocksToDestroy, USERSETTINGS, this, this.particleHandler, explosive);
+			// kill nearby NPC's
+			this.NPCBank.forEach(npc => {
+				if (npc.sceneObject.position.distanceTo(explosive.parent.position) < explosive.parent.explosiveRadius * explosiveRangeMultiplier) {
+					npc.depleteHealth(100);
+				}
+			});
+			// cleanup //
+			explosive.parent.visible = false;
+			this.isCameraShaking = true;
+			setTimeout(() => {this.isCameraShaking = false;}, 150);
+		}
+	}
+
+	computeNPCBlobs() {
+		this.NPCBank.forEach(npc => {
+			npc.computeBlob();
+		});
 	}
 
 	freezeTimer() {

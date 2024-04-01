@@ -3,6 +3,7 @@ const { app, shell, BrowserWindow } = require('electron')
 const path = require('path')
 const { electronApp, optimizer } = require('@electron-toolkit/utils')
 const fs = require('fs')
+const os = require('os')
 
 function createWindow() {
     // Create the browser window.
@@ -112,6 +113,14 @@ function createWindow() {
             }
         )
     })
+
+    ipc.on('get-system-info', function (event) {
+        // send usedMem and totalMem for system
+        event.sender.send('get-system-info-reply', {
+            usedMem: os.totalmem() - os.freemem(),
+            totalMem: os.totalmem()
+        })
+    });
 }
 
 // This method will be called when Electron has finished

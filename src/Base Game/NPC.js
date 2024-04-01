@@ -44,14 +44,12 @@ export class NPC {
     blobs // individual daeth particles
 
     friendlyNPCs
-    cantShootNPCs
     isKillable
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
     constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType, isHostile) {
         this.npcName = npcName;
-        this.friendlyNPCs = ["pharmacist", "frog"]
-        this.cantShootNPCs = ["receptionist", "prison_break_bob"]
+        this.friendlyNPCs = []
 
         if (this.friendlyNPCs.includes(this.npcName)) this.isKillable = false;
         else this.isKillable = true;
@@ -88,9 +86,9 @@ export class NPC {
                 if (childObject.isMesh) {
                     // childObject.castShadow = true;
                     // childObject.receiveShadow = true;
-                        childObject.material = new THREE.MeshLambertMaterial({
-                            map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png')
-                        });
+                    childObject.material = new THREE.MeshLambertMaterial({
+                        map: LEVELHANDLER.globalTextureLoader.load(basePath + npcName + '.png')
+                    });
                 }
             });
             
@@ -148,6 +146,8 @@ export class NPC {
                 this.floorgore.scale.set(scale, scale, scale);
                 this.LEVELHANDLER.scene.add(this.floorgore);
             });
+
+            if (this.isHostile) this.initializeWeaponPickup();
 
             // create a "Field of View" cone in front of the head
             const fovLength = 125;
@@ -207,70 +207,6 @@ export class NPC {
             this.shootBar.rotation.x = Math.PI/2;
             this.shootBar.position.y = 4.25;
 
-            // blob handling
-            const count = 250;
-            const scale = 2;
-            this.blob = new THREE.InstancedMesh(
-                new THREE.BoxGeometry(scale, scale, scale),
-                new THREE.MeshLambertMaterial({
-                    color: 0xffffff,
-                    transparent: true,
-                    opacity: 0.9
-                }),
-                count
-            );
-            this.blobs = [];
-            this.blob.frustumCulled = false;
-            for (let i = 0; i < count; i++)
-            {
-                // const dir = new THREE.Vector3(rapidFloat() * 2 - 1, rapidFloat() * 2 - 1, rapidFloat() * 2 - 1).normalize();
-                // determine direction
-                const dir = new THREE.Vector3();
-                dir.x += (rapidFloat() * 0.5) - 0.25;
-                dir.y += (rapidFloat() * 0.5) - 0.25;
-                dir.z += (rapidFloat() * 0.5) - 0.25;
-    
-                const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
-                const rot = new THREE.Euler(
-                    rapidFloat() * Math.PI * 2,
-                    rapidFloat() * Math.PI * 2,
-                    rapidFloat() * Math.PI * 2
-                );
-                const initScale = 1 + (4 * rapidFloat());
-    
-                const r = this.voxelField.raycast(
-                    pos,
-                    dir,
-                    10000,
-                    true
-                );
-                let endPosition;
-                if (r == null) {
-                    continue;
-                }
-
-                endPosition = new THREE.Vector3(r.x, r.y, r.z);
-                
-                this.blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
-                const col = new THREE.Color(0xff0000);
-                // randomize color
-                col.r += clamp((rapidFloat()) - 0.5, 0, 1);
-                col.multiplyScalar(0.25);
-                this.blob.setColorAt(i, col);
-                const thisBlob = new killBlob(
-                    pos,
-                    dir,
-                    initScale,
-                    350 + (rapidFloat() * 100),
-                    endPosition,
-                    this.blob,
-                    i,
-                    this.voxelField
-                );
-                this.blobs.push(thisBlob);
-            }
-            this.LEVELHANDLER.scene.add(this.blob);
-
             if (this.npcName == "entity") {
                 this.sceneObject.scale.divideScalar(4);
                 this.shootBar.position.y = 9999;
@@ -282,6 +218,71 @@ export class NPC {
         LEVELHANDLER.NPCBank.push(this);
         if (this.isHostile) LEVELHANDLER.totalKillableNPCs++;
         LEVELHANDLER.totalNPCs++;
+    }
+
+    computeBlob() {
+        // blob handling
+        const count = 250;
+        const scale = 2;
+        this.blob = new THREE.InstancedMesh(
+            new THREE.BoxGeometry(scale, scale, scale),
+            new THREE.MeshLambertMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.9
+            }),
+            count
+        );
+        this.blobs = [];
+        this.blob.frustumCulled = false;
+        for (let i = 0; i < count; i++)
+        {
+            // determine direction
+            const dir = new THREE.Vector3();
+            dir.x += (rapidFloat() * 0.5) - 0.25;
+            dir.y += (rapidFloat() * 0.5) - 0.25;
+            dir.z += (rapidFloat() * 0.5) - 0.25;
+
+            const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
+            const rot = new THREE.Euler(
+                rapidFloat() * Math.PI * 2,
+                rapidFloat() * Math.PI * 2,
+                rapidFloat() * Math.PI * 2
+            );
+            const initScale = 1 + (4 * rapidFloat());
+
+            const r = this.voxelField.raycast(
+                pos,
+                dir,
+                10000,
+                true
+            );
+            let endPosition;
+            if (r == null) {
+                continue;
+            }
+
+            endPosition = new THREE.Vector3(r.x, r.y, r.z);
+            
+            this.blob.setMatrixAt(i, new THREE.Matrix4().compose(pos, rot, new THREE.Vector3(0,0,0)));
+            const col = new THREE.Color(0xff0000);
+            // randomize color
+            col.r += clamp((rapidFloat()) - 0.5, 0, 1);
+            col.multiplyScalar(0.25);
+            this.blob.setColorAt(i, col);
+            const thisBlob = new killBlob(
+                pos,
+                dir,
+                initScale,
+                350 + (rapidFloat() * 100),
+                endPosition,
+                this.blob,
+                i,
+                this.voxelField
+            );
+            this.blobs.push(thisBlob);
+        }
+        this.LEVELHANDLER.scene.add(this.blob);
     }
 
     depleteHealth(amount) {
@@ -379,7 +380,7 @@ export class NPC {
     }
 
     shootPlayer(delta) {
-        if (this.friendlyNPCs.includes(this.npcName) || this.cantShootNPCs.includes(this.npcName) || !this.isHostile) return
+        if (this.friendlyNPCs.includes(this.npcName) || !this.isHostile) return
         if (this.canShoot == false) {
             if (!this.shootTimer) {
                 this.shootTimer = setTimeout(() => {
@@ -424,6 +425,7 @@ export class NPC {
         }
         if (this.LEVELHANDLER.playerHealth <= 0 && this.health > 0) {
             // Freeze player motion and interactivity
+            this.LEVELHANDLER.lastPlayerKiller = this;
             pauseGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
             this.LEVELHANDLER.deathCount += 1;
             // Fix gun sfx bug
@@ -450,6 +452,10 @@ export class NPC {
         }
     }
 
+    initializeWeaponPickup() {
+        this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), false, this);
+    }
+
     kill() {
         if (this.isKillable == false) return;
         if (this.isDead == true) return
@@ -458,7 +464,7 @@ export class NPC {
         this.health = 0;
         this.dieAnimation.play();
         this.shootBar.visible = false;
-        this.floorgore.position.copy(this.sceneObject.position.clone().setY(3));
+        this.floorgore.position.copy(this.sceneObject.position.clone().setY(3 - rapidFloat()));
         if (this.isHostile) this.LEVELHANDLER.totalKillableNPCs--;
         if (this.LEVELHANDLER.levelID == "00") {
             this.LEVELHANDLER.assistObj.visible = false;
@@ -472,7 +478,11 @@ export class NPC {
                 this.LEVELHANDLER.killBlobs.push(...this.blobs);
                 this.floorgore.visible = true;
             }
-            if (this.isHostile) this.WEAPONHANDLER.createWeaponPickup(this.weaponType, this.sceneObject.position.clone().setY(2), true);
+            if (this.isHostile) {
+                this.weaponPickup.isActive = true;
+                this.weaponPickup.visible = true;
+                console.log(this.weaponPickup);
+            }
         }
 
         this.LEVELHANDLER.isCameraShaking = true;
