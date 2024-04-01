@@ -20,6 +20,7 @@ export const pauseGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 
 // when level reset
 export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
+	LEVELHANDLER.gameStateEnded = false;
 	// Reset Player ...
 	// LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
 	LEVELHANDLER.camera.position.set(globalOffset.x,LEVELHANDLER.playerHeight,globalOffset.z);
@@ -104,6 +105,8 @@ export const resetGameState = function(LEVELHANDLER, WEAPONHANDLER) {
 
 // when next level
 export const endGameState = function(LEVELHANDLER) {
+	if (LEVELHANDLER.gameStateEnded) return
+	LEVELHANDLER.gameStateEnded = true;
 	LEVELHANDLER.freezeTimer();
 	
 	document.querySelector("#center-ui").style.visibility = "hidden";

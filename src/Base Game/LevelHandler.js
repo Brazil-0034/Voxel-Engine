@@ -22,6 +22,7 @@ export class LevelHandler {
 	MusicPlayer
 
 	// Data about World
+	gameStateEnded
 	interactableObjects
 	weaponPickups
 	numCoverBoxes
@@ -88,6 +89,7 @@ export class LevelHandler {
 		this.SFXPlayer = new SoundEffectPlayer(USERSETTINGS);
 
 		this.interactableObjects = [];
+		this.gameStateEnded = false;
 		this.weaponPickups = [];
 		this.numCoverBoxes = 0;
 		this.numVoxels = 0;

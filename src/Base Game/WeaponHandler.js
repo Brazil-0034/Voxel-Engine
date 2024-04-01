@@ -334,6 +334,7 @@ export class WeaponHandler {
 			}
 			// Raycast for Enemies
 			const raycaster = new THREE.Raycaster();
+			raycaster.far = 1000;
 			raycaster.setFromCamera(new THREE.Vector2(0, 0), this.LEVELHANDLER.camera);
 			const intersects = raycaster.intersectObjects(this.LEVELHANDLER.NPCBank.map(npc => npc.hitboxCapsule));
 			intersects.forEach((intersect) => {
@@ -343,6 +344,12 @@ export class WeaponHandler {
 				}
 				if (intersect.object.npcHandler && !hideWeapon) intersect.object.npcHandler.depleteHealth(100);
 			});
+			const explosiveIntersects = raycaster.intersectObjects(this.LEVELHANDLER.explosives.map(explosives => explosives.children[0]));
+			if (explosiveIntersects.length > 0)
+			{
+				const explosive = explosiveIntersects[0].object;
+				this.LEVELHANDLER.triggerExplosive(explosive);
+			}
 			// Prevent Shooting
 			this.weaponRemainingAmmo = 0;
 			// Lastly, fire the interval ...

@@ -44,12 +44,14 @@ export class NPC {
     blobs // individual daeth particles
 
     friendlyNPCs
+    meleeNPCs
     isKillable
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
     constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType, isHostile) {
         this.npcName = npcName;
         this.friendlyNPCs = []
+        this.meleeNPCs = ["entity", "alien_combat"];
 
         if (this.friendlyNPCs.includes(this.npcName)) this.isKillable = false;
         else this.isKillable = true;
@@ -207,8 +209,8 @@ export class NPC {
             this.shootBar.rotation.x = Math.PI/2;
             this.shootBar.position.y = 4.25;
 
-            if (this.npcName == "entity") {
-                this.sceneObject.scale.divideScalar(4);
+            if (this.meleeNPCs.includes(this.npcName)) {
+                if (this.npcName == "entity") this.sceneObject.scale.divideScalar(4);
                 this.shootBar.position.y = 9999;
                 this.knowsWherePlayerIs = true;
                 this.fovConeMesh.scale.divideScalar(2);
@@ -221,6 +223,13 @@ export class NPC {
     }
 
     computeBlob() {
+        // hahahahahahahaha ...
+        if (!this.sceneObject) {
+            setTimeout(() => {
+                this.computeBlob();
+            }, 100);
+            return;
+        }
         // blob handling
         const count = 250;
         const scale = 2;
@@ -358,7 +367,7 @@ export class NPC {
 
                 // If too far, move closer
                 const distanceToPlayerCamera = this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position);
-                if (distanceToPlayerCamera > 20 || (this.npcName == "entity" && distanceToPlayerCamera > 50)) {
+                if (distanceToPlayerCamera > 20 || (this.meleeNPCs.includes(this.npcName) && distanceToPlayerCamera > 50)) {
                     const direction = new THREE.Vector3();
                     this.LEVELHANDLER.camera.getWorldDirection(direction);
                     direction.y = 0;
@@ -373,7 +382,7 @@ export class NPC {
                 else {
                     this.runAnimation.stop();
                     this.idleAnimation.play();
-                    if (this.npcName == "entity") this.shootPlayer(100);
+                    if (this.meleeNPCs.includes(this.npcName)) this.shootPlayer(100);
                 }
             }
         }
@@ -471,7 +480,7 @@ export class NPC {
             this.LEVELHANDLER.assistObj.material.opacity = 0;
         }
         this.LEVELHANDLER.totalNPCs--;
-        if (this.npcName != "entity")
+        if (!this.LEVELHANDLER.meleeNPCs.includes(this.npcName))
         {
             if (!USERSETTINGS.disableParticles)
             {

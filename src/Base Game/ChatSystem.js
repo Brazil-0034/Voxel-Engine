@@ -121,7 +121,7 @@ export const checkChat = function(ID, position) {
             if (playerIsNear(position, 10000, 9717)) {
                 speakerName.innerHTML = "SCIENTIST";
                 playChat([
-                    "Welcome to the [EVIL CORP] department of Research and Development.",
+                    "Welcome to the [EVIL CORP] department of Research and Science.",
                     "Sorry, but visitors are not allowed on this floor.",
                     "Please leave immediately.",
                     ". . .",
@@ -131,75 +131,16 @@ export const checkChat = function(ID, position) {
                 ]);
             }
             break;
-        case "phone_call":
-            speakerName.innerHTML = "[ANONYMOUS CALLER]";
-            playChat([
-                "Hey, listen.",
-                "I know that you've been out of the game for a while.",
-                "But we both know that \"real, honest work\" isn't enough to pay the bills.",
-                "And besides, dog food prices are through the roof!!",
-                ". . .",
-                "I've got a new job for you.",
-                "Remember those [Bikers] from the east side?",
-                "They're holed up in the [Beachside Inn].",
-                "I need you to take care of the problem.",
-                ". . .",
-                "And as usual,",
-                "Leave [NO WITNESSES].",
-                
-                // "Listen up, Agent.",
-                // "We have a job for you.",
-                // "There are reports of [RUSSIAN SPIES] nearby.",
-                // "They are cooped up in the [BEACHSIDE INN].",
-                // "We need you to clear the building.",
-                // "And as usual,",
-                // "Leave [NO WITNESSES].",
-                // ". . .",
-                // "Good luck, Agent."
-            ]);
-            break;
-        case "05":
-            // if (playerIsNear(position, 9929, 9840)) {
-            //     const endScreen = `
-            //     <div id="fade-control">
-            //         <div id="widebar-carrier">
-            //             <div id="level-stats" style="margin-top:50px;">
-            //                 <b id="next-level-text">Press [E] to Access Computer</b>
-            //             </div>
-            //         </div>
-            //     </div>`
-            //     document.querySelector("#end-screen").innerHTML = endScreen;
-            // }
-            // setInteractionText("Hold [SPACE] to Go to Bed");
-            if (playerIsNear(position, 9926, 9843)) {
-                setInteractionText("Press [F] to Access Computer");
-            }
-            if (playerIsNear(position, 10068, 9875)) {
-                setInteractionText("Hold [SPACE] to Go to Bed");
-            }
-
-            break;
-        case "07":
-            if (playerIsNear(position, 10000, 9660)) {
-                playChat([
-                    "welcome to 24/7 dru-",
-                    "Whoa!!! Haven't seen you in awhile.",
-                    "You look like SHIT!!",
-                    "Listen.",
-                    "If you want some [slurrp juice],",
-                    "the dudes in the room behind me?",
-                    "they tryna STEAL it!!",
-                    "Fix the problem and the [slurrp juice] is yours.",
-                ]);
-            }
-            break;
         case "09":
-            if (playerIsNear(position, 10000, 9885)) {
+            speakerName.innerHTML = "ALARMED SCIENTIST";
+            if (playerIsNear(position, 10027, 9847)) {
                 playChat([
-                    "Welcome to BUSINESS CORP!!",
-                    "We are soo happy to see you here!",
-                    "Everyone knows that BUSINESS CORP is all about love and friendship!",
-                    "We hope you enjoy your visit!"
+                    ". . .",
+                    "t - ",
+                    "t - they've ...",
+                    "THEY'VE ESCAPED!",
+                    ". . . it's so over . . .",
+                    "I'm so fired . . .",
                 ])
             }
             break;

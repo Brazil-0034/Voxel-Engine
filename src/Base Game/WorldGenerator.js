@@ -333,6 +333,10 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 LEVELHANDLER.numExplosives++;
                 WEAPONHANDLER.createExplosive(new THREE.Vector3(position.x + globalOffset.x, position.y + globalOffset.y, position.z + globalOffset.z));
             })
+            if (explosiveList.length == 0) {
+                console.log("No explosives, computing blobs ...");
+                LEVELHANDLER.computeNPCBlobs();
+            }
         });
     });
 
