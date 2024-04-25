@@ -29,6 +29,7 @@ function createWindow() {
 
     mainWindow.setMenu(null)
 
+    // load URLs separately
     mainWindow.webContents.setWindowOpenHandler((details) => {
         shell.openExternal(details.url)
         return { action: 'deny' }
@@ -42,15 +43,34 @@ function createWindow() {
     // devtools
     mainWindow.webContents.openDevTools()
 
+    // emitter bug
+
     // IPC Event Handler
     var ipc = require('electron').ipcMain
+    var userSettingsPath = app.getPath("userData") + '/USERSETTINGS.json';
+    if (!fs.existsSync(userSettingsPath)) {
+        fs.writeFile(userSettingsPath, '{"debugMode":false,"blockoutMode":false,"disableCollisions":false,"disableParticles":false,"mouseSensitivity":"1.1","particleQualityMode":3,"disablePostProcessing":false,"screenShakeIntensity":35,"baseFOV":"81","SFXVolume":0.05,"musicVolume":1}', function (err) {
+            if (err) {
+                console.log(err)
+                return
+            }
+            else console.log("USERSETTINGS did not exist, creating ...")
+        });
+    }
+    ipc.on("fullscreen", function (event, arg) {
+        if (mainWindow.isFullScreen()) {
+            mainWindow.setFullScreen(false)
+        } else {
+            mainWindow.setFullScreen(true)
+        }
+    });
     // USERSETTINGS
     ipc.on('fetch-user-settings', function (event) {
         console.log('Fetch User Settings...')
         // send the user settings to the renderer
         // "fetch-user-settings-reply"
         // read file USERSETTINGS.json in ../ 
-        fs.readFile(__dirname + '/../USERSETTINGS.json', 'utf8', function (err, data) {
+        fs.readFile(userSettingsPath, 'utf8', function (err, data) {
             if (err) {
                 console.log(err)
                 return
@@ -61,7 +81,7 @@ function createWindow() {
     ipc.on('update-user-settings', function (event, arg) {
         console.log('Update User Settings...')
         // write to file USERSETTINGS.json in ../ 
-        fs.writeFile(__dirname + '/../USERSETTINGS.json', JSON.stringify(arg), function (err) {
+        fs.writeFile(userSettingsPath, JSON.stringify(arg), function (err) {
             if (err) {
                 console.log(err)
                 return
@@ -128,7 +148,7 @@ function createWindow() {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
     // Set app user model id for windows
-    electronApp.setAppUserModelId('com.electron')
+    electronApp.setAppUserModelId('works.nowaythis')
 
     // Default open or close DevTools by F12 in development
     // and ignore CommandOrControl + R in production.

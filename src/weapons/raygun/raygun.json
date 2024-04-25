@@ -1,0 +1,26 @@
+{
+    "weaponData": {
+        "type": "ranged",
+        "name": "raygun",
+        "helpText": "[Left Click] Zap!",
+        "fireRate": 250,
+        "totalAmmo": 6,
+        "weaponDamage": 100,
+        "damageRange": 20,
+        "minimumDistance": 1500,
+        "disableHeadBop": false,
+        "followSpeed": 25,
+        "hasMuzzleFlash": true,
+        "hasNoTexture": false,
+        "position": {
+            "x": 7.5,
+            "y": -10,
+            "z": -20
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        }
+    }
+}

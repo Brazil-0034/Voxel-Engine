@@ -54,6 +54,7 @@
     document.body.appendChild(video);
 
     let target = "index.html?mapName=" + nextLevelURL;
+    if (videoSrc == "outro") target = "../launcher/menu.html";
     
     video.addEventListener("loadeddata", () => {
         setTimeout(() => {
@@ -65,7 +66,9 @@
     skip.id = "skip";
     skip.href = target;
     skip.style.opacity = "0";
-    setTimeout(() => skip.style.opacity = "0.25", 5000);
     skip.innerText = "Skip Cutscene";
     document.body.appendChild(skip);
+    if (videoSrc =! "outro") {
+        setTimeout(() => skip.style.opacity = "0.25", 5000);
+    }
 </script>

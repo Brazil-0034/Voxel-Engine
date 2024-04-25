@@ -4,6 +4,7 @@ import { addToCutawayStack, BoxData, VoxelChunk, VoxelFace, voxelField, cutawayF
 import { getPixelsFromImage } from './CanvasPixelReader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 import { rapidFloat, createVizSphere } from './EngineMath.js'; // math functions
 import { instancedModelIndex } from './LevelHandler.js'; // for frustum
 import { NPC } from './NPC.js'; // non-player characters (NPCs)
@@ -47,18 +48,12 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
     LEVELHANDLER.nextLevelText = "Keep Going";
     switch (levelID)
     {
-        case "05":
-            document.querySelector("#middle-crosshair").style.visibility = "hidden";
-            document.querySelector("#interaction-text").style.visibility = "hidden";
+        case "99":
+            LEVELHANDLER.nextLevelText = "try to Wake Up";
+            document.querySelector("#loader-bg").style.filter = "contrast(150%)";
+            LEVELHANDLER.nextLevelText = "try to Wake Up";
             document.querySelector("#health-uis").style.display = "none";
             break;
-        // case "06":
-        // case "07":
-        //     LEVELHANDLER.nextLevelText = "try to Wake Up";
-        //     document.querySelector("#loader-bg").style.filter = "contrast(150%)";
-        //     LEVELHANDLER.nextLevelText = "try to Wake Up";
-        //     document.querySelector("#health-uis").style.display = "none";
-        //     break;
     }
 
     // Zeroeth Step: Level Text
@@ -136,7 +131,8 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 transparent: true,
                 opacity: 0
             }));
-            assistObj.position.set(10000, 30, 9810);
+            assistObj.position.set(10049, 30, 9853);
+            assistObj.rotation.y = -Math.PI/2;
             LEVELHANDLER.scene.add(assistObj);
             assistObj.visible = assistObj.hasBeenActivated = false;
             LEVELHANDLER.assistObj = assistObj;
@@ -179,7 +175,6 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             LEVELHANDLER.scene.add(assistObj2);
         }
         if (levelName.substring(0,2) == "05") {
-            console.log("BUILDING ASSIST CONE ...");
             const assistObj = new THREE.Mesh(
                 new THREE.ConeGeometry(3.5, 8, 3),
                 new THREE.MeshLambertMaterial({
@@ -190,11 +185,11 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             );
             assistObj.position.set(9914, 40, 9843);
             assistObj.rotation.x = Math.PI;
-            LEVELHANDLER.scene.add(assistObj);
+            // LEVELHANDLER.scene.add(assistObj);
             // sin wave up and down position Y
-            setInterval(() => {
-                assistObj.position.y = 40 + Math.sin(Date.now() / 100) * 2;
-            }, 1);
+            // setInterval(() => {
+            //     assistObj.position.y = 40 + Math.sin(Date.now() / 100) * 2;
+            // }, 1);
         }
     })
 
@@ -226,7 +221,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
             worldSphere.material.color = ambientColor.clone().multiplyScalar(0.25);
             LEVELHANDLER.defaultBacklightColor = ambientColor;
             // space levels
-            if (levelID == "XX") {
+            if (LEVELHANDLER.levelID != "TE") {
                 LEVELHANDLER.backlight.color = new THREE.Color(0x406ce6);
                 LEVELHANDLER.worldSphere.material.map = LEVELHANDLER.globalTextureLoader.load("../img/skybox_1.png");
                 LEVELHANDLER.worldSphere.material.map.repeat.set(1,1);
@@ -291,6 +286,11 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     light.baseIntensity = light.intensity;
                     LEVELHANDLER.levelLights.push(light);
                     LEVELHANDLER.scene.add(light);
+                    // const lensflareTexture = LEVELHANDLER.globalTextureLoader.load("../img/lensflare.png");
+                    // const lensflare = new Lensflare(); 
+                    // lensflare.addElement(new LensflareElement(lensflareTexture, 256, 0));
+                    // light.add(lensflare);
+                    light.decay = 2.2;
                 }
 
                 // Enemy NPCs
@@ -298,17 +298,18 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     if (!mapMakerObject.enemyType) mapMakerObject.enemyType = "thug";
                     // sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
                     if (mapMakerObject.rotation.y < 0.1 && mapMakerObject.rotation.y > -0.1) mapMakerObject.rotation.y = Math.PI;
+                    let weaponType = 'smg';
+                    if (LEVELHANDLER.levelID == "03") weaponType = "shotgun";
                     const thisNPC = new NPC(
                         mapMakerObject.enemyType,
-                        '../character_models/thug_idle.png',
                         new THREE.Vector3(position.x, 1, position.z),
                         -mapMakerObject.rotationIntervals,
-                        25 + rapidFloat() * 75,
-                        100,
+                        25 + rapidFloat() * 75 * (mapMakerObject.enemyType == "alien_combat" ? 3 : 1),
+                        75,
                         LEVELHANDLER,
                         voxelField,
                         WEAPONHANDLER,
-                        'smg',
+                        weaponType,
                         mapMakerObject.isHostile,
                     );
                     return;
@@ -321,6 +322,9 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                 else if (mapMakerObject.isExplosive != undefined) {
                     if (position.y == 10) position.y = 3;
                     explosiveList.push(new THREE.Vector3(position.x, position.y, position.z));
+                }
+                else if (mapMakerObject.isHealthPickup != undefined) {
+                    LEVELHANDLER.createHealthPickup(new THREE.Vector3(position.x, position.y, position.z));
                 }
                 else
                 {
@@ -345,9 +349,9 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
 export const globalOffset = new THREE.Vector3(10000, 0, 10000);
 const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTINGS, boxType, scale, position, material, colorData, lightBrightness = 0, interactionEvent, light) {
 
-    if (scale.x > 2) scale.x -= 1;
-    if (scale.y > 2) scale.y -= 1;
-    if (scale.z > 2) scale.z -= 1;
+    // if (scale.x > 2) scale.x -= 1;
+    // if (scale.y > 2) scale.y -= 1;
+    // if (scale.z > 2) scale.z -= 1;
 
     const chunkConnector = new BoxData();
 
@@ -421,7 +425,14 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
         const resetInstancedWorldModel = function () {
             // Determine Instance Count
             let count = 2 * ((scale.x * scale.z) + (scale.x * scale.y) + (scale.y * scale.z));
-            if (boxType == "Wall" || boxType == "Floor") count = 64 * 64 * 2; // 2 is the wall depth
+            count += 4 * (scale.x + scale.y + scale.z);
+            // if (boxType == "Detail") {
+            //     console.log("Detail Cuboid of size", scale.x, scale.y, scale.z, "has", count, "voxels");
+            //     console.log("Surface Area Formula: 2 * (x * z + x * y + y * z) results in: ", 2 * ((scale.x * scale.z) + (scale.x * scale.y) + (scale.y * scale.z)), "voxels");
+            // }
+            if (boxType == "Wall" || boxType == "Floor") {
+                count = (64 * 64) * 2; // 2 is the wall depth
+            }
             // Setup the model ...
             instancedWorldModel = new VoxelChunk(
                 voxelGeometry,
@@ -433,7 +444,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             instancedWorldModel.material.emissiveIntensity = lightBrightness / 3;
             instancedWorldModel.material.initialEmissiveIntensity = lightBrightness;
             instancedWorldModel.visible = false;
-            instancedWorldModel.useCoverBox = true;
+            instancedWorldModel.useCoverBox = !(boxType == "Detail");
             instancedWorldModel.name = chunkCounter.toString();
             if (light != null) instancedWorldModel.attachedLight = light;
             // Update Counters
@@ -471,79 +482,84 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             // obj.material.color = new THREE.Color(0xffffff * Math.random());
         }
 
-        // --- FRONT COVER:
-        let frontBoxCount = scale.x;
-        if (scale.z > scale.x) frontBoxCount = scale.z;
-        const frontCoverBoxIMesh = new THREE.InstancedMesh(
-            coverBox.geometry,
-            coverBox.material.clone(),
-            Math.ceil(frontBoxCount / 64)
-        );
-        setMaterialProperties(frontCoverBoxIMesh);
-        let frontCoverBoxIMeshIterator = 0;
-        LEVELHANDLER.scene.add(frontCoverBoxIMesh);
+        let frontCoverBoxIMesh, frontCoverBoxIMeshIterator, backCoverBoxIMesh, backCoverBoxIMeshIterator, leftCoverBoxIMesh, leftCoverBoxIMeshIterator, rightCoverBoxIMesh, rightCoverBoxIMeshIterator, topCoverBoxIMesh, topCoverBoxIMeshIterator, bottomCoverBoxIMesh, bottomCoverBoxIMeshIterator;
+        if (boxType != "Detail")
+        {
+            // --- FRONT COVER:
+            let frontBoxCount = scale.x;
+            if (scale.z > scale.x) frontBoxCount = scale.z;
+            frontCoverBoxIMesh = new THREE.InstancedMesh(
+                coverBox.geometry,
+                coverBox.material.clone(),
+                Math.ceil(frontBoxCount / 64)
+            );
+            setMaterialProperties(frontCoverBoxIMesh);
+            frontCoverBoxIMeshIterator = 0;
+            LEVELHANDLER.scene.add(frontCoverBoxIMesh);
 
-        // --- BACK COVER:
-        let backBoxCount = scale.x;
-        if (scale.z > scale.x) backBoxCount = scale.z;
-        const backCoverBoxIMesh = new THREE.InstancedMesh(
-            coverBox.geometry,
-            coverBox.material.clone(),
-            Math.ceil(backBoxCount / 64)
-        );
-        setMaterialProperties(backCoverBoxIMesh);
-        let backCoverBoxIMeshIterator = 0;
-        LEVELHANDLER.scene.add(backCoverBoxIMesh);
+            // --- BACK COVER:
+            let backBoxCount = scale.x;
+            if (scale.z > scale.x) backBoxCount = scale.z;
+            backCoverBoxIMesh = new THREE.InstancedMesh(
+                coverBox.geometry,
+                coverBox.material.clone(),
+                Math.ceil(backBoxCount / 64)
+            );
+            setMaterialProperties(backCoverBoxIMesh);
+            backCoverBoxIMeshIterator = 0;
+            LEVELHANDLER.scene.add(backCoverBoxIMesh);
 
-        // -- LEFT COVER
-        let leftBoxCount = scale.x;
-        if (scale.z > scale.x) leftBoxCount = scale.z;
-        const leftCoverBoxIMesh = new THREE.InstancedMesh(
-            coverBox.geometry,
-            coverBox.material.clone(),
-            Math.ceil(leftBoxCount / 64)
-        );
-        setMaterialProperties(leftCoverBoxIMesh);
-        let leftCoverBoxIMeshIterator = 0;
-        LEVELHANDLER.scene.add(leftCoverBoxIMesh);
+            // -- LEFT COVER
+            let leftBoxCount = scale.x;
+            if (scale.z > scale.x) leftBoxCount = scale.z;
+            leftCoverBoxIMesh = new THREE.InstancedMesh(
+                coverBox.geometry,
+                coverBox.material.clone(),
+                Math.ceil(leftBoxCount / 64)
+            );
+            setMaterialProperties(leftCoverBoxIMesh);
+            leftCoverBoxIMeshIterator = 0;
+            LEVELHANDLER.scene.add(leftCoverBoxIMesh);
 
-        // -- RIGHT COVER
-        let rightBoxCount = scale.x;
-        if (scale.z > scale.x) rightBoxCount = scale.z;
-        const rightCoverBoxIMesh = new THREE.InstancedMesh(
-            coverBox.geometry,
-            coverBox.material.clone(),
-            Math.ceil(rightBoxCount / 64)
-        );
-        setMaterialProperties(rightCoverBoxIMesh);
-        let rightCoverBoxIMeshIterator = 0;
-        LEVELHANDLER.scene.add(rightCoverBoxIMesh);
+            // -- RIGHT COVER
+            let rightBoxCount = scale.x;
+            if (scale.z > scale.x) rightBoxCount = scale.z;
+            rightCoverBoxIMesh = new THREE.InstancedMesh(
+                coverBox.geometry,
+                coverBox.material.clone(),
+                Math.ceil(rightBoxCount / 64)
+            );
+            setMaterialProperties(rightCoverBoxIMesh);
+            rightCoverBoxIMeshIterator = 0;
+            LEVELHANDLER.scene.add(rightCoverBoxIMesh);
 
-        // -- TOP COVER
-        let topBoxCount = scale.x;
-        if (scale.z > scale.x) topBoxCount = scale.z;
-        if (boxType == "Floor") topBoxCount = scale.x * scale.z;
-        const topCoverBoxIMesh = new THREE.InstancedMesh(
-            coverBox.geometry,
-            coverBox.material.clone(),
-            Math.ceil(topBoxCount / 64)
-        );
-        setMaterialProperties(topCoverBoxIMesh);
-        let topCoverBoxIMeshIterator = 0;
-        LEVELHANDLER.scene.add(topCoverBoxIMesh);
+            // -- TOP COVER
+            let topBoxCount = scale.x;
+            if (scale.z > scale.x) topBoxCount = scale.z;
+            if (boxType == "Floor") topBoxCount = scale.x * scale.z;
+            topCoverBoxIMesh = new THREE.InstancedMesh(
+                coverBox.geometry,
+                coverBox.material.clone(),
+                Math.ceil(topBoxCount / 64)
+            );
+            setMaterialProperties(topCoverBoxIMesh);
+            topCoverBoxIMeshIterator = 0;
+            LEVELHANDLER.scene.add(topCoverBoxIMesh);
 
-        // -- BOTTOM COVER
-        let bottomBoxCount = scale.x;
-        if (scale.z > scale.x) bottomBoxCount = scale.z;
-        if (boxType == "Floor") bottomBoxCount = scale.x * scale.z;
-        const bottomCoverBoxIMesh = new THREE.InstancedMesh(
-            coverBox.geometry,
-            coverBox.material.clone(),
-            Math.ceil(bottomBoxCount / 64)
-        );
-        setMaterialProperties(bottomCoverBoxIMesh);
-        let bottomCoverBoxIMeshIterator = 0;
-        LEVELHANDLER.scene.add(bottomCoverBoxIMesh);
+            // -- BOTTOM COVER
+            let bottomBoxCount = scale.x;
+            if (scale.z > scale.x) bottomBoxCount = scale.z;
+            if (boxType == "Floor") bottomBoxCount = scale.x * scale.z;
+            bottomCoverBoxIMesh = new THREE.InstancedMesh(
+                coverBox.geometry,
+                coverBox.material.clone(),
+                Math.ceil(bottomBoxCount / 64)
+            );
+            setMaterialProperties(bottomCoverBoxIMesh);
+            bottomCoverBoxIMeshIterator = 0;
+            LEVELHANDLER.scene.add(bottomCoverBoxIMesh);
+        }
+
 
         const finalizeChunk = function (voxelFace, isAbnormal = false) {
 
@@ -574,12 +590,13 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             LEVELHANDLER.scene.add(instancedWorldModel);
             chunkConnector.addChunk(instancedWorldModel);
 
-            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
+            // debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             if (USERSETTINGS.debugMode) {
                 coverBox.material.color = debugModeChunkColor;
                 coverBox.material.emissive = debugModeChunkColor;
             }
 
+            if (localVoxelIterator > instancedWorldModel.count) console.error(localVoxelIterator, "overplaced of", instancedWorldModel.count);
             // for FLOORS, we do not need a left/right/front/back voxelface, just a top
             if (boxType == "Floor") {
                 if (voxelFace != VoxelFace.TOP && voxelFace != VoxelFace.BOTTOM) {
@@ -765,6 +782,8 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
 
         }
 
+        const identity = new THREE.Matrix4();
+
         const setVoxel = function (voxelPosition, voxelFace, voxelColor) {
             // set voxelColor based on the voxelFace
             // first, check if a voxel already exists here OR if a cutaway voids voxels from existing here
@@ -785,18 +804,26 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             // Commit to the global voxel field
             // update min/max positions for this chunk (for culling)
             voxelField.set(voxelPosition.x, voxelPosition.y, voxelPosition.z, 1, localVoxelIterator, instancedWorldModel, voxelFace);
-            instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x, voxelPosition.y, voxelPosition.z)));
-            voxelColor.multiply(colorData);
-            if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
-            // if (voxelFace == VoxelFace.FRONT) voxelColor = new THREE.Color(0xff0000)
-            // if (voxelFace == VoxelFace.LEFT) voxelColor = new THREE.Color(0x00ff00)
-            instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
-            localVoxelIterator++;
-            // check if we need to create a new chunk
-            LEVELHANDLER.numVoxels++;
+            if (localVoxelIterator > instancedWorldModel.count) console.error("Attempted to place voxel in a full chunk of type", boxType)
+            // ensure no voxel already here
+            const checker = new THREE.Matrix4();
+            instancedWorldModel.getMatrixAt(localVoxelIterator, checker);
+            if (checker.equals(identity))
+            {
+                instancedWorldModel.setMatrixAt(localVoxelIterator, new THREE.Matrix4().setPosition(new THREE.Vector3(voxelPosition.x, voxelPosition.y, voxelPosition.z)));
+                voxelColor.multiply(colorData);
+                if (USERSETTINGS.debugMode == true) voxelColor = debugModeChunkColor;
+                // if (voxelFace == VoxelFace.FRONT) voxelColor = new THREE.Color(0xff0000)
+                // if (voxelFace == VoxelFace.LEFT) voxelColor = new THREE.Color(0x00ff00)
+                instancedWorldModel.setColorAt(localVoxelIterator, voxelColor);
+                localVoxelIterator++;
+                // check if we need to create a new chunk
+                LEVELHANDLER.numVoxels++;
+            }
         }
 
-        const buildBack = function() {
+        const buildBack = function(skipFinalize=false) {
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             // Create the BACK WALL of the box:
             for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
                 for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
@@ -818,12 +845,13 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                     }
 
                     // we finalize this chunk
-                    finalizeChunk(VoxelFace.BACK, !isFullChunk);
+                    if (!skipFinalize) finalizeChunk(VoxelFace.BACK, !isFullChunk);
                 }
             }
         }
 
-        const buildFront = function() {
+        const buildFront = function(skipFinalize=false) {
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             // Create the FRONT WALL of the box:
             for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
                 for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
@@ -845,12 +873,13 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                     }
 
                     // we finalize this chunk
-                    finalizeChunk(VoxelFace.FRONT, !isFullChunk);
+                    if (!skipFinalize) finalizeChunk(VoxelFace.FRONT, !isFullChunk);
                 }
             }
         }
 
-        const buildLeft = function() {
+        const buildLeft = function(skipFinalize=false) {
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             // Create the LEFT WALL of the box:
             for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
                 for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
@@ -872,13 +901,14 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                     }
 
                     // we finalize this chunk
-                    finalizeChunk(VoxelFace.LEFT, !isFullChunk);
+                    if (!skipFinalize) finalizeChunk(VoxelFace.LEFT, !isFullChunk);
                 }
             }
         }
 
         // Create the ROOF (top) of the box:
-        const buildTop = function() {
+        const buildTop = function(skipFinalize=false) {
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
                 for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
                     let isFullChunk = true;
@@ -899,12 +929,13 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                     }
 
                     // we finalize this chunk
-                    finalizeChunk(VoxelFace.TOP, !isFullChunk);
+                    if (!skipFinalize) finalizeChunk(VoxelFace.TOP, !isFullChunk);
                 }
             }
         }
 
-        const buildRight = function() {
+        const buildRight = function(skipFinalize=false) {
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             // Create the RIGHT WALL of the box:
             for (let y = 0; y < Math.ceil(scale.y / squareChunkSize); y++) {
                 for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
@@ -926,12 +957,13 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                     }
 
                     // we finalize this chunk
-                    finalizeChunk(VoxelFace.RIGHT, !isFullChunk);
+                    if (!skipFinalize) finalizeChunk(VoxelFace.RIGHT, !isFullChunk);
                 }
             }
         }
 
-        const buildBottom = function() {
+        const buildBottom = function(skipFinalize=false) {
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
             // Create the FLOOR (bottom) of the box:
             for (let x = 0; x < Math.ceil(scale.x / squareChunkSize); x++) {
                 for (let z = 0; z < Math.ceil(scale.z / squareChunkSize); z++) {
@@ -953,7 +985,7 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                     }
 
                     // we finalize this chunk
-                    finalizeChunk(VoxelFace.BOTTOM, !isFullChunk);
+                    if (!skipFinalize) finalizeChunk(VoxelFace.BOTTOM, !isFullChunk);
                 }
             }
         }
@@ -963,18 +995,18 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
                 buildBack();
                 buildFront();
                 buildLeft();
-                buildTop();
+                // buildTop();
                 buildRight();
-                buildBottom();
+                // buildBottom();
             }
             else
             {
                 buildLeft();
                 buildRight();
                 buildFront();
-                buildTop();
+                // buildTop();
                 buildBack();
-                buildBottom();
+                // buildBottom();
             }
         }
         else if (boxType == "Floor") {
@@ -982,12 +1014,39 @@ const buildWorldModelFromBox = function (LEVELHANDLER, WEAPONHANDLER, USERSETTIN
             buildBottom();
         }
         else if (boxType == "Detail") {
-            buildTop();
-            buildBottom();
-            buildLeft();
-            buildRight();
-            buildFront();
-            buildBack();
+            buildTop(true);
+            buildBottom(true);
+            buildLeft(true);
+            buildRight(true);
+            buildFront(true);
+            buildBack(true);
+            instancedWorldModel.frustumBox = new THREE.Box3();
+            instancedWorldModel.frustumBox.setFromCenterAndSize(
+                new THREE.Vector3(
+                    (chunkMinPosition.x + chunkMaxPosition.x) / 2,
+                    (chunkMinPosition.y + chunkMaxPosition.y) / 2,
+                    (chunkMinPosition.z + chunkMaxPosition.z) / 2
+                ),
+                new THREE.Vector3(
+                    (chunkMaxPosition.x - chunkMinPosition.x),
+                    (chunkMaxPosition.y - chunkMinPosition.y),
+                    (chunkMaxPosition.z - chunkMinPosition.z)
+                )
+            );
+            instancedModelIndex.push(instancedWorldModel);
+            instancedWorldModel.instanceMatrix.needsUpdate = true;
+            
+            LEVELHANDLER.scene.add(instancedWorldModel);
+            chunkConnector.addChunk(instancedWorldModel);
+
+            debugModeChunkColor = new THREE.Color(0xffffff * Math.random());
+            if (USERSETTINGS.debugMode) {
+                coverBox.material.color = debugModeChunkColor;
+                coverBox.material.emissive = debugModeChunkColor;
+            }
+            instancedWorldModel.visible = true;
+            instancedWorldModel.isCovered = false;
+            instancedWorldModel.isDetail = true;
         }
         else console.error("Invalid Box Type: " + boxType)
 

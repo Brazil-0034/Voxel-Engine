@@ -474,6 +474,7 @@ const updateRightPanel = function (item, clear=false) {
         <option value='evil_corp_enemy'>evil_corp_enemy</option>
         <option value='evil_corp_receptionist'>evil_corp_receptionist</option>
         <option value='pharmacist'>pharmacist</option>
+        <option value='alien_pharmacist'>alien_pharmacist</option>
         <option value='alien_hanging'>alien_hanging</option>
         <option value='alien_combat'>alien_combat</option>
         <option value='thug1'>thug1</option>
@@ -567,10 +568,12 @@ const updateRightPanel = function (item, clear=false) {
         cutawayInput.type = "checkbox";
         cutawayInput.checked = item.userData.isCutaway;
         cutawayInput.addEventListener("input", function () {
-            item.userData.isCutaway = cutawayInput.checked;
-            if (item.userData.isCutaway) {
-                item.material = cutawayMaterial;
-            }
+            selectedObjects.children.forEach(childObject => {
+                childObject.userData.isCutaway = cutawayInput.checked;
+                if (childObject.userData.isCutaway) {
+                    childObject.material = cutawayMaterial;
+                }
+            });
         });
         cutaway.appendChild(cutawayInput);
         inspector.appendChild(cutaway);
@@ -862,6 +865,7 @@ const attachHandles = function (item, dontResetSelections=false, skipUpdate=fals
         }
         return;
     }
+    if (isHoldingShift) skipUpdate = true;
     // if we are holding shift, add to the selection
     if (isHoldingShift == false && dontResetSelections == false) {
         clearSelectedObjects(skipUpdate);
@@ -1185,6 +1189,29 @@ const createWeaponPickup = function(position, weaponType) {
     return weaponPickup;
 }
 
+const createHealthPickup = function(position) {
+    const healthPickup = new THREE.Mesh(
+        new THREE.SphereGeometry(10),
+        new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.5
+        })
+    );
+    healthPickup.position.copy(position);
+    healthPickup.userData.existInGame = true;
+    healthPickup.userData.isEnemyNPC = false;
+    healthPickup.userData.isLight = false;
+    healthPickup.userData.gameObjectType = "HealthPickup";
+    healthPickup.userData.isHealthPickup = true;
+
+    healthPickup.name = "Health Pickup - " + Math.floor(Math.random() * 1000);
+    addToScene(healthPickup);
+    MAPOBJECTS.push(healthPickup);
+    return healthPickup;
+}
+
 const createBox = function(type) {
     const cube = new THREE.Mesh(
         new THREE.BoxGeometry(1, 1, 1),
@@ -1274,6 +1301,13 @@ const contextMenuClick = function (action) {
 
             createWeaponPickup(weaponPickupPosition, "smg");
             break;
+        case "Create Health Pickup":
+            const healthPickupPosition = new THREE.Vector3();
+            healthPickupPosition.copy(camera.position);
+            healthPickupPosition.add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40));
+
+            createHealthPickup(healthPickupPosition);
+            break;
         //  ### Object Manipulation
         case "Delete Object":
             selectedObjects.forEach(selectedObject => {
@@ -1308,6 +1342,7 @@ const invokeContextMenu = function (e) {
         options.push("[] Add Entities");
         options.push("Create NPC Enemy");
         options.push("Create Weapon Pickup");
+        options.push("Create Health Pickup");
         options.push("Create Explosive");
     }
     if (clickedElement.parentElement.id == "scene-objects-list") {
@@ -1468,6 +1503,7 @@ const saveProject = function () {
                 "enemyType": mapObject.userData.enemyType,
                 "weaponType": mapObject.userData.weaponType,
                 "isExplosive": mapObject.userData.isExplosive,
+                "isHealthPickup": mapObject.userData.isHealthPickup,
                 "rotationIntervals": mapObject.userData.rotationIntervals,
                 "interactionEvent": mapObject.userData.interactionEvent,
                 "isHostile": mapObject.userData.isHostile
@@ -1578,6 +1614,11 @@ const importProject = function () {
                         mapMakerObject.rotationIntervals, mapMakerObject.enemyType, mapMakerObject.isHostile
                     );
                 }
+                else if (mapMakerObject.isHealthPickup != undefined) {
+                    createHealthPickup(
+                        new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z)
+                    );
+                }
                 else if (mapMakerObject.weaponType != undefined) {
                     createWeaponPickup(
                         new THREE.Vector3(mapMakerObject.position.x, mapMakerObject.position.y, mapMakerObject.position.z),
@@ -1617,6 +1658,7 @@ const importProject = function () {
                     newBox.userData.isRotated = mapMakerObject.isRotated;
                     newBox.userData.gameObjectType = mapMakerObject.type;
                     newBox.userData.isEnemyNPC = mapMakerObject.isEnemyNPC;
+                    newBox.userData.isHealthPickup = mapMakerObject.isHealthPickup;
 
                     addToScene(newBox);
                     MAPOBJECTS.push(newBox);

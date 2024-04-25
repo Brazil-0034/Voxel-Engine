@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { setInteractionText } from './UIHandler.js'; // User Interface
 import { USERSETTINGS } from './LevelHandler.js';
 
 const chatBox = document.querySelector("#npc-text");
@@ -19,7 +18,7 @@ export const incrementChatIndex = function() {
         setTimeout(() => {
             canIncrementChatIndex = true;
         }, 250);
-        LEVELHANDLER.SFXPlayer.playRandomSound("chatSounds", 1);
+        if (LEVELHANDLER.SFXPlayer) LEVELHANDLER.SFXPlayer.playRandomSound("chatSounds", 1);
     }
 }
 
@@ -38,7 +37,7 @@ const playChat = function(chat) {
         chatTarget = chat[chatIndex];
     }
     else {
-        if (levelID == "phone_call") window.location.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=00_INN_LOBBY";
+        if (levelID == "phone_call") window.location.href = "../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=00_ROOM";
         npcChat.style.display = "none";
         if (LEVELHANDLER.levelID == "00" && LEVELHANDLER.assistObj.hasBeenActivated == false) {
             LEVELHANDLER.assistObj.visible = true;
@@ -59,25 +58,28 @@ export const checkChat = function(ID, position) {
     levelID = ID;
     npcChat.style.display = "none";
     // end level condition
-    if (LEVELHANDLER.isLevelComplete) {
-        if (USERSETTINGS.useQuickReturn == true) {
-            const nextLevelText = document.querySelector("#next-level-text");
-            if (nextLevelText) {
-                nextLevelText.innerHTML = "Hold [SPACE] to Continue";
-                if (INPUTHANDLER.isKeyPressed(' ')) {
-                    LEVELHANDLER.goToNextLevel();
-                }
-            }
-        }
-        else
-        {
-            const nextLevelText = document.querySelector("#next-level-text");
-            if (nextLevelText) {
-                nextLevelText.innerHTML = "Return to the Elevator";
-                if (playerIsNear(position, 10000, 10000)) {
+    if (levelID != "phone_call")
+    {
+        if (LEVELHANDLER.isLevelComplete) {
+            if (USERSETTINGS.useQuickReturn == true) {
+                const nextLevelText = document.querySelector("#next-level-text");
+                if (nextLevelText) {
                     nextLevelText.innerHTML = "Hold [SPACE] to Continue";
                     if (INPUTHANDLER.isKeyPressed(' ')) {
                         LEVELHANDLER.goToNextLevel();
+                    }
+                }
+            }
+            else
+            {
+                const nextLevelText = document.querySelector("#next-level-text");
+                if (nextLevelText) {
+                    nextLevelText.innerHTML = "Return to the Elevator";
+                    if (playerIsNear(position, 10000, 10000)) {
+                        nextLevelText.innerHTML = "Hold [SPACE] to Continue";
+                        if (INPUTHANDLER.isKeyPressed(' ')) {
+                            LEVELHANDLER.goToNextLevel();
+                        }
                     }
                 }
             }
@@ -86,33 +88,51 @@ export const checkChat = function(ID, position) {
     switch (levelID) {
         default:
             break;
+        case "phone_call":
+            playChat([
+                "*ahem*",
+                "I heard you're back on the job market again.",
+                "Sorry to hear that.",
+                ". . .",
+                "Bartender at a [night club] just called in.",
+                "Seemed pretty nonchalant but,",
+                "He told me the place was overrun with goons.",
+                "If you want a quick buck tonight, I'll let you take care of this one.",
+                "I'll send you the deets."
+            ]);
+            break;
         case "00":
-            if (playerIsNear(position, 10000, 9830)) {
-                speakerName.innerHTML = "RECEPTIONIST";
+            if (playerIsNear(position, 10000, 9852)) {
+                // speakerName.innerHTML = "RECEPTIONIST";
+                // playChat([
+                //     "*ahem*",
+                //     "Welcome to the [EVIL CORP] headquarters.",
+                //     "You are currently in the department of business affairs.",
+                //     "We hope you enjoy your visit."
+                // ]);
+                speakerName.innerHTML = "BARTENDER";
                 playChat([
                     "*ahem*",
-                    "Welcome to the [EVIL CORP] headquarters.",
-                    "We hope you enjoy your visit."
+                    "I'm sorry. We're all out of drinks tonight.",
+                    ". . .",
+                    "Oh. You must be some kind of hired gun.",
+                    "If you wanted a party, you should've arrived earlier.",
+                    "There are many more of us than there are of you.",
+                    "If you value your life,",
+                    "I'm going to have to ask you to leave."
                 ]);
             }
             break;
         case "05":
             if (playerIsNear(position, position.x, 9598)) {
-                speakerName.innerHTML = "MANAGER";
+                speakerName.innerHTML = "THUG LEADER";
                 playChat([
-                    // ". . .",
-                    // "You've thrown a real wrench into our plans.",
-                    // "Who sent you?",
-                    // ". . .",
-                    // "Very well.",
-                    // "Do what you must."
                     ". . .",
                     "Impressive.",
-                    "Nobody's ever gotten this far.",
+                    "Who sent you?",
                     ". . .",
-                    "You've still got a long way to go.",
-                    ". . .",
-                    "But it doesn't matter.",
+                    "Very well.",
+                    "I suppose it doesn't matter now.",
                     "Do what you must."
                 ]);
             }
@@ -137,13 +157,32 @@ export const checkChat = function(ID, position) {
                 playChat([
                     ". . .",
                     "t - ",
-                    "t - they've ...",
-                    "THEY'VE ESCAPED!",
+                    "t - the aliens, they've ... ",
+                    "THEY'VE ESCAPED CONTAINMENT!",
                     ". . . it's so over . . .",
                     "I'm so fired . . .",
                 ])
             }
             break;
+        case "10":
+            speakerName.innerHTML = "<i style='color: lightgreen'>\"SCIENTIST\"</i>";
+            if (playerIsNear(position, 10000, 9734)) {
+                playChat([
+                    "Gweeple Blork -",
+                    "Squeeble beep borp -",
+                    "I mean -",
+                    "hello there, friend !!",
+                    "Welcome to one of EVIL CORP's many [science labs] !!",
+                    "We get lots of work done here, but it's mighty dangerous!",
+                    "For this reason, I'm going to have to ask you to leave.",
+                    " . . . ",
+                    "Why am I so green, you ask?",
+                    "Wha - how [DARE] you?!",
+                    "ME, an [ALIEN]???",
+                    "Now I REALLY need you to leave !!"
+                ]);
+            }
+
     }
 }
 
@@ -174,5 +213,5 @@ export const startChatScan = function(LevelHandler, InputHandler) {
         }
         else chatBox.innerHTML = finalChat;
 
-    }, 15);
+    }, 10);
 }

@@ -9,6 +9,7 @@ const getClipByName = (animations, clipName) => {
 		if (animations[i].name.toLowerCase().includes(clipName.toLowerCase())) return animations[i];
 }
 
+
 export class WeaponHandler {
     // MAIN
     LEVELHANDLER
@@ -47,10 +48,13 @@ export class WeaponHandler {
 	hideMuzzleFlash
 	fireSprite
 	muzzleFire
+	torus
     
     // SPECS
+	recentlyPickedUpWeapon
 	weaponIsEquipped
     weaponType
+	weaponName
     destroyedChunkRange
     fireRate
     weaponDamage
@@ -73,6 +77,8 @@ export class WeaponHandler {
 		
 		this.hasFlipped = false;
 
+		this.recentlyPickedUpWeapon = false;
+
     }
 
 	initializeWeaponInfo(name, object, assignDefaults = false) {
@@ -83,7 +89,7 @@ export class WeaponHandler {
 			'../weapons/' + name + '/' + name + '.json',
 			function (json) {
 				const jsonModel = JSON.parse(json);
-				object.name = jsonModel.weaponData.name;
+				object.name = WEAPONHANDLER.weaponName = jsonModel.weaponData.name;
 				// json reads for weapon data
 				// camera adjustments
 				WEAPONHANDLER.weaponType = jsonModel.weaponData.type;
@@ -191,6 +197,8 @@ export class WeaponHandler {
     }
 
 	pickupWeapon(pickedupWeaponModel) {
+		this.recentlyPickedUpWeapon = true;
+		setTimeout(() => {this.recentlyPickedUpWeapon = false}, 250);
 		this.throwWeapon();
 		this.LEVELHANDLER.SFXPlayer.playSound("rustleSound", false);
 		
@@ -210,7 +218,9 @@ export class WeaponHandler {
 		// Muzzle Flash
 		this.hideMuzzleFlash = this.defaultHideMuzzleFlash = true;
 
-		const map = new THREE.TextureLoader().load('../img/impact.png');
+		let impactSrc = '../img/impact.png';
+		if (pickedupWeaponModel.weaponType == "raygun") impactSrc = '../img/impact_blue.png';
+		const map = new THREE.TextureLoader().load(impactSrc);
 		this.hideMuzzleFlash = this.defaultHideMuzzleFlash = false;
 		this.fireSprite = new THREE.Sprite(new THREE.SpriteMaterial({
 			map: map,
@@ -223,14 +233,20 @@ export class WeaponHandler {
 		this.fireSprite.position.x = 50;
 		this.fireSprite.position.y = 250;
 		this.fireSprite.position.z = -700;
+		if (pickedupWeaponModel.weaponType == "shotgun") {
+			this.fireSprite.position.z -= 800;
+		}
+		console.log(pickedupWeaponModel.weaponType);
 
 		this.fireSprite.material.opacity = 0;
 
 		// Muzzle Fire
+		let muzzleFireSrc = '../img/muzzlefire.png';
+		if (pickedupWeaponModel.weaponType == "raygun") muzzleFireSrc = '../img/muzzlefire_blue.png';
 		this.muzzleFire = new THREE.Mesh(
 			new THREE.PlaneGeometry(6000, 45),
 			new THREE.MeshBasicMaterial({
-				map: new THREE.TextureLoader().load('../img/muzzlefire.png'),
+				map: new THREE.TextureLoader().load(muzzleFireSrc),
 				color: 0xffffff,
 				side: THREE.DoubleSide,
 				depthTest: false,
@@ -244,6 +260,24 @@ export class WeaponHandler {
 		this.muzzleFire.rotation.y = Math.PI / 2;
 
 		this.muzzleFire.material.opacity = 0;
+
+		// if (this.torus) {
+		// 	this.torus.visible = false;
+		// }
+
+		// this.torus = new THREE.Mesh(
+		// 	new THREE.TorusGeometry(5, 0.35, 100, 25),
+		// 	new THREE.MeshBasicMaterial({
+		// 		color: new THREE.Color(0x14e8ff),
+		// 		emissive: true,
+		// 		emissiveIntensity: 5
+		// 	})
+		// );
+		// pickedupWeaponModel.add(this.torus);
+		// this.torus.position.x = 50;
+		// this.torus.position.y = 250;
+		// this.torus.position.z = -700;
+		// this.torus.scale.multiplyScalar(10000); // to hide initialization ...
 	}
 
 	createWeaponPickup(weaponType, position, isSpawnedPostLoad=false, npcReference=null) {
@@ -284,10 +318,10 @@ export class WeaponHandler {
 		console.log("CREATING EXPLOSIVE at", position.x, position.y, position.z);
 		const LEVELHANDLER = this.LEVELHANDLER;
 
-		const explosiveURL = '../weapons/explosive/explosive';
+		const explosiveURL = '../weapons/explosive/';
 
 		LEVELHANDLER.globalModelLoader.load(
-			explosiveURL + '.fbx',
+			explosiveURL + 'explosive.fbx',
 			function (object) {
 				object.scale.divideScalar(30);
 				object.position.set(position.x, position.y, position.z);
@@ -297,6 +331,17 @@ export class WeaponHandler {
 				if (LEVELHANDLER.numExplosivesProcessed == LEVELHANDLER.numExplosives) {
 					LEVELHANDLER.computeNPCBlobs();
 				}
+				LEVELHANDLER.globalModelLoader.load(
+					explosiveURL + 'explosion.fbx',
+					function (explosion) {
+						explosion.scale.set(1/1000, 1/1000, 1/1000);
+						explosion.position.set(position.x, position.y, position.z);
+						LEVELHANDLER.scene.add(explosion);
+						explosion.visible = false;
+						object.explosion = explosion;
+						explosion.children[0].material.forEach(mat => {mat.transparent = true; mat.opacity = 0.5});
+					}
+				);
 			}
 		);
 	}
@@ -309,6 +354,9 @@ export class WeaponHandler {
 		if (this.weaponIsEquipped)
 		{
 			this.weaponIsEquipped = false;
+			this.weaponType = "melee";
+			this.weaponName = "Fists";
+			if (this.torus) this.torus.visible = false;
 			// Raycast and throw it!!
 			const cameraDir = new THREE.Vector3(0, 0, 0);
 			this.LEVELHANDLER.camera.getWorldDirection(cameraDir);
@@ -373,7 +421,6 @@ export class WeaponHandler {
 			}, 10);
 
 			this.resetToDefaults();
-			console.log(this.defaultRemainingAmmo, this.defaultWeaponType);
 		}
 	}
 

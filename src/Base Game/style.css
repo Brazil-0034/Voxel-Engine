@@ -1,3 +1,13 @@
+@font-face {
+    font-family: 'VT323';
+    src: url('./VT323.ttf');
+}
+
+@font-face {
+    font-family: 'Montserrat';
+    src: url('./Montserrat-VariableFont_wght.ttf');
+}
+
 html {
     /* background: rgb(130, 30, 30); */
     background: black;
@@ -23,8 +33,19 @@ canvas {
     top: 0%;
     left: 0%;
     display: block;
-    transform: translate3d(0, 0, 0);
     /* forces hardware acceleration */
+    transform: translate3d(0, 0, 0);
+}
+
+#vignette {
+    box-shadow: 1px 2px 242px -36px rgba(0,0,0,0.75) inset;
+    z-index: 99999;
+    pointer-events: none;
+    position: absolute;
+    top: 0; left: 0;
+    overflow: none;
+    width: 100%;
+    height: 100%;
 }
 
 @keyframes flicker-in {
@@ -57,6 +78,36 @@ canvas {
     }
 }
 
+#end-red-flash {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: red;
+    animation: fade-out 1s forwards;
+}
+
+#health-flash {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgb(0, 255, 0);
+    animation: fade-out 0.5s forwards;
+}
+
+.settings-btn {
+    border: 2px solid white;
+    background: black;
+    color: white;
+    font-family: 'VT323';
+    border-radius: 0px;
+    font-size: 115%;
+    cursor: pointer;
+}
+
 input[type='checkbox'] {
     accent-color: white;
     border-radius: 0;
@@ -76,7 +127,7 @@ input[type=range]:focus {
 }
 
 input[type=range]::-webkit-slider-runnable-track {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 25px;
     width: 100%;
     height: 6px;
@@ -301,16 +352,6 @@ h5 {
     transform: translate(-50%, 0);
     opacity: 0.25;
     text-align: center;
-}
-
-@font-face {
-    font-family: 'VT323';
-    src: url('../opensource/fonts/VT323.ttf');
-}
-
-@font-face {
-    font-family: 'Montserrat';
-    src: url('../opensource/fonts/Montserrat/Montserrat-VariableFont_wght.ttf');
 }
 
 #da-big-text {
@@ -796,8 +837,7 @@ h5 {
 
 @keyframes slide-in-top {
     0% {
-        transform: translateY(-100%);
-    }
+        transform: translateY(-100%); }
 
     100% {
         transform: translateY(0%);
@@ -848,6 +888,18 @@ h5 {
     100% {
         opacity: 1;
     }
+}
+
+#death-counter {
+    z-index: 1000;
+    color: white;
+    font-weight: bolder;
+    font-size: 30vw;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: fade-out 0.5s forwards;
 }
 
 @keyframes fade-in {
@@ -925,6 +977,24 @@ h5 {
     }
 }
 
+#flasher {
+    animation: flash 1s infinite;
+}
+
+@keyframes flash {
+    0% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
 #next-level-text {
     position: absolute;
     left: 50%;
@@ -982,16 +1052,14 @@ h5 {
 @keyframes shrink {
     0% {
         transform: scale(1) translateY(0);
-        filter: saturate(1);
     }
 
     50% {
         transform: scale(90%) translateY(0);
-        filter: saturate(0);
     }
 
     100% {
-        transform: scale(90%) translateY(-120%);
+        transform: scale(90%) translateY(275%);
     }
 
 }

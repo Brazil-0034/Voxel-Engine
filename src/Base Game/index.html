@@ -19,7 +19,7 @@
 	<div id="cover-flash"></div>
 
 	<!-- DEBUG BOX -->
-	<div id="vizbox" style="display: none;">
+	<div id="vizbox" style="display:none">
 		<div id="FPSViz">Loading ...</div>
 		<div id="DRAWCALLSViz">Loading ...</div>
 		<div id="NUMVOXELSViz">Loading ...</div>
@@ -31,6 +31,7 @@
 	</div>
 
 	<!-- PRIMARY UI -->
+	<div id="vignette"></div>
 	<div id="dead-overlay"></div>
 	<div id="prevent-overlay"></div>
 	<div id="ui-overlay">
@@ -137,6 +138,8 @@
 	import { N8AOPass } from "../opensource/N8AO.js"
 	import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
 	import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+	import { SSRPass } from 'three/addons/postprocessing/SSRPass.js';
+	import { ReflectorForSSRPass } from 'three/addons/objects/ReflectorForSSRPass.js';
 	import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 	import { ConvexHull } from 'three/addons/math/ConvexHull.js';
 	import { LightProbeGenerator } from 'three/addons/lights/LightProbeGenerator.js';
@@ -274,6 +277,16 @@
 			const bloomPass = new UnrealBloomPass(new THREE.Vector2(8, 8), 0.8, 0, 0.45);
 			composer.addPass(bloomPass);
 
+			// Screen-Space Reflections
+			// const ssrPass = new SSRPass({
+			// 	renderer: LEVELHANDLER.renderer,
+			// 	scene: LEVELHANDLER.scene,
+			// 	camera: LEVELHANDLER.camera,
+			// 	width: window.innerWidth,
+			// 	height: window.innerHeight
+			// });
+			// composer.addPass(ssrPass);
+
 			if (USERSETTINGS.disablePostProcessing == true) {
 				n8aopass.enabled = false;
 				bloomPass.enabled = false;
@@ -311,7 +324,6 @@
 		// get modelURL from URL param "mapName"
 		const modelURL = new URLSearchParams(window.location.search).get("mapName");
 		// const weaponURL = 'nothing';
-		// WEAPONHANDLER.pickupWeapon(weaponURL); // same as map, but for the weapon!
 		WEAPONHANDLER.initializeHands();
 
 		// This starts building the map ...
@@ -344,13 +356,15 @@
 			document.querySelector("#ZViz").textContent = "Z: " + Math.round(LEVELHANDLER.camera.position.z);
 		}
 
+		let memWarn = false;
 		setInterval(() => {
 			ipcRenderer.send('get-system-info');
 			ipcRenderer.on('get-system-info-reply', (event, arg) => {
 				const usedMem = Math.round(arg.usedMem / 1000000000);
 				const totalMem = Math.round(arg.totalMem / 1000000000);
 				if (Math.abs(totalMem - usedMem) < 2) {
-					console.log("SYS HIGH MEMORY USAGE [", usedMem, "GB /", totalMem, "GB ]");
+					if (!memWarn) console.error("SYS HIGH MEMORY USAGE [", usedMem, "GB /", totalMem, "GB ]");
+					memWarn = true;
 				}
 			});
 		}, 1000);
@@ -366,6 +380,12 @@
 			composer.render();
 		}
 
+		// fullscreen
+		const toggleFullscreen = function() {
+			ipcRenderer.send('fullscreen');
+		}
+
+		let canFullScreenWithKeeb = true;
 		const holder = document.querySelector("#pause-menu-holder");
 		const update = function () {
 			// Frame Calculations
@@ -377,12 +397,15 @@
 			if (LEVELHANDLER.levelFinishedLoading) playerController.update(delta);
 			// Update UI
 			document.querySelector("#interaction-text").style.opacity -= delta * 5;
-			if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = 1 - (LEVELHANDLER.playerHealth / 100);/* clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);*/
+			if (LEVELHANDLER.playerHealth > 0) document.querySelector("#dead-overlay").style.opacity = 1 - clamp((LEVELHANDLER.playerHealth / 100), 0, 1);/* clamp(document.querySelector("#dead-overlay").style.opacity - (delta), 0, 1);*/
 			// Update Animations
 			WEAPONHANDLER.handAnimationMixer.update(delta);
+			// if (WEAPONHANDLER.torus) {
+			// 	WEAPONHANDLER.torus.scale.addScalar(delta * 1000 * (WEAPONHANDLER.torus.scale.x > 250 ? 1.15 : 1));
+			// }
 			// Update Active NPC's
 			LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
-			document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalNPCs;
+			document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalKillableNPCs;
 			checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
 			if (INPUTHANDLER.isKeyPressed('f')) {
 				incrementChatIndex(LEVELHANDLER.SFXPlayer);
@@ -390,33 +413,56 @@
 			if (controls.isLocked == true) {
 				holder.innerHTML = "";
 				LEVELHANDLER.renderer.domElement.style.filter = "";
+				LEVELHANDLER.levelIsPaused = false;
 			}
 			else if(holder.innerHTML == "") {
+				LEVELHANDLER.levelIsPaused = true;
 				// if holder is empty ...
 				const pauseMenu = `
 				<div id="pause-menu">
 					<h1>PAUSED</h1>
-					<div style="margin-top: 50px">
-						<h3>RESUME</h3>
+					<h6>(VERY) EARLY DEMO</h6>
+					<div style="margin-top: 20px">
+						<h3 id="resume-btn">RESUME</h3>
 						<h3 id="settings-btn">SETTINGS</h3>
-						<h3><a href="../launcher/menu.html" style="color:white;text-decoration:none;">EXIT</a></h3>
+						<h3 id="baseExit" style="color:white;text-decoration:none;" onclick="document.querySelector('#baseExit').style.display='none';document.querySelector('#confirmExit').style.display='block';">EXIT</h3>
+						<h3 id="confirmExit" style="display:none"><a href="../launcher/menu.html" style="color:white;text-decoration:none;">[CONFIRM?]</a></h3>
+		                <h3><a href="steam://store/2384120" style="text-decoration:none;color: #6196fa;">WISHLIST NOW</a></h3>
+						<h3><a href="https://discord.gg/3Cj6Svkv8z" style="text-decoration:none;color: #4d6dff;" target="_blank">JOIN DISCORD</a></h3>
 					</div>
 				</div>
 				<div id="pause-menu-bg"></div>`;
 				LEVELHANDLER.renderer.domElement.style.filter = "grayscale(1)";
 				holder.innerHTML = pauseMenu;
+
+				const resumeBtn = document.querySelector("#resume-btn");
+				resumeBtn.style.opacity = 0.25;
+				const settingsBtn = document.querySelector("#settings-btn");
+				settingsBtn.style.opacity = 0.25;
+				setTimeout(() => {
+					resumeBtn.style.opacity = 1;
+					settingsBtn.style.opacity = 1;
+				}, 1000);
+
+				const n = resumeBtn.addEventListener('click', () => {
+					console.log(10);
+					holder.innerHTML = "";
+					controls.lock();
+				});
+
 				document.querySelector("#settings-btn").addEventListener('click', () => {
 					console.log("opened settings panel");
+					document.querySelector("#pause-menu").innerHTML = "<h4>Click to Resume</h4>";
+					document.querySelector("#pause-menu").style.pointerEvents = "none";
+					document.querySelector("#pause-menu").style.opacity = "0.25";
 					holder.innerHTML += `
 					<div id="settings-menu">
 						<h1>SETTINGS</h1>
 						<div>
-							<h5>INPUT</h5>
 							<div class="settings-item">
 								<div class="settings-name">SENSITIVITY</div>
 								<input type="range" min="0.1" max="2" value="1" step="0.1" id="sensitivity-slider" class="settings-input">
 							</div>
-							<h5>GRAPHICS</h5>
 							<div class="settings-item">
 								<h6>PARTICLES</h6>
 								<input type="checkbox" id="particles-checkbox">
@@ -425,59 +471,69 @@
 								<h6>POST PROCESSING</h6>
 								<input type="checkbox" id="post-processing-checkbox">
 							</div>
-							<h5>DISPLAY</h5>
+							<div class="settings-item">
+								<h6>REDUCE SCREEN SHAKING</h6>
+								<input type="checkbox" id="screen-shake-checkbox">
+							</div>
 							<div class="settings-item">
 								<h6>FOV</h6>
 								<input type="range" min="60" max="120" value="80" step="1" id="fov-slider">
 							</div>
-							<h5>AUDIO</h5>
 							<div class="settings-item">
 								<h6>MUSIC</h6>
-								<input type="range" min="0" max="1" step="0.01" id="music-slider">
+								<input type="range" min="0" max="2" step="0.01" id="music-slider">
 							</div>
 							<div class="settings-item">
 								<h6>SFX</h6>
 								<input type="range" min="0" max="0.25" step="0.01" id="sfx-slider">
 							</div>
 							<br />
-							<button id="reset-settings">RESET</button>
+							<button id="reset-settings" class="settings-btn">RESET</button>
+							<button id="fullscreen-btn" class="settings-btn">TOGGLE FULLSCREEN</button>
 						</div>
 					</div>`;
-					// PARTICLES SETTING
 					document.querySelector("#particles-checkbox").checked = !USERSETTINGS.disableParticles;
-					document.querySelector("#particles-checkbox").addEventListener('change', () => {
-						USERSETTINGS.disableParticles = !document.querySelector("#particles-checkbox").checked;
-						updateUserSettings(USERSETTINGS);
-					});
-					// POST PROCESSING SETTING
 					document.querySelector("#post-processing-checkbox").checked = !USERSETTINGS.disablePostProcessing;
-					document.querySelector("#post-processing-checkbox").addEventListener('change', () => {
-						USERSETTINGS.disablePostProcessing = !document.querySelector("#post-processing-checkbox").checked;
-						// rebuild the renderer
-						buildRenderer();
-						updateUserSettings(USERSETTINGS);
-					});
-					// SENSITIVITY SETTING
+					document.querySelector("#screen-shake-checkbox").checked = USERSETTINGS.screenShakeIntensity == 5;
 					document.querySelector("#sensitivity-slider").value = USERSETTINGS.mouseSensitivity;
-					document.querySelector("#sensitivity-slider").addEventListener('input', () => {
-						USERSETTINGS.mouseSensitivity = document.querySelector("#sensitivity-slider").value;
-						updateUserSettings(USERSETTINGS);
-					});
-					// FOV SETTING
 					document.querySelector("#fov-slider").value = USERSETTINGS.baseFOV;
-					document.querySelector("#fov-slider").addEventListener('input', () => {
-						USERSETTINGS.baseFOV = document.querySelector("#fov-slider").value;
+					document.querySelector("#music-slider").value = USERSETTINGS.musicVolume;
+					document.querySelector("#sfx-slider").value = USERSETTINGS.SFXVolume;
+
+					document.querySelector("#settings-menu").addEventListener('change', (event) => {
+						switch(event.target.id) {
+							case "particles-checkbox":
+								USERSETTINGS.disableParticles = !event.target.checked;
+								break;
+							case "post-processing-checkbox":
+								USERSETTINGS.disablePostProcessing = !event.target.checked;
+								// rebuild the renderer
+								buildRenderer();
+								break;
+							case "screen-shake-checkbox":
+								USERSETTINGS.screenShakeIntensity = event.target.checked ? 5 : 35;
+								break;
+							case "sensitivity-slider":
+								USERSETTINGS.mouseSensitivity = event.target.value;
+								break;
+							case "fov-slider":
+								USERSETTINGS.baseFOV = event.target.value;
+								break;
+							case "music-slider":
+								USERSETTINGS.musicVolume = event.target.value;
+								LEVELHANDLER.rebuildAudioPlayer();
+								break;
+							case "sfx-slider":
+								USERSETTINGS.SFXVolume = event.target.value;
+								LEVELHANDLER.rebuildAudioPlayer();
+								break;
+						}
 						updateUserSettings(USERSETTINGS);
 					});
-					// MUSIC SETTING
-					document.querySelector("#music-slider").value = LEVELHANDLER.SFXPlayer.musicVolume;
-					document.querySelector("#music-slider").addEventListener('input', () => {
-						LEVELHANDLER.SFXPlayer.musicVolume = document.querySelector("#music-slider").value;
-					});
-					// SFX SETTING
-					document.querySelector("#sfx-slider").value = LEVELHANDLER.SFXPlayer.sfxVolume;
-					document.querySelector("#sfx-slider").addEventListener('input', () => {
-						LEVELHANDLER.SFXPlayer.sfxVolume = document.querySelector("#sfx-slider").value;
+
+					// FULLSCREEN BUTTON
+					document.querySelector("#fullscreen-btn").addEventListener('click', () => {
+						toggleFullscreen();
 					});
 
 					// RESET BUTTON
@@ -500,6 +556,13 @@
 			}
 			if (INPUTHANDLER.isKeyPressed('t')) document.querySelector("#vizbox").style.display = "block";
 			else document.querySelector("#vizbox").style.display = "none";
+			if ((INPUTHANDLER.isKeyPressed('F11') || (INPUTHANDLER.isKeyPressed('Alt') && INPUTHANDLER.isKeyPressed('Enter'))) && canFullScreenWithKeeb == true) {
+				toggleFullscreen();
+				canFullScreenWithKeeb = false;
+				setTimeout(() => {
+					canFullScreenWithKeeb = true;
+				}, 250);
+			}
 			// Update Active Particles
 			particleHandler.update(delta);
 			LEVELHANDLER.killBlobs.forEach(blob => blob.move(delta));
@@ -523,6 +586,7 @@
 				WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
 				WEAPONHANDLER.muzzleFire.material.opacity -= 15 * delta;
 			}
+			// ^ good code austin very clever
 			if (WEAPONHANDLER.weaponIsEquipped && WEAPONHANDLER.weaponRemainingAmmo == 0) {
 				setInteractionText("<b>[Q]</b> THROW WEAPON");
 			}
@@ -588,7 +652,7 @@
 	        //     }, 3000);
 	        // }
 
-			const elevatorDuration = 2;
+			const elevatorDuration = 3;
 			LEVELHANDLER.isCameraShaking = true;
 			USERSETTINGS.screenShakeIntensity /= 3;
 			LEVELHANDLER.SFXPlayer.elevatorShakeSound.play();
@@ -601,6 +665,9 @@
 
 				LEVELHANDLER.SFXPlayer.dingSound.play();
 
+				const musicID = LEVELHANDLER.SFXPlayer.SelectMusicID(LEVELHANDLER.levelID);
+	            if (musicID != -1) LEVELHANDLER.SFXPlayer.startMusicPlayback(musicID);
+
 				// adjust lighting
 				LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
 				
@@ -610,12 +677,12 @@
 					LEVELHANDLER.elevatorDoorLeft.position.x -= 0.25;
 					LEVELHANDLER.elevatorDoorRight.position.x += 0.25;
 				}, 10);
+				LEVELHANDLER.elevatorHasOpened = true;
 
 				setTimeout(() => {
 					clearInterval(n);
 					LEVELHANDLER.elevatorDoorLeft.visible = LEVELHANDLER.elevatorDoorRight.visible = false;
 					USERSETTINGS.screenShakeIntensity *= 3;
-					LEVELHANDLER.elevatorHasOpened = true;
 				}, 1000);
 			}, elevatorDuration * 1000);
 		

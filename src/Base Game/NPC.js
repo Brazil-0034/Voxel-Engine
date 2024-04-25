@@ -33,6 +33,7 @@ export class NPC {
     fovConeHull // for vision calculation
     floorgore // for gore
     hitboxCapsule // for raycasting
+    cameraShakeTimeout // on hit shake timer
 
     knowsWherePlayerIs // self explanatory
     voxelField // for raycasting
@@ -48,10 +49,10 @@ export class NPC {
     isKillable
 
     // This will build the NPC (setting idle/run animation and loading model into scene)
-    constructor(npcName, texturePath, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType, isHostile) {
+    constructor(npcName, position, rotationIntervals, speed, health, LEVELHANDLER, voxelField, WEAPONHANDLER, weaponType, isHostile) {
         this.npcName = npcName;
         this.friendlyNPCs = []
-        this.meleeNPCs = ["entity", "alien_combat"];
+        this.meleeNPCs = ["entity"/*, "alien_combat"*/];
 
         if (this.friendlyNPCs.includes(this.npcName)) this.isKillable = false;
         else this.isKillable = true;
@@ -196,7 +197,7 @@ export class NPC {
             this.shootBar = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.05, 0.05, 70, 8),
                 new THREE.MeshBasicMaterial({
-                    map: LEVELHANDLER.globalTextureLoader.load("../img/shootbar.png"),
+                    map: LEVELHANDLER.globalTextureLoader.load("../img/shootbar" + (this.npcName == "alien_combat" ? "_blue" : "") +  ".png"),
                     transparent: true,
                     emissive: 0xffffff,
                     emissiveIntensity: 2.5,
@@ -210,7 +211,10 @@ export class NPC {
             this.shootBar.position.y = 4.25;
 
             if (this.meleeNPCs.includes(this.npcName)) {
-                if (this.npcName == "entity") this.sceneObject.scale.divideScalar(4);
+                if (this.npcName == "entity") {
+                    this.sceneObject.scale.divideScalar(4);
+                    this.hitboxCapsule.scale.multiplyScalar(6);
+                }
                 this.shootBar.position.y = 9999;
                 this.knowsWherePlayerIs = true;
                 this.fovConeMesh.scale.divideScalar(2);
@@ -333,18 +337,23 @@ export class NPC {
                     // if the player is closer than the nearest voxel, he can be seen
                     if (this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position) < this.sceneObject.position.distanceTo(intersectPosition))
                     {
-                        this.shootPlayer(delta);
+                        this.knowsWherePlayerIs = true;
+                        if (!this.meleeNPCs.includes(this.npcName)) this.shootPlayer(delta);
                     }
                     else
                     {
+                        // if the player is shrouded
+                		this.shootTimer = undefined;
+                		this.canShoot = false;
                         this.shootBar.visible = false;
                     }
 
                 }
                 else
                 {
+                    this.knowsWherePlayerIs = true;
                     // else, if there is no voxel in the way, the player can be seen
-                    this.shootPlayer(delta);
+                    if (!this.meleeNPCs.includes(this.npcName)) this.shootPlayer(delta);
                 }
             }
         }
@@ -367,7 +376,7 @@ export class NPC {
 
                 // If too far, move closer
                 const distanceToPlayerCamera = this.sceneObject.position.distanceTo(this.LEVELHANDLER.camera.position);
-                if (distanceToPlayerCamera > 20 || (this.meleeNPCs.includes(this.npcName) && distanceToPlayerCamera > 50)) {
+                if (distanceToPlayerCamera > 20) {
                     const direction = new THREE.Vector3();
                     this.LEVELHANDLER.camera.getWorldDirection(direction);
                     direction.y = 0;
@@ -375,14 +384,17 @@ export class NPC {
                     direction.negate();
                     const r = this.voxelField.raycast(this.sceneObject.position.clone().setY(4), direction, 100);
                     if (!r) {
-                        this.sceneObject.position.addScaledVector(direction, delta * this.speed);
+                        this.sceneObject.position.addScaledVector(direction, delta * this.speed * (this.npcName == "entity" ? 5 : 1));
                         this.runAnimation.play();
                     }
                 }
-                else {
+                if (distanceToPlayerCamera < 50) {
                     this.runAnimation.stop();
                     this.idleAnimation.play();
-                    if (this.meleeNPCs.includes(this.npcName)) this.shootPlayer(100);
+                    if (this.meleeNPCs.includes(this.npcName)) {
+                        this.knowsWherePlayerIs = true;
+                        this.shootPlayer(100);
+                    }
                 }
             }
         }
@@ -394,7 +406,7 @@ export class NPC {
             if (!this.shootTimer) {
                 this.shootTimer = setTimeout(() => {
                     this.canShoot = true;
-                }, 250);
+                }, 350);
             }
             return;
         }
@@ -405,13 +417,16 @@ export class NPC {
             // Update AI
             this.knowsWherePlayerIs = true;
             // Update Player Health
-            this.LEVELHANDLER.playerHealth -= delta * 250;
+            this.LEVELHANDLER.playerHealth -= delta * 175;
             this.LEVELHANDLER.hasBeenShot = true;
             // Animations
             this.shootBar.visible = true;
             this.shootBar.material.map.offset.y -= delta * 15;
-            document.querySelector("#dead-overlay").style.opacity = 1;
-            document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
+            this.LEVELHANDLER.isCameraShaking = true;
+            this.LEVELHANDLER.SFXPlayer.setNPCSoundPlaying("npcShootSound", true);
+            if (this.cameraShakeTimeout) clearTimeout(this.cameraShakeTimeout);
+            this.cameraShakeTimeout = setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
+            // document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
             for (let i = 1; i < 3; i++)
             {
                 const thisAnim = document.querySelector("#health-anim-" + i);
@@ -436,9 +451,9 @@ export class NPC {
             // Freeze player motion and interactivity
             this.LEVELHANDLER.lastPlayerKiller = this;
             pauseGameState(this.LEVELHANDLER, this.WEAPONHANDLER);
-            this.LEVELHANDLER.deathCount += 1;
             // Fix gun sfx bug
             this.LEVELHANDLER.SFXPlayer.setSoundPlaying("shootSound", false);
+            this.LEVELHANDLER.SFXPlayer.setNPCSoundPlaying("npcShootSound", false);
             // Outline the killer
             this.LEVELHANDLER.outliner.selectedObjects.push(this.npcObject);
             // Draw Last Kill Line
@@ -474,23 +489,45 @@ export class NPC {
         this.dieAnimation.play();
         this.shootBar.visible = false;
         this.floorgore.position.copy(this.sceneObject.position.clone().setY(3 - rapidFloat()));
+        this.LEVELHANDLER.SFXPlayer.setNPCSoundPlaying("npcShootSound", false);
         if (this.isHostile) this.LEVELHANDLER.totalKillableNPCs--;
         if (this.LEVELHANDLER.levelID == "00") {
             this.LEVELHANDLER.assistObj.visible = false;
             this.LEVELHANDLER.assistObj.material.opacity = 0;
         }
         this.LEVELHANDLER.totalNPCs--;
-        if (!this.LEVELHANDLER.meleeNPCs.includes(this.npcName))
+    	this.LEVELHANDLER.SFXPlayer.shiftEnergy('high');
+        if (!USERSETTINGS.disableParticles)
         {
-            if (!USERSETTINGS.disableParticles)
-            {
+            // if (this.WEAPONHANDLER.weaponName == "Shotgun") {
+                // const pos = this.sceneObject.position.clone().setY(this.sceneObject.position.y + (rapidFloat() * 60));
+                // this.blobs.forEach(blob => {
+                //     const dir = new THREE.Vector3();
+                //     dir.x += (rapidFloat() * 0.5) - 0.25;
+                //     dir.y += (rapidFloat() * 0.5) - 0.25;
+                //     dir.z += (rapidFloat() * 0.5) - 0.25;
+                //     const r = this.voxelField.raycast(
+                //         pos,
+                //         dir,
+                //         10000,
+                //         true
+                //     );
+                //     if (r != null) {
+                //         blob.endPosition = new THREE.Vector3(r.x, r.y, r.z);
+                //     }
+                //     else blob.endPosition = new THREE.Vector3(0, -100, 0);
+                // })
+            // }
+            if (this.WEAPONHANDLER.weaponName != "Shotgun") {
                 this.LEVELHANDLER.killBlobs.push(...this.blobs);
-                this.floorgore.visible = true;
             }
+        }
+        this.floorgore.visible = true;
+        if (!this.meleeNPCs.includes(this.npcName))
+        {
             if (this.isHostile) {
                 this.weaponPickup.isActive = true;
                 this.weaponPickup.visible = true;
-                console.log(this.weaponPickup);
             }
         }
 
@@ -508,7 +545,6 @@ export class NPC {
 
         this.LEVELHANDLER.SFXPlayer.playRandomSound("killSounds", 1 + rapidFloat());
         if (this.LEVELHANDLER.hasKilledYet == false) {
-            this.LEVELHANDLER.SFXPlayer.startMusicPlayback(this.LEVELHANDLER.SFXPlayer.SelectMusicID(this.LEVELHANDLER.levelID));
             this.LEVELHANDLER.hasKilledYet = true;
         }
 

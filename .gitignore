@@ -5,3 +5,4 @@ out
 src/threejs/*
 *.mp4
 *.mp4
+/.VSCodeCounter

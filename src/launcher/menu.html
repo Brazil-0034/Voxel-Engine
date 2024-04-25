@@ -5,12 +5,12 @@
     <style>
         @font-face {
             font-family: 'VT323';
-            src: url('../fonts/VT323.ttf');
+            src: url('../Base Game/VT323.ttf');
         }
 
         @font-face {
             font-family: "Montserrat";
-            src: url("../opensource/fonts/Montserrat/Montserrat-VariableFont_wght.ttf") format("truetype");
+            src: url("../Base Game/Montserrat-VariableFont_wght.ttf") format("truetype");
             font-weight: 100 900;
         }
 
@@ -347,17 +347,36 @@
     <div id="main">
         <!-- <img src="../img/menu_logo.png" id="big-text-at-the-top" /> -->
         <div id="left-menu-tray">
-            <div class="menu-space"></div>
             <div class="left-menu-item"
-                onclick="/*toggleMapSelect(this)*/document.body.style.filter = 'contrast(15%)'; setTimeout(() => {window.location.href = '../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=09_SCIENCE_FLOOR_04'}, 15)">
+                onclick="/*toggleMapSelect(this)*/document.body.style.filter = 'contrast(15%)'; setTimeout(() => {
+                    // const starting_level = `00_FLOOR_01`;
+                    const starting_level = `05_FLOOR_06`;
+                    // const starting_level = `TE_TEST`;
+
+                    window.location.href = '../Base Game/cutscene.html?videoSrc=intro_video&nextLevelURL=' + starting_level
+                }, 15)">
                 Start Demo</div>
             <div style="opacity:0.5; pointer-events: none;">
                 <div class="left-menu-item">Multiplayer</div>
                 <div class="left-menu-item">Mods</div>
             </div>
-            <div class="left-menu-item">Settings</div>
+            <!-- <div class="left-menu-item">Settings</div> -->
+            <div class="menu-space"></div>
+            <a href="steam://store/2384120" style="text-decoration:none">
+                <div class="left-menu-item" style="color: #6196fa; font-weight: bolder">
+                    >> ADD TO WISHLIST <<
+                </div>
+            </a>
+            <a href="https://discord.gg/3Cj6Svkv8z" style="text-decoration:none" id="discordLink">
+                <div class="left-menu-item" style="color: #4d6dff; font-weight: bolder">
+                    >> JOIN THE DISCORD <<
+                </div>
+            </a>
             <div class="menu-space"></div>
             <!-- <div class="left-menu-divider subtle-text">Pre-Release 0.1.0</div> -->
+            <div class="left-menu-item" style="pointer-events: none; text-rendering: geometricPrecision; filter: blur(0.5px)">
+                <h6 style="opacity:0.4">Music Credit: Baddon, Karl Casey</h6>
+            </div>
         </div>
     </div>
 
@@ -380,10 +399,13 @@
     </div>
 
     <script>
-        const arrowSymbol = "<font style='font-size: 80%'>" + '► ' + "</font>";
+        let arrowSymbol = "<font style='font-size: 80%; color: #ffffff'>" + '► ' + "</font>";
         document.querySelectorAll(".left-menu-item").forEach(item => {
             item.addEventListener('mouseover', event => {
                 if (item.textContent.substring(0, 2) != arrowSymbol) {
+                    if (item.textContent.includes("WISHLIST")) arrowSymbol = "<font style='font-size: 80%; color: #6196fa'>" + '► ' + "</font>"
+                    else if (item.textContent.includes("DISCORD")) arrowSymbol = "<font style='font-size: 80%; color: #4d6dff'>" + '► ' + "</font>"
+                    else arrowSymbol = "<font style='font-size: 80%; color: #ffffff'>" + '► ' + "</font>";
                     item.innerHTML = arrowSymbol + item.textContent;
                 }
             });
@@ -393,6 +415,26 @@
                 }
             });
         });
+
+        document.querySelector("#discordLink").addEventListener('click', event => {
+            event.preventDefault();
+            console.log(event.target);
+            require("electron").shell.openExternal(event.target.parentElement.href);
+        });
+
+    	const { ipcRenderer } = require('electron');
+
+        // fullscreen
+        const toggleFullscreen = function() {
+            ipcRenderer.send('fullscreen');
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'F11' || (event.altKey && event.key === 'Enter')) {
+                toggleFullscreen();
+            }
+        });
+
     </script>
 </body>
 

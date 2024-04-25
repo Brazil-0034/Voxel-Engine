@@ -3,7 +3,7 @@
         "type": "melee",
         "name": "Fists",
         "helpText": "[Left Click] Punch",
-        "fireRate": 20,
+        "fireRate": 100,
         "totalAmmo": 0,
         "weaponDamage": 100,
         "damageRange": 4,
