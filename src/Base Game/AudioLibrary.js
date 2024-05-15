@@ -11,6 +11,7 @@ export class SoundEffectPlayer {
     shootSound
     chatSounds
     dingSound
+    healthPickup
     elevatorShakeSound
     isPlayingShootSound
     isPlayingNPCShootSound
@@ -47,6 +48,10 @@ export class SoundEffectPlayer {
         this.rustleSound = new Howl({
             src: ['../sfx/rustle.mp3'],
             volume: USERSETTINGS.SFXVolume * 20
+        })
+        this.healthPickup = new Howl({
+            src: ['../sfx/healthpickup.ogg'],
+            volume: USERSETTINGS.SFXVolume * 10
         })
         this.levelClearSound = new Howl({
             src: ['../sfx/level_clear.mp3'],
@@ -236,8 +241,10 @@ export class SoundEffectPlayer {
                 return 4;
             case "04":
                 return 1;
-            case "06":
+            case "05":
                 return 1;
+            case "06":
+                return 0;
             case "07":
                 return -1;
             default:

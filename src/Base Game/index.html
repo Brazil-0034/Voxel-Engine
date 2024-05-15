@@ -8,6 +8,7 @@
 </head>
 
 <body>
+	<div id="clickprevention"></div>
 	<!-- LOADER -->
 	<div id="loader-bg">
 		<div id="loader">LOADING</div>
@@ -181,7 +182,7 @@
 
 		const LEVELHANDLER = new LevelHandler(
 			new THREE.Scene(),
-			new THREE.PerspectiveCamera(0, window.innerWidth / window.innerHeight, 1, 5000)
+			new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 5000)
 		);
 		LEVELHANDLER.SFXPlayer.playSound('startLevelSound', false);
 		const WEAPONHANDLER = LEVELHANDLER.WEAPONHANDLER = new WeaponHandler(LEVELHANDLER)
@@ -385,6 +386,8 @@
 			ipcRenderer.send('fullscreen');
 		}
 
+		let clickprevention = document.querySelector("#clickprevention");
+
 		let canFullScreenWithKeeb = true;
 		const holder = document.querySelector("#pause-menu-holder");
 		const update = function () {
@@ -406,6 +409,9 @@
 			// Update Active NPC's
 			LEVELHANDLER.NPCBank.forEach(npc => npc.update(delta));
 			document.querySelector("#enemy-counter").textContent = LEVELHANDLER.totalKillableNPCs;
+			// if (LEVELHANDLER.totalKillableNPCs == 1) {
+			// 	document.querySelector("#enemy-counter").textContent = "1 ENEMY LEFT"
+			// }
 			checkChat(LEVELHANDLER.levelID, LEVELHANDLER.camera.position);
 			if (INPUTHANDLER.isKeyPressed('f')) {
 				incrementChatIndex(LEVELHANDLER.SFXPlayer);
@@ -583,7 +589,7 @@
 			else LEVELHANDLER.renderer.domElement.style.transform = "translate(0px, 0px)";
 			// Impact Effect Softening
 			if (WEAPONHANDLER.fireSprite) {
-				WEAPONHANDLER.fireSprite.material.opacity -= 7.5 * delta;
+				WEAPONHANDLER.fireSprite.material.opacity -= 12.5 * delta;
 				WEAPONHANDLER.muzzleFire.material.opacity -= 15 * delta;
 			}
 			// ^ good code austin very clever
@@ -630,79 +636,86 @@
 
 			requestAnimationFrame(update);
 			LEVELHANDLER.renderer.info.reset();
+			if (clickprevention) {
+				clickprevention.remove();
+				clickprevention = undefined;
+			}
 			render();
 		}
 
-		const startGame = function() {
-			if (gameStarted) return;
-			document.querySelector("#da-big-text").innerHTML = "LOADING . . .";
-			controls.lock();
-			render();
-			
-			// INTRO LEVEL video
-			// if (LEVELHANDLER.levelID == "00") {
-	        //     const vidEl =`
-	        //     <video id="ttywd" style="background: black;position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; width: 105%; height: 105%;">
-	        //         <source src="../videos/ttywd.mp4" type="video/mp4">
-	        //     </video>`;
-	        //     document.querySelector("body").insertAdjacentHTML('beforeend', vidEl);
-	        //     document.querySelector("#ttywd").play();
-	        //     setTimeout(() => {
-	        //         document.querySelector("video").remove();
-	        //     }, 3000);
-	        // }
+		const startGame = (function() {
+			var executed = false;
+			return function() {
+				if (!executed) {
+					executed = true;
+					setTimeout(() => {
+						document.querySelector("#da-big-text").innerHTML = "LOADING . . .";
+						controls.lock();
+						render();
+						
+						// INTRO LEVEL video
+						// if (LEVELHANDLER.levelID == "00") {
+				        //     const vidEl =`
+				        //     <video id="ttywd" style="background: black;position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; width: 105%; height: 105%;">
+				        //         <source src="../videos/ttywd.mp4" type="video/mp4">
+				        //     </video>`;
+				        //     document.querySelector("body").insertAdjacentHTML('beforeend', vidEl);
+				        //     document.querySelector("#ttywd").play();
+				        //     setTimeout(() => {
+				        //         document.querySelector("video").remove();
+				        //     }, 3000);
+				        // }
 
-			const elevatorDuration = 3;
-			LEVELHANDLER.isCameraShaking = true;
-			USERSETTINGS.screenShakeIntensity /= 3;
-			LEVELHANDLER.SFXPlayer.elevatorShakeSound.play();
-	        setTimeout(() => {
-				LEVELHANDLER.initializeTimer();
-				LEVELHANDLER.isCameraShaking = false;
-				// update elevator text
-	            LEVELHANDLER.elevatorLoadingText.visible = false;
-	            LEVELHANDLER.elevatorText.visible = true;
+						const elevatorDuration = 3;
+						LEVELHANDLER.isCameraShaking = true;
+						USERSETTINGS.screenShakeIntensity /= 3;
+						LEVELHANDLER.SFXPlayer.elevatorShakeSound.play();
+				        setTimeout(() => {
+							LEVELHANDLER.initializeTimer();
+							LEVELHANDLER.isCameraShaking = false;
+							// update elevator text
+				            LEVELHANDLER.elevatorLoadingText.visible = false;
+				            LEVELHANDLER.elevatorText.visible = true;
 
-				LEVELHANDLER.SFXPlayer.dingSound.play();
+							LEVELHANDLER.SFXPlayer.dingSound.play();
 
-				const musicID = LEVELHANDLER.SFXPlayer.SelectMusicID(LEVELHANDLER.levelID);
-	            if (musicID != -1) LEVELHANDLER.SFXPlayer.startMusicPlayback(musicID);
+							const musicID = LEVELHANDLER.SFXPlayer.SelectMusicID(LEVELHANDLER.levelID);
+				            if (musicID != -1) LEVELHANDLER.SFXPlayer.startMusicPlayback(musicID);
 
-				// adjust lighting
-				LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
-				
-				// move elevator doors
-				let n;
-				n = setInterval(() => {
-					LEVELHANDLER.elevatorDoorLeft.position.x -= 0.25;
-					LEVELHANDLER.elevatorDoorRight.position.x += 0.25;
-				}, 10);
-				LEVELHANDLER.elevatorHasOpened = true;
+							// adjust lighting
+							LEVELHANDLER.backlight.color = LEVELHANDLER.defaultBacklightColor;
+							
+							// move elevator doors
+							let n;
+							n = setInterval(() => {
+								LEVELHANDLER.elevatorDoorLeft.position.x -= 0.25;
+								LEVELHANDLER.elevatorDoorRight.position.x += 0.25;
+							}, 10);
+							LEVELHANDLER.elevatorHasOpened = true;
 
-				setTimeout(() => {
-					clearInterval(n);
-					LEVELHANDLER.elevatorDoorLeft.visible = LEVELHANDLER.elevatorDoorRight.visible = false;
-					USERSETTINGS.screenShakeIntensity *= 3;
-				}, 1000);
-			}, elevatorDuration * 1000);
-		
-			document.querySelector("#npc-chat").style.visibility = "visible";
-			document.querySelector("#da-big-text").style.display = "none";
-			document.querySelector("#prevent-overlay").style.display = "none";
-			document.querySelectorAll(".health").forEach(e => e.style.visibility = "visible");
-			document.querySelector("#middle-crosshair").style.visibility = "visible";
-			document.querySelector("#interaction-text").style.visibility = "visible";
-			update();
-		}
+							setTimeout(() => {
+								clearInterval(n);
+								LEVELHANDLER.elevatorDoorLeft.visible = LEVELHANDLER.elevatorDoorRight.visible = false;
+								USERSETTINGS.screenShakeIntensity *= 3;
+							}, 1000);
+						}, elevatorDuration * 1000);
+					
+						document.querySelector("#npc-chat").style.visibility = "visible";
+						document.querySelector("#da-big-text").style.display = "none";
+						document.querySelector("#prevent-overlay").style.display = "none";
+						document.querySelectorAll(".health").forEach(e => e.style.visibility = "visible");
+						document.querySelector("#middle-crosshair").style.visibility = "visible";
+						document.querySelector("#interaction-text").style.visibility = "visible";
+						update();
+					}, 250);
+				}
+			}
+		})();
 
-		let gameStarted = false;
 		const n = () => {
 			if (LEVELHANDLER.levelFinishedLoading == false) return;
 			controls.lock();
-			if (!gameStarted) {
-				startGame();
-				gameStarted = true;
-			}
+			startGame();
 		};
 
 		LEVELHANDLER.renderer.domElement.addEventListener('click', n);

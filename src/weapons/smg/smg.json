@@ -6,7 +6,7 @@
         "fireRate": 40,
         "totalAmmo": 30,
         "weaponDamage": 25,
-        "damageRange": 3,
+        "damageRange": 5,
         "minimumDistance": 1500,
         "disableHeadBop": false,
         "followSpeed": 25,

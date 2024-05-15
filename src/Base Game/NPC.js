@@ -53,7 +53,6 @@ export class NPC {
         this.npcName = npcName;
         this.friendlyNPCs = []
         this.meleeNPCs = ["entity"/*, "alien_combat"*/];
-
         if (this.friendlyNPCs.includes(this.npcName)) this.isKillable = false;
         else this.isKillable = true;
 
@@ -84,6 +83,11 @@ export class NPC {
             if (object.children[0].type == "SkinnedMesh") this.npcObject = object.children[0];
             else this.npcObject = object.children[1];
             this.npcObject.npcHandler = this;
+            if (npcName == "entity") {
+                setInterval(() => {
+                    if (rapidFloat() < 0.1) this.sceneObject.position.copy(globalOffset.clone.add(new THREE.Vector3(rapidFloat() * 1000, 0, rapidFloat() * 1000)));
+                }, 10000)
+            }
 
             this.sceneObject.traverse(function (childObject) {
                 if (childObject.isMesh) {
@@ -384,7 +388,7 @@ export class NPC {
                     direction.negate();
                     const r = this.voxelField.raycast(this.sceneObject.position.clone().setY(4), direction, 100);
                     if (!r) {
-                        this.sceneObject.position.addScaledVector(direction, delta * this.speed * (this.npcName == "entity" ? 5 : 1));
+                        this.sceneObject.position.addScaledVector(direction, delta * this.speed * (this.npcName == "entity" ? 7.5 : 1));
                         this.runAnimation.play();
                     }
                 }
@@ -426,7 +430,7 @@ export class NPC {
             this.LEVELHANDLER.SFXPlayer.setNPCSoundPlaying("npcShootSound", true);
             if (this.cameraShakeTimeout) clearTimeout(this.cameraShakeTimeout);
             this.cameraShakeTimeout = setTimeout(() => { this.LEVELHANDLER.isCameraShaking = false; }, 150);
-            // document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
+            document.querySelector("#healthbar").style.width = this.LEVELHANDLER.playerHealth * 2 + "px";
             for (let i = 1; i < 3; i++)
             {
                 const thisAnim = document.querySelector("#health-anim-" + i);

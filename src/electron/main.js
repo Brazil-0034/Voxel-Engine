@@ -41,7 +41,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, indexFile))
 
     // devtools
-    mainWindow.webContents.openDevTools()
+    // mainWindow.webContents.openDevTools()
 
     // emitter bug
 

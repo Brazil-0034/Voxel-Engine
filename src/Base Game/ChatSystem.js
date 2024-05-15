@@ -123,7 +123,7 @@ export const checkChat = function(ID, position) {
                 ]);
             }
             break;
-        case "05":
+        case "07":
             if (playerIsNear(position, position.x, 9598)) {
                 speakerName.innerHTML = "THUG LEADER";
                 playChat([
@@ -138,18 +138,13 @@ export const checkChat = function(ID, position) {
             }
             break;
         case "06":
-            if (playerIsNear(position, 10000, 9717)) {
-                speakerName.innerHTML = "SCIENTIST";
-                playChat([
-                    "Welcome to the [EVIL CORP] department of Research and Science.",
-                    "Sorry, but visitors are not allowed on this floor.",
-                    "Please leave immediately.",
-                    ". . .",
-                    "I hate my job.",
-                    ". . .",
-                    "I'm so lonely."
-                ]);
-            }
+            // if (playerIsNear(position, 9961, 9795)) {
+            //     speakerName.innerHTML = "*DEVELOPER*";
+            //     playChat([
+            //         ". . .",
+            //         "No, I'm not changing the animation for holding the revolver."
+            //     ]);
+            // }
             break;
         case "09":
             speakerName.innerHTML = "ALARMED SCIENTIST";

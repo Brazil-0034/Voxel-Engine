@@ -299,7 +299,7 @@ export const generateWorld = function (modelURL, LEVELHANDLER, USERSETTINGS, WEA
                     // sometimes -0 (or a number close to it) is actually 180 deg, so we need to account for that
                     if (mapMakerObject.rotation.y < 0.1 && mapMakerObject.rotation.y > -0.1) mapMakerObject.rotation.y = Math.PI;
                     let weaponType = 'smg';
-                    if (LEVELHANDLER.levelID == "03") weaponType = "shotgun";
+                    // if (LEVELHANDLER.levelID == "03") weaponType = "shotgun";
                     const thisNPC = new NPC(
                         mapMakerObject.enemyType,
                         new THREE.Vector3(position.x, 1, position.z),

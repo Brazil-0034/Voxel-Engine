@@ -78,6 +78,16 @@ canvas {
     }
 }
 
+#clickprevention {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 99999999;
+    pointer-events: none;
+}
+
 #end-red-flash {
     position: absolute;
     top: 0;
@@ -409,20 +419,6 @@ h5 {
 }
 
 @-webkit-keyframes shift-gradient {
-    0% {
-        background-position: 10% 0%
-    }
-
-    50% {
-        background-position: 91% 100%
-    }
-
-    100% {
-        background-position: 10% 0%
-    }
-}
-
-@-moz-keyframes shift-gradient {
     0% {
         background-position: 10% 0%
     }
@@ -784,7 +780,6 @@ h5 {
 }
 
 .health {
-    opacity: 0;
     position: absolute;
     left: 20px;
     bottom: 20px;
@@ -997,20 +992,19 @@ h5 {
 
 #next-level-text {
     position: absolute;
+    top: 80%;
     left: 50%;
-    bottom: 10%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
 
     font-size: 180%;
-    text-shadow: white 0px 0px 25px;
+    text-shadow: rgb(255, 222, 33) 0px 0px 25px;
 
-    background: -webkit-linear-gradient(#ccc 80%, #ffffff78 20%);
+    background: -webkit-linear-gradient(#ffe23f 80%, #ffda08a8 20%);
     background-size: 200% 15%;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     -webkit-animation: shift-gradient 0.5s ease infinite;
-    -moz-animation: shift-gradient 0.5s ease infinite;
     animation: shift-gradient 0.5s ease infinite;
 }
 

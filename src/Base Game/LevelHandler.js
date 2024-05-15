@@ -187,6 +187,8 @@ export class LevelHandler {
 					explosion.children[0].material.forEach(mat => {mat.opacity = 0.5});
 				}
 			}, 10);
+			// Sound
+			this.SFXPlayer.playSound("blastSound", true);
 			// cleanup //
 			explosive.parent.visible = false;
 			this.isCameraShaking = true;

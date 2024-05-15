@@ -357,10 +357,12 @@ export class PlayerController {
                             if (this.LEVELHANDLER.playerHealth > 100) this.LEVELHANDLER.playerHealth = 100;
                             pickup.isActive = false;
                             pickup.visible = false;
+                            this.LEVELHANDLER.SFXPlayer.playSound("healthPickup", false);
                             const flashElement = document.createElement("div");
                             flashElement.id = "health-flash";
                             document.body.appendChild(flashElement);
                             setTimeout(() => flashElement.remove(), 1000);
+                        	document.querySelector("#healthbar").style.width = "200px";
                         }
                     }
                 }

@@ -155,11 +155,16 @@ export const endGameState = function(LEVELHANDLER) {
 				<img id="widebar-text" src="../img/level_clear.gif?` + new Date().getTime() + `"/>
 			</div>
 		</div>
-		<div id="flasher">
-			<b id="next-level-text"></b>
-		</div>
 	</div>`
 	document.querySelector("#end-screen").innerHTML = endScreen;
+	setTimeout(() => {
+		if (LEVELHANDLER.gameStateEnded == false) return;
+		document.querySelector("#widebar-carrier").innerHTML += `
+		<div id="flasher">
+			<b id="next-level-text"></b>
+		</div>`;
+	}, 3500)
+	console.log("ASSIGNED ENDSCREEN");
 	const createBar = () => {
 		const whiteBar = document.createElement("div");
 		whiteBar.innerHTML = "🠶";
@@ -193,10 +198,13 @@ export const endGameState = function(LEVELHANDLER) {
 			}, 500);
 			const timerSeconds = document.querySelector("#timer-seconds");
 			const timerCentiseconds = document.querySelector("#timer-centiseconds");
-			setTimeout(() => {
-				document.querySelector("#bonus-challenges").innerHTML += `
-				<img src="../img/under7seconds` + (parseInt(timerSeconds.textContent) > 6 ? `-failed` : ``) + `.gif?` + new Date().getTime() + `" class="bonus-challenges-text" />`
-			}, 750);
+			if (!["05", "06", "07"].includes(LEVELHANDLER.levelID))
+			{
+				setTimeout(() => {
+					document.querySelector("#bonus-challenges").innerHTML += `
+					<img src="../img/under7seconds` + (parseInt(timerSeconds.textContent) > 6 ? `-failed` : ``) + `.gif?` + new Date().getTime() + `" class="bonus-challenges-text" />`
+				}, 750);
+			}
 		}
 	}, 3500);
 	
