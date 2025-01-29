@@ -1,4 +1,4 @@
-# Voxel-Engine
+# Voxel Simulation Engine
 This is my JavaScript voxel game/physics engine.
 
 It can render a few million voxels at a solid framerate (on my ancient PC), and compute physics and realtime destruction.<br>My goal is to have it be as large-scale as [Teardown](https://store.steampowered.com/app/1167630/Teardown/), but much more efficient in both rendering and physics calculations.
